@@ -14,3 +14,5 @@
 
  Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
  
+ Follow me on Twitter @JosephRyanRies
+ 
