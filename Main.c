@@ -1,8 +1,19 @@
-#include <stdio.h>
+// Codename: GameB
+// Will come up with a better name later.
+// 2020 Joseph Ryan Ries <ryanries09@gmail.com>
+// My YouTube series where we program an entire video game from scratch in C.
+// Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
+// Follow along on GitHub: https://github.com/ryanries/GameB
+// Find me on Twitter @JosephRyanRies 
+
 
 #pragma warning(push, 3)
 
+#include <stdio.h>
+
 #include <windows.h>
+
+#include <emmintrin.h>
 
 #pragma warning(pop)
 
@@ -17,7 +28,6 @@ BOOL gGameIsRunning;
 GAMEBITMAP gBackBuffer;
 
 GAMEPERFDATA gPerformanceData;
-
 
 int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR CommandLine, INT CmdShow)
 {
@@ -41,6 +51,23 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
     int64_t ElapsedMicrosecondsPerFrameAccumulatorCooked = 0;
 
+    HMODULE NtDllModuleHandle;
+
+    if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL)
+    {
+        MessageBoxA(NULL, "Couldn't load ntdll.dll!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+
+        goto Exit;
+    }
+
+    if ((NtQueryTimerResolution = (_NtQueryTimerResolution)GetProcAddress(NtDllModuleHandle, "NtQueryTimerResolution")) == NULL)
+    {
+        MessageBoxA(NULL, "Couldn't find the NtQueryTimerResolution function in ntdll.dll!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+
+        goto Exit;
+    }
+
+    NtQueryTimerResolution(&gPerformanceData.MinimumTimerResolution, &gPerformanceData.MaximumTimerResolution, &gPerformanceData.CurrentTimerResolution);
 
     if (GameIsAlreadyRunning() == TRUE)
     {
@@ -57,7 +84,8 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
     
     QueryPerformanceFrequency((LARGE_INTEGER*)&gPerformanceData.PerfFrequency);
 
-    
+    gPerformanceData.DisplayDebugInfo = TRUE;
+
 
     gBackBuffer.BitmapInfo.bmiHeader.biSize = sizeof(gBackBuffer.BitmapInfo.bmiHeader);
 
@@ -82,7 +110,7 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
     memset(gBackBuffer.Memory, 0x7F, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    
+
 
     gGameIsRunning = TRUE;
 
@@ -113,8 +141,6 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
         while (ElapsedMicrosecondsPerFrame <= TARGET_MICROSECONDS_PER_FRAME)
         {
-            Sleep(1); // Could be anywhere from 1ms to a full system timer tick? (~15.625ms)
-
             ElapsedMicrosecondsPerFrame = FrameEnd - FrameStart;
 
             ElapsedMicrosecondsPerFrame *= 1000000;
@@ -122,6 +148,11 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
             ElapsedMicrosecondsPerFrame /= gPerformanceData.PerfFrequency;
 
             QueryPerformanceCounter((LARGE_INTEGER*)&FrameEnd);
+
+            if (ElapsedMicrosecondsPerFrame <= ((int64_t)TARGET_MICROSECONDS_PER_FRAME - gPerformanceData.CurrentTimerResolution))
+            {
+                Sleep(1); // Could be anywhere from 1ms to a full system timer tick? (~15.625ms)
+            }
         }
 
         ElapsedMicrosecondsPerFrameAccumulatorCooked += ElapsedMicrosecondsPerFrame;
@@ -300,20 +331,9 @@ void ProcessPlayerInput(void)
 
 void RenderFrameGraphics(void)
 {
-    PIXEL32 Pixel = { 0 };
+    __m128i QuadPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
 
-    Pixel.Blue = 0x7f;
-
-    Pixel.Green = 0;
-
-    Pixel.Red = 0;
-
-    Pixel.Alpha = 0xff;
-
-    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x++)
-    {
-        memcpy_s((PIXEL32*)gBackBuffer.Memory + x, sizeof(PIXEL32), &Pixel, sizeof(PIXEL32));        
-    }
+    ClearScreen(QuadPixel);
 
     int32_t ScreenX = 25;
 
@@ -359,8 +379,29 @@ void RenderFrameGraphics(void)
         sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPS Cooked: %.01f", gPerformanceData.CookedFPSAverage);
 
         TextOutA(DeviceContext, 0, 13, DebugTextBuffer, (int)strlen(DebugTextBuffer));
+
+        sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Min Timer Res: %.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
+
+        TextOutA(DeviceContext, 0, 26, DebugTextBuffer, (int)strlen(DebugTextBuffer));
+
+        sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Max Timer Res: %.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
+
+        TextOutA(DeviceContext, 0, 39, DebugTextBuffer, (int)strlen(DebugTextBuffer));
+
+        sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Cur Timer Res: %.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
+
+        TextOutA(DeviceContext, 0, 52, DebugTextBuffer, (int)strlen(DebugTextBuffer));
+
     }
     
 
     ReleaseDC(gGameWindow, DeviceContext);
+}
+
+__forceinline void ClearScreen(_In_ __m128i Color)
+{
+    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x += 4)
+    {
+        _mm_store_si128((PIXEL32*)gBackBuffer.Memory + x, Color);       
+    }
 }
