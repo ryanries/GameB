@@ -18,7 +18,7 @@
 
 #define GAME_DRAWING_AREA_MEMORY_SIZE	(GAME_RES_WIDTH * GAME_RES_HEIGHT * (GAME_BPP / 8))
 
-#define CALCULATE_AVG_FPS_EVERY_X_FRAMES	100
+#define CALCULATE_AVG_FPS_EVERY_X_FRAMES	120
 
 #define TARGET_MICROSECONDS_PER_FRAME		16667
 
@@ -71,13 +71,37 @@ typedef struct GAMEPERFDATA
 
 	int32_t MonitorHeight;
 
-	BOOL DisplayDebugInfo;
+	BOOL DisplayDebugInfo;	
 
-	LONG MinimumTimerResolution;
+	ULONG MinimumTimerResolution;
 
-	LONG MaximumTimerResolution;
+	ULONG MaximumTimerResolution;
 
-	LONG CurrentTimerResolution;
+	ULONG CurrentTimerResolution;
+
+	DWORD HandleCount;
+
+	PROCESS_MEMORY_COUNTERS_EX MemInfo;
+
+	SYSTEM_INFO SystemInfo;
+
+	int64_t CurrentSystemTime;
+
+	int64_t PreviousSystemTime;
+
+	FILETIME ProcessCreationTime;
+
+	FILETIME ProcessExitTime;
+
+	int64_t CurrentUserCPUTime;
+
+	int64_t CurrentKernelCPUTime;
+
+	int64_t PreviousUserCPUTime;
+
+	int64_t PreviousKernelCPUTime;
+
+	double CPUPercent;
 
 } GAMEPERFDATA;
 
