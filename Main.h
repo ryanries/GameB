@@ -159,6 +159,8 @@ DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitma
 
 DWORD InitializeHero(void);
 
+void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y);
+
 void RenderFrameGraphics(void);
 #ifdef SIMD
 void ClearScreen(_In_ __m128i* Color);
