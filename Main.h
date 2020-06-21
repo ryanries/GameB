@@ -55,6 +55,16 @@
 #define FACING_UPWARD_2	11
 
 
+#define DIRECTION_DOWN	0
+
+#define DIRECTION_LEFT	3
+
+#define DIRECTION_RIGHT	7
+
+#define DIRECTION_UP	9
+
+
+
 
 
 
@@ -138,6 +148,14 @@ typedef struct HERO
 	int32_t ScreenPosX;
 
 	int32_t ScreenPosY;
+
+	uint8_t MovementRemaining;
+
+	uint8_t Direction;
+
+	uint8_t CurrentArmor;
+
+	uint8_t SpriteIndex;	
 
 	int32_t HP;
 
