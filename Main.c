@@ -10,6 +10,7 @@
 //
 // ... I renamed the enum constants to all caps https://softwareengineering.stackexchange.com/questions/319688/what-is-the-history-for-naming-constants-in-all-uppercase
 // ... LogMessageA now takes a LOGLEVEL instead of a DWORD, show why ERROR would not work
+// ... Logging at the end of Load32BppBitmapFromFile
 //
 // Add logging to InitializeHero
 //
@@ -722,6 +723,15 @@ Exit:
         CloseHandle(FileHandle);
     }
 
+    if (Error == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Loading successful: %s", __FUNCTION__, FileName);
+    }
+    else
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading failed: %s! Error 0x%08lx!", __FUNCTION__, FileName, Error);
+    }
+
     return(Error);
 }
 
@@ -729,9 +739,9 @@ DWORD InitializeHero(void)
 {
     DWORD Error = ERROR_SUCCESS;
 
-    gPlayer.ScreenPosX = 32;
+    gPlayer.ScreenPosX = 192;
 
-    gPlayer.ScreenPosY = 32;
+    gPlayer.ScreenPosY = 64;
 
     gPlayer.CurrentArmor = SUIT_0;
 
@@ -1506,11 +1516,7 @@ void RenderFrameGraphics(void)
     PIXEL32 Pixel = { 0x7f, 0x00, 0x00, 0xff };
 
     ClearScreen(&Pixel);
-#endif
-
-    PIXEL32 Green = { 0x00, 0xFF, 0x00, 0xFF };
-
-    BlitStringToBuffer("GAME OVER", &g6x7Font, &Green, 60, 60);
+#endif    
 
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.Direction + gPlayer.SpriteIndex], 
         gPlayer.ScreenPosX, 
@@ -1728,11 +1734,9 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
         return;
     }
 
-    if (MessageLength < 1 || MessageLength > 4096)
+    if (MessageLength < 1 || MessageLength > 4095)
     {
-        // assert?
-
-        return;
+        ASSERT(FALSE);
     }
 
     switch (LogLevel)
