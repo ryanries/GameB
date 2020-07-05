@@ -5,16 +5,18 @@
 // Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
 // Follow along on GitHub: https://github.com/ryanries/GameB
 // Find me on Twitter @JosephRyanRies 
+//# License
+//----------
+//The source code in this project is licensed under the MIT license.
+//The media assets such as artwork, custom fonts, musicand sound effects are licensed under a separate license.
+//A copy of that license can be found in the 'Assets' directory.
 
 // --- TO DO ---
 //
-// ... I renamed the enum constants to all caps https://softwareengineering.stackexchange.com/questions/319688/what-is-the-history-for-naming-constants-in-all-uppercase
-// ... LogMessageA now takes a LOGLEVEL instead of a DWORD, show why ERROR would not work
-// ... Logging at the end of Load32BppBitmapFromFile
-//
 // Add logging to InitializeHero
 //
-//assert ?
+// Add movement speed to player
+//
 //
 //
 //use enums instead of #defines ?
@@ -26,7 +28,6 @@
 //Screen size code for monitors that are not 16 : 9
 //
 //
-// Gamepad input
 //
 // Sound (XAudio2)
 //
@@ -36,24 +37,36 @@
 //
 // Tile maps
 
+#define SIMD
 
-#pragma warning(push, 3)
+#pragma warning(push, 3)            // Temporarily reduce warning level for headers over which we have no control.
 
-#include <stdio.h>
+#include <stdio.h>                  // String manipulation functions such as sprintf, etc.
 
-#include <windows.h>
+#include <windows.h>                // The primary header file for the Windows API
 
-#include <psapi.h>
+#include <psapi.h>                  // Process Status API, e.g. GetProcessMemoryInfo
 
-#include <emmintrin.h>
+#ifdef SIMD
 
-#pragma warning(pop)
+#include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
 
-#include <stdint.h>
+#endif
 
-#include "Main.h"
+#pragma warning(pop)                // Restore warning level to /Wall
 
-#pragma comment(lib, "Winmm.lib")
+#include <Xinput.h>                 // Xbox 360 gamepad input
+
+#include <stdint.h>                 // Nicer data types, e.g., uint8_t, int32_t, etc.
+
+#include "Main.h"                   // The primary header file that defines stuff specific to our game.
+
+#include "Menus.h"                  // Menus, menu items, etc.
+
+#pragma comment(lib, "Winmm.lib")   // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+
+#pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input
+
 
 HWND gGameWindow;
 
@@ -71,7 +84,12 @@ BOOL gWindowHasFocus;
 
 REGISTRYPARAMS gRegistryParams;
 
-int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR CommandLine, INT CmdShow)
+XINPUT_STATE gGamepadState;
+
+int8_t gGamepadID = -1;
+
+
+int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
 {
     UNREFERENCED_PARAMETER(Instance);
 
@@ -79,7 +97,7 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
 	UNREFERENCED_PARAMETER(CommandLine);
 
-	UNREFERENCED_PARAMETER(CmdShow);    
+	UNREFERENCED_PARAMETER(CmdShow);
 
     MSG Message = { 0 };
 
@@ -112,7 +130,9 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
     if (LoadRegistryParameters() != ERROR_SUCCESS)
     {
         goto Exit;
-    }    
+    }
+
+    LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
     if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL)
     {
@@ -134,7 +154,11 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
     NtQueryTimerResolution(&gPerformanceData.MinimumTimerResolution, &gPerformanceData.MaximumTimerResolution, &gPerformanceData.CurrentTimerResolution);
 
-    GetSystemInfo(&gPerformanceData.SystemInfo); 
+    GetSystemInfo(&gPerformanceData.SystemInfo);
+
+    LogMessageA(LL_INFO, "[%s] Number of CPUs: %d", __FUNCTION__, gPerformanceData.SystemInfo.dwNumberOfProcessors);    
+
+    // processor architecture switch case...
 
     GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.PreviousSystemTime);
 
@@ -267,9 +291,12 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
 
             QueryPerformanceCounter((LARGE_INTEGER*)&FrameEnd);
 
+            // If we are less than 75% of the way through the current frame, then rest.
+
             if (ElapsedMicroseconds < (TARGET_MICROSECONDS_PER_FRAME * 0.75f))
             {
-                Sleep(1); // Could be anywhere from 1ms to a full system timer tick? (~15.625ms)
+                // Could be anywhere from 1ms to a full system timer tick? (~15.625ms)
+                Sleep(1);
             }
         }
 
@@ -278,6 +305,8 @@ int __stdcall WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, PSTR Comma
         if ((gPerformanceData.TotalFramesRendered % CALCULATE_AVG_FPS_EVERY_X_FRAMES) == 0)
         {
             GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.CurrentSystemTime);
+
+            FindFirstConnectedGamepad();
 
             GetProcessTimes(ProcessHandle,
                 &ProcessCreationTime, 
@@ -510,6 +539,22 @@ void ProcessPlayerInput(void)
     static int16_t UpKeyWasDown;
 
     static int16_t DownKeyWasDown;
+
+    if (gGamepadID > -1)
+    {
+        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
+        {
+            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
+
+            LeftKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
+
+            RightKeyIsDown  |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
+
+            UpKeyIsDown     |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
+
+            DownKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
+        }
+    }
 
 
     if (EscapeKeyIsDown)
@@ -1483,8 +1528,8 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
                 StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.BitmapInfo.bmiHeader.biWidth * StringBitmap.BitmapInfo.bmiHeader.biHeight) - \
                     StringBitmap.BitmapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.BitmapInfo.bmiHeader.biWidth) * YPixel;
 
-                memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
-
+                memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));                
+                
                 FontSheetPixel.Red   = Color->Red;
 
                 FontSheetPixel.Green = Color->Green;
@@ -1492,6 +1537,7 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
                 FontSheetPixel.Blue  = Color->Blue;
 
                 memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));
+                
             }
         }
     }
@@ -1544,55 +1590,6 @@ void RenderFrameGraphics(void)
         SRCCOPY);
 
     ReleaseDC(gGameWindow, DeviceContext);
-
-
-
-        //SelectObject(DeviceContext, (HFONT)GetStockObject(ANSI_FIXED_FONT));
-
-        //char DebugTextBuffer[64] = { 0 };
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPS Raw:    %.01f", gPerformanceData.RawFPSAverage);
-
-        //TextOutA(DeviceContext, 0, 0, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPS Cooked: %.01f", gPerformanceData.CookedFPSAverage);
-
-        //TextOutA(DeviceContext, 0, 13, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Min Timer Res: %.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
-
-        //TextOutA(DeviceContext, 0, 26, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Max Timer Res: %.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
-
-        //TextOutA(DeviceContext, 0, 39, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Cur Timer Res: %.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
-
-        //TextOutA(DeviceContext, 0, 52, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Handles: %lu", gPerformanceData.HandleCount);
-
-        //TextOutA(DeviceContext, 0, 65, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Memory:  %llu KB", gPerformanceData.MemInfo.PrivateUsage / 1024);
-
-        //TextOutA(DeviceContext, 0, 78, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CPU:     %.02f%%", gPerformanceData.CPUPercent);
-
-        //TextOutA(DeviceContext, 0, 91, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Total Frames: %llu", gPerformanceData.TotalFramesRendered);
-
-        //TextOutA(DeviceContext, 0, 104, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-
-        //sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenPos: (%d,%d)", gPlayer.ScreenPosX, gPlayer.ScreenPosY);
-
-        //TextOutA(DeviceContext, 0, 117, DebugTextBuffer, (int)strlen(DebugTextBuffer));
-      
-
-
 }
 
 #ifdef SIMD
@@ -1624,9 +1621,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
 
     int32_t BitmapOffset = 0;
 
-    PIXEL32 BitmapPixel = { 0 };
-
-    // PIXEL32 BackgroundPixel = { 0 };
+    PIXEL32 BitmapPixel = { 0 };    
 
     for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
     {
@@ -1642,7 +1637,6 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
             {
                 memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
             }
-
         }
     }    
 }
@@ -1726,7 +1720,6 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
     char SeverityString[8] = { 0 };
 
     char FormattedString[4096] = { 0 };
-
     
 
     if (gRegistryParams.LogLevel < (DWORD)LogLevel)
@@ -1736,7 +1729,7 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
 
     if (MessageLength < 1 || MessageLength > 4095)
     {
-        ASSERT(FALSE);
+        ASSERT(FALSE, "Message was either too short or too long!");
     }
 
     switch (LogLevel)
@@ -1747,13 +1740,13 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
         }
         case LL_INFO:
         {
-            strcpy_s(SeverityString, sizeof(SeverityString), "[INFO] ");
+            strcpy_s(SeverityString, sizeof(SeverityString), "[INFO]");
 
             break;
         }
         case LL_WARNING:
         {
-            strcpy_s(SeverityString, sizeof(SeverityString), "[WARN] ");
+            strcpy_s(SeverityString, sizeof(SeverityString), "[WARN]");
 
             break;
         }
@@ -1769,7 +1762,7 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
         }
         default:
         {
-            ASSERT(FALSE);
+            ASSERT(FALSE, "Unrecognized log level!");
         }
     }
 
@@ -1787,7 +1780,7 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
 
     if ((LogFileHandle = CreateFileA(LOG_FILE_NAME, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
     {
-        ASSERT(FALSE);        
+        ASSERT(FALSE, "Failed to access log file!");        
     }
 
     EndOfFile = SetFilePointer(LogFileHandle, 0, NULL, FILE_END);
@@ -1810,23 +1803,23 @@ __forceinline void DrawDebugInfo(void)
 
     PIXEL32 White = { 0xFF, 0xFF, 0xFF, 0xFF };
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPS Raw:   %.01f", gPerformanceData.RawFPSAverage);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSRaw:  %.01f", gPerformanceData.RawFPSAverage);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 0);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPS Cooked:%.01f", gPerformanceData.CookedFPSAverage);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSCookd:%.01f", gPerformanceData.CookedFPSAverage);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 8);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Min Timer: %.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MinTimer:%.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 16);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Max Timer: %.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MaxTimer:%.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 24);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Cur Timer: %.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CurTimer:%.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 32);
 
@@ -1842,11 +1835,46 @@ __forceinline void DrawDebugInfo(void)
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 56);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Total Frames: %llu", gPerformanceData.TotalFramesRendered);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FramesT: %llu", gPerformanceData.TotalFramesRendered);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 64);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenPos: (%d,%d)", gPlayer.ScreenPosX, gPlayer.ScreenPosY);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenXY:%d,%d", gPlayer.ScreenPosX, gPlayer.ScreenPosY);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 72);
+}
+
+void FindFirstConnectedGamepad(void)
+{
+    gGamepadID = -1;
+
+    for (int8_t GamepadIndex = 0; GamepadIndex < XUSER_MAX_COUNT && gGamepadID == -1; GamepadIndex++)
+    {
+        XINPUT_STATE State = { 0 };
+
+        if (XInputGetState(GamepadIndex, &State) == ERROR_SUCCESS)
+        {
+            gGamepadID = GamepadIndex;
+        }
+    }
+}
+
+void MenuItem_TitleScreen_Resume(void)
+{
+
+}
+
+void MenuItem_TitleScreen_StartNew(void)
+{
+
+}
+
+void MenuItem_TitleScreen_Options(void)
+{
+
+}
+
+void MenuItem_TitleScreen_Exit(void)
+{
+
 }

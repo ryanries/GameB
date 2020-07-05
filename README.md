@@ -16,3 +16,8 @@
  
  Follow me on Twitter @JosephRyanRies
  
+# License
+----------
+The source code in this project is licensed under the MIT license.
+The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
+A copy of that license can be found in the 'Assets' directory.

@@ -8,9 +8,19 @@
 
 #pragma once
 
-#define ASSERT(Expression) if (!(Expression)) { *(int*)0 = 0; }
+#ifdef _DEBUG
+
+#define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
+
+#else
+
+#define ASSERT(Expression, Message) ((void)0);
+
+#endif
 
 #define GAME_NAME	"Game_B"
+
+#define GAME_VER	"0.9a"
 
 #define GAME_RES_WIDTH	384
 
@@ -23,8 +33,6 @@
 #define CALCULATE_AVG_FPS_EVERY_X_FRAMES	120
 
 #define TARGET_MICROSECONDS_PER_FRAME		16667ULL
-
-#define SIMD
 
 #define SUIT_0	0
 
@@ -71,9 +79,9 @@ typedef enum DIRECTION
 
 typedef enum LOGLEVEL
 {
-	LL_NONE    = 0,
+	LL_NONE = 0,
 
-	LL_ERROR   = 1,
+	LL_ERROR = 1,	
 
 	LL_WARNING = 2,
 
@@ -189,6 +197,11 @@ typedef struct REGISTRYPARAMS
 
 } REGISTRYPARAMS;
 
+
+
+
+
+
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
 
 DWORD CreateMainGameWindow(void);
@@ -212,6 +225,8 @@ DWORD LoadRegistryParameters(void);
 void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...);
 
 void DrawDebugInfo(void);
+
+void FindFirstConnectedGamepad(void);
 
 #ifdef SIMD
 void ClearScreen(_In_ __m128i* Color);
