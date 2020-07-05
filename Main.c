@@ -1597,7 +1597,7 @@ __forceinline void ClearScreen(_In_ __m128i* Color)
 {
     for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x += 4)
     {
-        _mm_store_si128((PIXEL32*)gBackBuffer.Memory + x, *Color);        
+        _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + x), *Color);
     }
 }
 #else
