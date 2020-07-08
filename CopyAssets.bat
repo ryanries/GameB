@@ -1,2 +1,2 @@
-del C:\Users\ryanr\source\repos\GameB\x64\Debug\Assets\ /Q
-xcopy C:\Users\ryanr\source\repos\GameB\Assets C:\Users\ryanr\source\repos\GameB\x64\Debug\Assets /i
+del %GAMEBDIR%\x64\Debug\Assets\ /Q
+xcopy %GAMEBDIR%\Assets %GAMEBDIR%\x64\Debug\Assets /i
