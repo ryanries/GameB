@@ -91,6 +91,22 @@ typedef enum LOGLEVEL
 
 } LOGLEVEL;
 
+typedef enum GAMESTATE
+{
+	GAMESTATE_OPENINGSPLASHSCREEN,
+
+	GAMESTATE_TITLESCREEN,
+
+	GAMESTATE_OVERWORLD,
+
+	GAMESTATE_BATTLE,
+
+	GAMESTATE_OPTIONSSCREEN,
+
+	GAMESTATE_EXITYESNOSCREEN
+
+} GAMESTATE;
+
 #define LOG_FILE_NAME GAME_NAME ".log"
 
 #define FONT_SHEET_CHARACTERS_PER_ROW 98
@@ -241,3 +257,13 @@ void ClearScreen(_In_ __m128i* Color);
 #endif 
 
 //void ClearScreen(_In_ PIXEL32* Color);
+
+void DrawOpeningSplashScreen(void);
+
+void DrawTitleScreen(void);
+
+void PPI_OpeningSplashScreen(void);
+
+void PPI_TitleScreen(void);
+
+void PPI_Overworld(void);

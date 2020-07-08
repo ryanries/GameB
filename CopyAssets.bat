@@ -1,2 +1,2 @@
 del %GAMEBDIR%\x64\Debug\Assets\ /Q
-xcopy %GAMEBDIR%\Assets %GAMEBDIR%\x64\Debug\Assets /i
+C:\Windows\System32\xcopy %GAMEBDIR%\Assets %GAMEBDIR%\x64\Debug\Assets /i

@@ -15,6 +15,10 @@
 //
 // ... Added number of CPUs and processor architecture logging
 //
+// show what happens when we don't use memset to clear the screen every frame
+// show what happens when we don't use the static *wasDown keys
+// show what happens when we don't use localframecounter
+//
 // Add logging to InitializeHero
 //
 // Add movement speed to player
@@ -95,6 +99,8 @@ REGISTRYPARAMS gRegistryParams;
 XINPUT_STATE gGamepadState;
 
 int8_t gGamepadID = -1;
+
+GAMESTATE gGameState = GAMESTATE_TITLESCREEN;
 
 
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
@@ -561,166 +567,31 @@ void ProcessPlayerInput(void)
         return;
     }
 
-    int16_t EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
-
-    int16_t DebugKeyIsDown = GetAsyncKeyState(VK_F1);
-
-    int16_t LeftKeyIsDown = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
-
-    int16_t RightKeyIsDown = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
-
-    int16_t UpKeyIsDown = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
-
-    int16_t DownKeyIsDown = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
-
-
-    static int16_t DebugKeyWasDown;
-
-    static int16_t LeftKeyWasDown;
-
-    static int16_t RightKeyWasDown;
-
-    static int16_t UpKeyWasDown;
-
-    static int16_t DownKeyWasDown;
-
-    if (gGamepadID > -1)
+    switch (gGameState)
     {
-        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
+        case GAMESTATE_OPENINGSPLASHSCREEN:
         {
-            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
+            PPI_OpeningSplashScreen();
 
-            LeftKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
+            break;
+        }
+        case GAMESTATE_TITLESCREEN:
+        {
+            PPI_TitleScreen();
 
-            RightKeyIsDown  |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
+            break;
+        }
+        case GAMESTATE_OVERWORLD:
+        {
+            PPI_Overworld();
 
-            UpKeyIsDown     |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
-
-            DownKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
+            break;
+        }
+        default:
+        {
+            ASSERT(FALSE, "Unknown game state!");
         }
     }
-
-
-    if (EscapeKeyIsDown)
-    {
-        SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
-    }
-
-    if (DebugKeyIsDown && !DebugKeyWasDown)
-    {
-        gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
-    }
-
-    if (!gPlayer.MovementRemaining)
-    {
-        if (DownKeyIsDown)
-        {
-            if (gPlayer.ScreenPosY < GAME_RES_HEIGHT - 16)
-            {
-                gPlayer.Direction = DOWN;
-
-                gPlayer.MovementRemaining = 16;
-            }
-        }
-        else if (LeftKeyIsDown)
-        {
-            if (gPlayer.ScreenPosX > 0)
-            {
-                gPlayer.Direction = LEFT;
-
-                gPlayer.MovementRemaining = 16;
-            }
-        }
-        else if (RightKeyIsDown)
-        {
-            if (gPlayer.ScreenPosX < GAME_RES_WIDTH - 16)
-            {
-                gPlayer.Direction = RIGHT;
-
-                gPlayer.MovementRemaining = 16;
-            }
-        }
-        else if (UpKeyIsDown)
-        {
-            if (gPlayer.ScreenPosY > 0)
-            {
-                gPlayer.Direction = UP;
-
-                gPlayer.MovementRemaining = 16;
-            }
-        }
-    }
-    else
-    {
-        gPlayer.MovementRemaining--;
-
-        if (gPlayer.Direction == DOWN)
-        {
-            gPlayer.ScreenPosY++;
-        }
-        else if (gPlayer.Direction == LEFT)
-        {
-            gPlayer.ScreenPosX--;
-        }
-        else if (gPlayer.Direction == RIGHT)
-        {
-            gPlayer.ScreenPosX++;
-        }
-        else if (gPlayer.Direction == UP)
-        {
-            gPlayer.ScreenPosY--;
-        }
-
-        switch (gPlayer.MovementRemaining)
-        {
-            case 16:
-            {
-                gPlayer.SpriteIndex = 0;
-
-                break;
-            }
-            case 12:
-            {
-                gPlayer.SpriteIndex = 1;
-
-                break;
-            }
-            case 8:
-            {
-                gPlayer.SpriteIndex = 0;
-
-                break;
-            }
-            case 4:
-            {
-                gPlayer.SpriteIndex = 2;
-
-                break;
-            }
-            case 0:
-            {
-                gPlayer.SpriteIndex = 0;
-
-                break;
-            }
-            default:
-            {
-                
-            }
-        }
-    }
-
-
-
-    DebugKeyWasDown = DebugKeyIsDown;
-
-    LeftKeyWasDown = LeftKeyIsDown;
-
-    RightKeyWasDown = RightKeyIsDown;
-
-    UpKeyWasDown = UpKeyIsDown;
-
-    DownKeyWasDown = DownKeyIsDown;
 }
 
 DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitmap)
@@ -1596,24 +1467,42 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
 
 void RenderFrameGraphics(void)
 {
-    
+    switch (gGameState)
+    {
+        case GAMESTATE_OPENINGSPLASHSCREEN:
+        {
+            DrawOpeningSplashScreen();
 
-#ifdef SIMD
-    __m128i QuadPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
+            break;
+        }
+        case GAMESTATE_TITLESCREEN:
+        {
+            DrawTitleScreen();
 
-    ClearScreen(&QuadPixel);
-#else
-    __m256i OctoPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff,
-                          0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
-    
-    //PIXEL32 Pixel = { 0x7f, 0x00, 0x00, 0xff };
+            break;
+        }
+        default:
+        {
+            ASSERT(FALSE, "Gamestate not implemented!");
+        }
+    }
 
-    ClearScreen(&OctoPixel);
-#endif    
+//#ifdef SIMD
+//    __m128i QuadPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
+//
+//    ClearScreen(&QuadPixel);
+//#else
+//    __m256i OctoPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff,
+//                          0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
+//    
+//    //PIXEL32 Pixel = { 0x7f, 0x00, 0x00, 0xff };
+//
+//    ClearScreen(&OctoPixel);
+//#endif    
 
-    Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.Direction + gPlayer.SpriteIndex], 
-        gPlayer.ScreenPosX, 
-        gPlayer.ScreenPosY);
+    //Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.Direction + gPlayer.SpriteIndex], 
+    //    gPlayer.ScreenPosX, 
+    //    gPlayer.ScreenPosY);
 
     if (gPerformanceData.DisplayDebugInfo == TRUE)
     {
@@ -1942,4 +1831,285 @@ void MenuItem_TitleScreen_Options(void)
 void MenuItem_TitleScreen_Exit(void)
 {
 
+}
+
+void DrawOpeningSplashScreen(void)
+{
+
+}
+
+void DrawTitleScreen(void)
+{
+    PIXEL32 White = { 0xFF, 0xFF, 0xFF, 0xFF };
+
+    static uint64_t LocalFrameCounter;
+
+    static uint64_t LastFrameSeen;
+
+    memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+    BlitStringToBuffer(GAME_NAME, &g6x7Font, &White, (GAME_RES_WIDTH / 2) - ((strlen(GAME_NAME) * 6) / 2), 60);
+
+    for (uint8_t MenuItem = 0; MenuItem < gMenu_TitleScreen.ItemCount; MenuItem++)
+    {
+        BlitStringToBuffer(gMenu_TitleScreen.Items[MenuItem]->Name,
+            &g6x7Font,
+            &White,
+            gMenu_TitleScreen.Items[MenuItem]->x,
+            gMenu_TitleScreen.Items[MenuItem]->y);
+    }
+
+    BlitStringToBuffer("»",
+        &g6x7Font,
+        &White,
+        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->x - 6,
+        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->y);
+}
+
+void PPI_OpeningSplashScreen(void)
+{
+
+}
+
+void PPI_TitleScreen(void)
+{
+    int16_t EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
+
+    int16_t DebugKeyIsDown = GetAsyncKeyState(VK_F1);
+
+    int16_t LeftKeyIsDown = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
+
+    int16_t RightKeyIsDown = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
+
+    int16_t UpKeyIsDown = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
+
+    int16_t DownKeyIsDown = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
+
+
+    static int16_t DebugKeyWasDown;
+
+    static int16_t LeftKeyWasDown;
+
+    static int16_t RightKeyWasDown;
+
+    static int16_t UpKeyWasDown;
+
+    static int16_t DownKeyWasDown;
+
+    if (gGamepadID > -1)
+    {
+        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
+        {
+            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
+
+            LeftKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
+
+            RightKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
+
+            UpKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
+
+            DownKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
+        }
+    }
+
+
+    if (EscapeKeyIsDown)
+    {
+        SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
+    }
+
+    if (DebugKeyIsDown && !DebugKeyWasDown)
+    {
+        gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
+    }
+
+    if (DownKeyIsDown && !DownKeyWasDown)
+    {
+        if (gMenu_TitleScreen.SelectedItem < gMenu_TitleScreen.ItemCount - 1)
+        {
+            gMenu_TitleScreen.SelectedItem++;
+        }
+    }
+
+    if (UpKeyIsDown && !UpKeyWasDown)
+    {
+        if (gMenu_TitleScreen.SelectedItem > 0)
+        {
+            gMenu_TitleScreen.SelectedItem--;
+        }
+    }
+
+
+
+    DebugKeyWasDown = DebugKeyIsDown;
+
+    LeftKeyWasDown = LeftKeyIsDown;
+
+    RightKeyWasDown = RightKeyIsDown;
+
+    UpKeyWasDown = UpKeyIsDown;
+
+    DownKeyWasDown = DownKeyIsDown;
+}
+
+void PPI_Overworld(void)
+{
+    int16_t EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
+
+    int16_t DebugKeyIsDown = GetAsyncKeyState(VK_F1);
+
+    int16_t LeftKeyIsDown = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
+
+    int16_t RightKeyIsDown = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
+
+    int16_t UpKeyIsDown = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
+
+    int16_t DownKeyIsDown = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
+
+
+    static int16_t DebugKeyWasDown;
+
+    static int16_t LeftKeyWasDown;
+
+    static int16_t RightKeyWasDown;
+
+    static int16_t UpKeyWasDown;
+
+    static int16_t DownKeyWasDown;
+
+    if (gGamepadID > -1)
+    {
+        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
+        {
+            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
+
+            LeftKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
+
+            RightKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
+
+            UpKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
+
+            DownKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
+        }
+    }
+
+
+    if (EscapeKeyIsDown)
+    {
+        SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
+    }
+
+    if (DebugKeyIsDown && !DebugKeyWasDown)
+    {
+        gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
+    }
+
+    if (!gPlayer.MovementRemaining)
+    {
+        if (DownKeyIsDown)
+        {
+            if (gPlayer.ScreenPosY < GAME_RES_HEIGHT - 16)
+            {
+                gPlayer.Direction = DOWN;
+
+                gPlayer.MovementRemaining = 16;
+            }
+        }
+        else if (LeftKeyIsDown)
+        {
+            if (gPlayer.ScreenPosX > 0)
+            {
+                gPlayer.Direction = LEFT;
+
+                gPlayer.MovementRemaining = 16;
+            }
+        }
+        else if (RightKeyIsDown)
+        {
+            if (gPlayer.ScreenPosX < GAME_RES_WIDTH - 16)
+            {
+                gPlayer.Direction = RIGHT;
+
+                gPlayer.MovementRemaining = 16;
+            }
+        }
+        else if (UpKeyIsDown)
+        {
+            if (gPlayer.ScreenPosY > 0)
+            {
+                gPlayer.Direction = UP;
+
+                gPlayer.MovementRemaining = 16;
+            }
+        }
+    }
+    else
+    {
+        gPlayer.MovementRemaining--;
+
+        if (gPlayer.Direction == DOWN)
+        {
+            gPlayer.ScreenPosY++;
+        }
+        else if (gPlayer.Direction == LEFT)
+        {
+            gPlayer.ScreenPosX--;
+        }
+        else if (gPlayer.Direction == RIGHT)
+        {
+            gPlayer.ScreenPosX++;
+        }
+        else if (gPlayer.Direction == UP)
+        {
+            gPlayer.ScreenPosY--;
+        }
+
+        switch (gPlayer.MovementRemaining)
+        {
+            case 16:
+            {
+                gPlayer.SpriteIndex = 0;
+
+                break;
+            }
+            case 12:
+            {
+                gPlayer.SpriteIndex = 1;
+
+                break;
+            }
+            case 8:
+            {
+                gPlayer.SpriteIndex = 0;
+
+                break;
+            }
+            case 4:
+            {
+                gPlayer.SpriteIndex = 2;
+
+                break;
+            }
+            case 0:
+            {
+                gPlayer.SpriteIndex = 0;
+
+                break;
+            }
+            default:
+            {
+
+            }
+        }
+    }
+
+    DebugKeyWasDown = DebugKeyIsDown;
+
+    LeftKeyWasDown = LeftKeyIsDown;
+
+    RightKeyWasDown = RightKeyIsDown;
+
+    UpKeyWasDown = UpKeyIsDown;
+
+    DownKeyWasDown = DownKeyIsDown;
 }
