@@ -13,6 +13,8 @@
 
 // --- TO DO ---
 //
+// ... Added number of CPUs and processor architecture logging
+//
 // Add logging to InitializeHero
 //
 // Add movement speed to player
@@ -134,6 +136,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
+    if (GameIsAlreadyRunning() == TRUE)
+    {
+        LogMessageA(LL_ERROR, "[%s] Another instance of this program is already running!", __FUNCTION__);
+
+        MessageBoxA(NULL, "Another instance of this program is already running!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+
+        goto Exit;
+    }
+
     if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL)
     {
         LogMessageA(LL_ERROR, "[%s] Couldn't load ntdll.dll! Error 0x%08lx!", __FUNCTION__, GetLastError());
@@ -158,18 +169,45 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     LogMessageA(LL_INFO, "[%s] Number of CPUs: %d", __FUNCTION__, gPerformanceData.SystemInfo.dwNumberOfProcessors);    
 
-    // processor architecture switch case...
+    switch (gPerformanceData.SystemInfo.wProcessorArchitecture)
+    {
+        case PROCESSOR_ARCHITECTURE_INTEL:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: x86", __FUNCTION__);
+
+            break;
+        }
+        case PROCESSOR_ARCHITECTURE_IA64:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: Itanium (lol what?)", __FUNCTION__);
+
+            break;
+        }
+        case PROCESSOR_ARCHITECTURE_ARM64:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: ARM64", __FUNCTION__);
+
+            break;
+        }
+        case PROCESSOR_ARCHITECTURE_ARM:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: ARM", __FUNCTION__);
+
+            break;
+        }
+        case PROCESSOR_ARCHITECTURE_AMD64:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: x64", __FUNCTION__);
+
+            break;
+        }
+        default:
+        {
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: Unknown", __FUNCTION__);
+        }
+    }
 
     GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.PreviousSystemTime);
-
-    if (GameIsAlreadyRunning() == TRUE)
-    {
-        LogMessageA(LL_ERROR, "[%s] Another instance of this program is already running!", __FUNCTION__);
-
-        MessageBoxA(NULL, "Another instance of this program is already running!", "Error!", MB_ICONEXCLAMATION | MB_OK);
-
-        goto Exit;
-    }    
 
     if (timeBeginPeriod(1) == TIMERR_NOCANDO)
     {
@@ -306,8 +344,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         {
             GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.CurrentSystemTime);
 
-            FindFirstConnectedGamepad();
-
             GetProcessTimes(ProcessHandle,
                 &ProcessCreationTime, 
                 &ProcessExitTime, 
@@ -330,13 +366,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             gPerformanceData.CookedFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorCooked / CALCULATE_AVG_FPS_EVERY_X_FRAMES) * 0.000001f);
 
+            FindFirstConnectedGamepad();
+
             ElapsedMicrosecondsAccumulatorRaw = 0;
 
             ElapsedMicrosecondsAccumulatorCooked = 0;
 
             PreviousKernelCPUTime = CurrentKernelCPUTime;
 
-            PreviousUserCPUTime = CurrentUserCPUTime;
+            PreviousUserCPUTime = CurrentUserCPUTime;            
 
             gPerformanceData.PreviousSystemTime = gPerformanceData.CurrentSystemTime;
         }
@@ -1827,7 +1865,7 @@ __forceinline void DrawDebugInfo(void)
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 40);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Memory:  %llu KB", gPerformanceData.MemInfo.PrivateUsage / 1024);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Memory:  %zu KB", gPerformanceData.MemInfo.PrivateUsage / 1024);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 48);
 
