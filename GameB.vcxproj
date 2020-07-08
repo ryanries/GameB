@@ -138,7 +138,7 @@
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
     <PostBuildEvent>
-      <Command>C:\Users\ryanr\source\repos\GameB\CopyAssets.bat</Command>
+      <Command>%GAMEBDIR%\CopyAssets.bat</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -188,7 +188,7 @@
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
     <PostBuildEvent>
-      <Command>C:\Users\ryanr\source\repos\GameB\CopyAssets.bat</Command>
+      <Command>%GAMEBDIR%\CopyAssets.bat</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
