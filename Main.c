@@ -39,7 +39,7 @@
 //
 // Tile maps
 
-#define SIMD
+#define AVX
 
 #pragma warning(push, 3)            // Temporarily reduce warning level for headers over which we have no control.
 
@@ -52,6 +52,12 @@
 #ifdef SIMD
 
 #include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
+
+#endif
+
+#ifdef AVX
+
+#include <immintrin.h>
 
 #endif
 
@@ -1597,9 +1603,12 @@ void RenderFrameGraphics(void)
 
     ClearScreen(&QuadPixel);
 #else
-    PIXEL32 Pixel = { 0x7f, 0x00, 0x00, 0xff };
+    __m256i OctoPixel = { 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff,
+                          0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff };
+    
+    //PIXEL32 Pixel = { 0x7f, 0x00, 0x00, 0xff };
 
-    ClearScreen(&Pixel);
+    ClearScreen(&OctoPixel);
 #endif    
 
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.Direction + gPlayer.SpriteIndex], 
@@ -1630,22 +1639,40 @@ void RenderFrameGraphics(void)
     ReleaseDC(gGameWindow, DeviceContext);
 }
 
+
+#ifdef AVX
+
+_forceinline void ClearScreen(_In_ __m256i* Color)
+{
+    #define PIXEL32S_PER_M256I 8    // sizeof(__m256i) / sizeof(PIXEL32)
+
+    for (int index = 0; index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / PIXEL32S_PER_M256I; index++)
+    {
+        _mm256_store_si256((__m256i*)gBackBuffer.Memory + index, *Color);
+    }
+}
+
+#endif
+
 #ifdef SIMD
+
 __forceinline void ClearScreen(_In_ __m128i* Color)
 {
-    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x += 4)
+    for (int index = 0; index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / 4; index++)
     {
-        _mm_store_si128((PIXEL32*)gBackBuffer.Memory + x, *Color);        
+        _mm_store_si128((__m128i*)gBackBuffer.Memory + index, *Color);
     }
 }
 #else
-__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
-{
-    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x++)
-    {
-        memcpy((PIXEL32*)gBackBuffer.Memory + x, Pixel, sizeof(PIXEL32));
-    }
-}
+
+//__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
+//{
+//    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x++)
+//    {
+//        memcpy((PIXEL32*)gBackBuffer.Memory + x, Pixel, sizeof(PIXEL32));
+//    }
+//}
+
 #endif
 
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y)

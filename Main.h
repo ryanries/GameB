@@ -228,8 +228,16 @@ void DrawDebugInfo(void);
 
 void FindFirstConnectedGamepad(void);
 
+#ifdef AVX
+
+void ClearScreen(_In_ __m256i* Color);
+
+#endif 
+
 #ifdef SIMD
+
 void ClearScreen(_In_ __m128i* Color);
-#else
-void ClearScreen(_In_ PIXEL32* Color);
-#endif
+
+#endif 
+
+//void ClearScreen(_In_ PIXEL32* Color);
