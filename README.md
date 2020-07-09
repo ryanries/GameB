@@ -15,6 +15,20 @@
  Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
  
  Follow me on Twitter @JosephRyanRies
+
+# Build Instructions
+--------------------
+This project contains a post-build step. The post-build step runs the batch file CopyAssets.bat.
+The CopyAssets.bat batch file contains an environment variable that you need to create on your machine.
+The environment variable is called GAMEBDIR and it should point to the fully-qualified path to the project on your machine.
+You can use the setx utility to create this environment variable. For example:
+
+`C:\Windows\system32>setx GAMEBDIR C:\Users\ryanr\source\repos\GameB`
+` `
+`SUCCESS: Specified value was saved.`
+
+
+
  
 # License
 ----------

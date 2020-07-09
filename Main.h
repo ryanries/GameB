@@ -244,6 +244,8 @@ void DrawDebugInfo(void);
 
 void FindFirstConnectedGamepad(void);
 
+
+// This is defined at the beginning of Main.c.
 #ifdef AVX
 
 void ClearScreen(_In_ __m256i* Color);

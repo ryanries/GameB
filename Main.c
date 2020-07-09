@@ -13,7 +13,13 @@
 
 // --- TO DO ---
 //
+// ... Fixed the SSE2/AVX precompiler directives
+//
 // ... Added number of CPUs and processor architecture logging
+//
+// Fix the post-build step with the environment variable thing
+//
+// Create global keystate structure, or structure that is local to ProcessPlayerInput
 //
 // show what happens when we don't use memset to clear the screen every frame
 // show what happens when we don't use the static *wasDown keys
@@ -25,13 +31,13 @@
 //
 //
 //
-//use enums instead of #defines ?
+// use enums instead of #defines ?
 //
-//LogMessageA option to spawn msgbox ? And assert ?
+// LogMessageA option to spawn msgbox ? And assert ?
 //
-//Blit32bppbitmap draw off the edge of the screen ?
+// Blit32bppbitmap draw off the edge of the screen ?
 //
-//Screen size code for monitors that are not 16 : 9
+// Screen size code for monitors that are not 16 : 9
 //
 //
 //
@@ -39,7 +45,7 @@
 //
 // Menus
 // 
-// Game states
+// Game states (Maybe each state should be a struct that includes an array of valid gamestates that it may transition to?)
 //
 // Tile maps
 
