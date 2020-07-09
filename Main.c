@@ -43,7 +43,7 @@
 //
 // Tile maps
 
-#define AVX
+#define AVX                         // Valid options are SSE2, AVX, or nothing.
 
 #pragma warning(push, 3)            // Temporarily reduce warning level for headers over which we have no control.
 
@@ -53,15 +53,13 @@
 
 #include <psapi.h>                  // Process Status API, e.g. GetProcessMemoryInfo
 
-#ifdef SIMD
-
-#include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
-
-#endif
-
 #ifdef AVX
 
-#include <immintrin.h>
+#include <immintrin.h>              // AVX (Advanced Vector Extensions)
+
+#elif defined SSE2
+
+#include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
 
 #endif
 
@@ -1480,6 +1478,12 @@ void RenderFrameGraphics(void)
             DrawTitleScreen();
 
             break;
+        }      
+        case GAMESTATE_OVERWORLD:
+        {
+            //DrawOverworld();
+
+            break;
         }
         default:
         {
@@ -1531,36 +1535,33 @@ void RenderFrameGraphics(void)
 
 #ifdef AVX
 
-_forceinline void ClearScreen(_In_ __m256i* Color)
+__forceinline void ClearScreen(_In_ __m256i* Color)
 {
-    #define PIXEL32S_PER_M256I 8    // sizeof(__m256i) / sizeof(PIXEL32)
-
-    for (int index = 0; index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / PIXEL32S_PER_M256I; index++)
+    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m256i) / sizeof(PIXEL32)); Index++)
     {
-        _mm256_store_si256((__m256i*)gBackBuffer.Memory + index, *Color);
+        _mm256_store_si256((__m256i*)gBackBuffer.Memory + Index, *Color);
     }
 }
 
-#endif
-
-#ifdef SIMD
+#elif defined SSE2
 
 __forceinline void ClearScreen(_In_ __m128i* Color)
 {
-    for (int index = 0; index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / 4; index++)
+    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m128i) / sizeof(PIXEL32)); Index++)
     {
-        _mm_store_si128((__m128i*)gBackBuffer.Memory + index, *Color);
+        _mm_store_si128((__m128i*)gBackBuffer.Memory + Index, *Color);
     }
 }
+
 #else
 
-//__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
-//{
-//    for (int x = 0; x < GAME_RES_WIDTH * GAME_RES_HEIGHT; x++)
-//    {
-//        memcpy((PIXEL32*)gBackBuffer.Memory + x, Pixel, sizeof(PIXEL32));
-//    }
-//}
+__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
+{
+    for (int Index = 0; Index < GAME_RES_WIDTH * GAME_RES_HEIGHT; Index++)
+    {
+        memcpy((PIXEL32*)gBackBuffer.Memory + Index, Pixel, sizeof(PIXEL32));
+    }
+}
 
 #endif
 
@@ -1848,7 +1849,7 @@ void DrawTitleScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    BlitStringToBuffer(GAME_NAME, &g6x7Font, &White, (GAME_RES_WIDTH / 2) - ((strlen(GAME_NAME) * 6) / 2), 60);
+    BlitStringToBuffer(GAME_NAME, &g6x7Font, &White, (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(GAME_NAME) * 6) / 2), 60);
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_TitleScreen.ItemCount; MenuItem++)
     {

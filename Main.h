@@ -79,9 +79,9 @@ typedef enum DIRECTION
 
 typedef enum LOGLEVEL
 {
-	LL_NONE = 0,
+	LL_NONE    = 0,
 
-	LL_ERROR = 1,	
+	LL_ERROR   = 1,	
 
 	LL_WARNING = 2,
 
@@ -248,15 +248,15 @@ void FindFirstConnectedGamepad(void);
 
 void ClearScreen(_In_ __m256i* Color);
 
-#endif 
-
-#ifdef SIMD
+#elif defined SSE2
 
 void ClearScreen(_In_ __m128i* Color);
 
-#endif 
+#else
 
-//void ClearScreen(_In_ PIXEL32* Color);
+void ClearScreen(_In_ PIXEL32* Color);
+
+#endif
 
 void DrawOpeningSplashScreen(void);
 
