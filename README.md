@@ -29,6 +29,7 @@ You can use the setx utility to create this environment variable. For example:
 
 `SUCCESS: Specified value was saved.`
 
+You probably have to restart Visual Studio after creating this environment variable for the first time.
 
 
  
