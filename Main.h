@@ -34,6 +34,8 @@
 
 #define TARGET_MICROSECONDS_PER_FRAME		16667ULL
 
+#define NUMBER_OF_SFX_SOURCE_VOICES			4
+
 #define SUIT_0	0
 
 #define SUIT_1	1
@@ -106,6 +108,32 @@ typedef enum GAMESTATE
 	GAMESTATE_EXITYESNOSCREEN
 
 } GAMESTATE;
+
+typedef struct GAMEINPUT
+{
+	int16_t EscapeKeyIsDown;
+
+	int16_t DebugKeyIsDown;
+
+	int16_t LeftKeyIsDown;
+
+	int16_t RightKeyIsDown;
+
+	int16_t UpKeyIsDown;
+
+	int16_t DownKeyIsDown;
+
+	int16_t DebugKeyWasDown;
+
+	int16_t LeftKeyWasDown;
+
+	int16_t RightKeyWasDown;
+
+	int16_t UpKeyWasDown;
+
+	int16_t DownKeyWasDown;
+
+} GAMEINPUT;
 
 #define LOG_FILE_NAME GAME_NAME ".log"
 
@@ -243,6 +271,8 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...);
 void DrawDebugInfo(void);
 
 void FindFirstConnectedGamepad(void);
+
+HRESULT InitializeSoundEngine(void);
 
 
 // This is defined at the beginning of Main.c.

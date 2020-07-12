@@ -13,16 +13,7 @@
 
 // --- TO DO ---
 //
-// ... Fixed the SSE2/AVX precompiler directives
 //
-// ... Added number of CPUs and processor architecture logging
-//
-// Fix the post-build step with the environment variable thing
-//
-// Create global keystate structure, or structure that is local to ProcessPlayerInput
-//
-// show what happens when we don't use memset to clear the screen every frame
-// show what happens when we don't use the static *wasDown keys
 // show what happens when we don't use localframecounter
 //
 // Add logging to InitializeHero
@@ -69,6 +60,8 @@
 
 #endif
 
+#include <xaudio2.h>                // Audio library
+
 #pragma warning(pop)                // Restore warning level to /Wall
 
 #include <Xinput.h>                 // Xbox 360 gamepad input
@@ -80,6 +73,8 @@
 #include "Menus.h"                  // Menus, menu items, etc.
 
 #pragma comment(lib, "Winmm.lib")   // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+
+#pragma comment(lib, "XAudio2.lib") // Audio library
 
 #pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input
 
@@ -105,6 +100,23 @@ XINPUT_STATE gGamepadState;
 int8_t gGamepadID = -1;
 
 GAMESTATE gGameState = GAMESTATE_TITLESCREEN;
+
+GAMEINPUT gGameInput;
+
+IXAudio2* gXAudio;
+
+IXAudio2MasteringVoice* gXAudioMasteringVoice;
+
+IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
+
+IXAudio2SourceVoice* gXAudioMusicSourceVoice;
+
+uint8_t gSFXSourceVoiceSelector;
+
+float gSFXVolume = 0.5f;
+
+float gMusicVolume = 0.5f;
+
 
 
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
@@ -195,7 +207,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         }
         case PROCESSOR_ARCHITECTURE_IA64:
         {
-            LogMessageA(LL_INFO, "[%s] CPU Architecture: Itanium (lol what?)", __FUNCTION__);
+            LogMessageA(LL_INFO, "[%s] CPU Architecture: Itanium", __FUNCTION__);
 
             break;
         }
@@ -268,10 +280,17 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
+    if (InitializeSoundEngine() != S_OK)
+    {
+        MessageBoxA(NULL, "InitializeSoundEngine failed!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
     
     QueryPerformanceFrequency((LARGE_INTEGER*)&gPerformanceData.PerfFrequency);
 
-    gPerformanceData.DisplayDebugInfo = TRUE;
+    //gPerformanceData.DisplayDebugInfo = TRUE;
 
 
     gBackBuffer.BitmapInfo.bmiHeader.biSize = sizeof(gBackBuffer.BitmapInfo.bmiHeader);
@@ -490,7 +509,7 @@ DWORD CreateMainGameWindow(void)
         goto Exit;
     }
 
-    gGameWindow = CreateWindowExA(0, WindowClass.lpszClassName, "Window Title", WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, NULL, NULL, GetModuleHandleA(NULL), NULL);
+    gGameWindow = CreateWindowExA(0, WindowClass.lpszClassName, GAME_NAME, WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, NULL, NULL, GetModuleHandleA(NULL), NULL);
 
     if (gGameWindow == NULL)
     {
@@ -571,6 +590,34 @@ void ProcessPlayerInput(void)
         return;
     }
 
+    gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
+
+    gGameInput.DebugKeyIsDown  = GetAsyncKeyState(VK_F1);
+
+    gGameInput.LeftKeyIsDown   = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
+
+    gGameInput.RightKeyIsDown  = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
+
+    gGameInput.UpKeyIsDown     = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
+
+    gGameInput.DownKeyIsDown   = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
+
+    if (gGamepadID > -1)
+    {
+        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
+        {
+            gGameInput.EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
+
+            gGameInput.LeftKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
+
+            gGameInput.RightKeyIsDown  |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
+
+            gGameInput.UpKeyIsDown     |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
+
+            gGameInput.DownKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
+        }
+    }
+
     switch (gGameState)
     {
         case GAMESTATE_OPENINGSPLASHSCREEN:
@@ -596,6 +643,16 @@ void ProcessPlayerInput(void)
             ASSERT(FALSE, "Unknown game state!");
         }
     }
+
+    gGameInput.DebugKeyWasDown = gGameInput.DebugKeyIsDown;
+
+    gGameInput.LeftKeyWasDown  = gGameInput.LeftKeyIsDown;
+
+    gGameInput.RightKeyWasDown = gGameInput.RightKeyIsDown;
+
+    gGameInput.UpKeyWasDown    = gGameInput.UpKeyIsDown;
+
+    gGameInput.DownKeyWasDown  = gGameInput.DownKeyIsDown;
 }
 
 DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitmap)
@@ -1880,57 +1937,17 @@ void PPI_OpeningSplashScreen(void)
 
 void PPI_TitleScreen(void)
 {
-    int16_t EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
-
-    int16_t DebugKeyIsDown = GetAsyncKeyState(VK_F1);
-
-    int16_t LeftKeyIsDown = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
-
-    int16_t RightKeyIsDown = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
-
-    int16_t UpKeyIsDown = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
-
-    int16_t DownKeyIsDown = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
-
-
-    static int16_t DebugKeyWasDown;
-
-    static int16_t LeftKeyWasDown;
-
-    static int16_t RightKeyWasDown;
-
-    static int16_t UpKeyWasDown;
-
-    static int16_t DownKeyWasDown;
-
-    if (gGamepadID > -1)
-    {
-        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
-        {
-            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
-
-            LeftKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
-
-            RightKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
-
-            UpKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
-
-            DownKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
-        }
-    }
-
-
-    if (EscapeKeyIsDown)
+    if (gGameInput.EscapeKeyIsDown)
     {
         SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
     }
 
-    if (DebugKeyIsDown && !DebugKeyWasDown)
+    if (gGameInput.DebugKeyIsDown && !gGameInput.DebugKeyWasDown)
     {
         gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
     }
 
-    if (DownKeyIsDown && !DownKeyWasDown)
+    if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
     {
         if (gMenu_TitleScreen.SelectedItem < gMenu_TitleScreen.ItemCount - 1)
         {
@@ -1938,82 +1955,31 @@ void PPI_TitleScreen(void)
         }
     }
 
-    if (UpKeyIsDown && !UpKeyWasDown)
+    if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
         if (gMenu_TitleScreen.SelectedItem > 0)
         {
             gMenu_TitleScreen.SelectedItem--;
         }
     }
-
-
-
-    DebugKeyWasDown = DebugKeyIsDown;
-
-    LeftKeyWasDown = LeftKeyIsDown;
-
-    RightKeyWasDown = RightKeyIsDown;
-
-    UpKeyWasDown = UpKeyIsDown;
-
-    DownKeyWasDown = DownKeyIsDown;
 }
 
 void PPI_Overworld(void)
 {
-    int16_t EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
 
-    int16_t DebugKeyIsDown = GetAsyncKeyState(VK_F1);
-
-    int16_t LeftKeyIsDown = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
-
-    int16_t RightKeyIsDown = GetAsyncKeyState(VK_RIGHT) | GetAsyncKeyState('D');
-
-    int16_t UpKeyIsDown = GetAsyncKeyState(VK_UP) | GetAsyncKeyState('W');
-
-    int16_t DownKeyIsDown = GetAsyncKeyState(VK_DOWN) | GetAsyncKeyState('S');
-
-
-    static int16_t DebugKeyWasDown;
-
-    static int16_t LeftKeyWasDown;
-
-    static int16_t RightKeyWasDown;
-
-    static int16_t UpKeyWasDown;
-
-    static int16_t DownKeyWasDown;
-
-    if (gGamepadID > -1)
-    {
-        if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
-        {
-            EscapeKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK;
-
-            LeftKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;
-
-            RightKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT;
-
-            UpKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
-
-            DownKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
-        }
-    }
-
-
-    if (EscapeKeyIsDown)
+    if (gGameInput.EscapeKeyIsDown)
     {
         SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
     }
 
-    if (DebugKeyIsDown && !DebugKeyWasDown)
+    if (gGameInput.DebugKeyIsDown && !gGameInput.DebugKeyWasDown)
     {
         gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
     }
 
     if (!gPlayer.MovementRemaining)
     {
-        if (DownKeyIsDown)
+        if (gGameInput.DownKeyIsDown)
         {
             if (gPlayer.ScreenPosY < GAME_RES_HEIGHT - 16)
             {
@@ -2022,7 +1988,7 @@ void PPI_Overworld(void)
                 gPlayer.MovementRemaining = 16;
             }
         }
-        else if (LeftKeyIsDown)
+        else if (gGameInput.LeftKeyIsDown)
         {
             if (gPlayer.ScreenPosX > 0)
             {
@@ -2031,7 +1997,7 @@ void PPI_Overworld(void)
                 gPlayer.MovementRemaining = 16;
             }
         }
-        else if (RightKeyIsDown)
+        else if (gGameInput.RightKeyIsDown)
         {
             if (gPlayer.ScreenPosX < GAME_RES_WIDTH - 16)
             {
@@ -2040,7 +2006,7 @@ void PPI_Overworld(void)
                 gPlayer.MovementRemaining = 16;
             }
         }
-        else if (UpKeyIsDown)
+        else if (gGameInput.UpKeyIsDown)
         {
             if (gPlayer.ScreenPosY > 0)
             {
@@ -2109,14 +2075,99 @@ void PPI_Overworld(void)
             }
         }
     }
+}
 
-    DebugKeyWasDown = DebugKeyIsDown;
+HRESULT InitializeSoundEngine(void)
+{
+    HRESULT Result = S_OK;
 
-    LeftKeyWasDown = LeftKeyIsDown;
+    WAVEFORMATEX SfxWaveFormat = { 0 };
 
-    RightKeyWasDown = RightKeyIsDown;
+    WAVEFORMATEX MusicWaveFormat = { 0 };
 
-    UpKeyWasDown = UpKeyIsDown;
 
-    DownKeyWasDown = DownKeyIsDown;
+    Result = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    if (Result != S_OK)
+    {
+        LogMessageA(LL_ERROR, "[%s] CoInitializeEx failed with 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    Result = XAudio2Create(&gXAudio, 0, XAUDIO2_ANY_PROCESSOR);
+
+    if (FAILED(Result))
+    {
+        LogMessageA(LL_ERROR, "[%s] XAudio2Create failed with 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    Result = gXAudio->lpVtbl->CreateMasteringVoice(gXAudio, &gXAudioMasteringVoice, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 0, 0, NULL, 0);
+
+    if (FAILED(Result))
+    {
+        LogMessageA(LL_ERROR, "[%s] CreateMasteringVoice failed with 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    SfxWaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+
+    SfxWaveFormat.nChannels = 1; // Mono
+
+    SfxWaveFormat.nSamplesPerSec = 44100;
+
+    SfxWaveFormat.nAvgBytesPerSec = SfxWaveFormat.nSamplesPerSec * SfxWaveFormat.nChannels * 2;
+
+    SfxWaveFormat.nBlockAlign = SfxWaveFormat.nChannels * 2;
+
+    SfxWaveFormat.wBitsPerSample = 16;
+
+    SfxWaveFormat.cbSize = 0x6164;
+
+    for (uint8_t Counter = 0; Counter < NUMBER_OF_SFX_SOURCE_VOICES; Counter++)
+    {
+        Result = gXAudio->lpVtbl->CreateSourceVoice(gXAudio, &gXAudioSFXSourceVoice[Counter], &SfxWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, NULL, NULL, NULL);
+
+        if (Result != S_OK)
+        {
+            LogMessageA(LL_ERROR, "[%s] CreateSourceVoice failed with 0x%08lx!", __FUNCTION__, Result);
+
+            goto Exit;
+        }
+
+        gXAudioSFXSourceVoice[Counter]->lpVtbl->SetVolume(gXAudioSFXSourceVoice[Counter], gSFXVolume, XAUDIO2_COMMIT_NOW);
+    }
+
+    MusicWaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+
+    MusicWaveFormat.nChannels = 2; // Stereo
+
+    MusicWaveFormat.nSamplesPerSec = 44100;
+
+    MusicWaveFormat.nAvgBytesPerSec = MusicWaveFormat.nSamplesPerSec * MusicWaveFormat.nChannels * 2;
+
+    MusicWaveFormat.nBlockAlign = MusicWaveFormat.nChannels * 2;
+
+    MusicWaveFormat.wBitsPerSample = 16;
+
+    MusicWaveFormat.cbSize = 0;
+
+    Result = gXAudio->lpVtbl->CreateSourceVoice(gXAudio, &gXAudioMusicSourceVoice, &MusicWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, NULL, NULL, NULL);
+
+    if (Result != S_OK)
+    {
+        LogMessageA(LL_ERROR, "[%s] CreateSourceVoice failed with 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    gXAudioMusicSourceVoice->lpVtbl->SetVolume(gXAudioMusicSourceVoice, gMusicVolume, XAUDIO2_COMMIT_NOW);
+        
+
+Exit:
+
+    return(Result);
 }
