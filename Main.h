@@ -99,6 +99,8 @@ typedef enum GAMESTATE
 
 	GAMESTATE_TITLESCREEN,
 
+	GAMESTATE_CHARACTERNAMING,
+
 	GAMESTATE_OVERWORLD,
 
 	GAMESTATE_BATTLE,
@@ -159,6 +161,14 @@ typedef struct GAMEBITMAP
 	void* Memory;	                        
 
 } GAMEBITMAP;
+
+typedef struct GAMESOUND
+{
+	WAVEFORMATEX WaveFormat;
+
+	XAUDIO2_BUFFER Buffer;
+
+} GAMESOUND;
 
 typedef struct PIXEL32
 {
@@ -273,6 +283,10 @@ void DrawDebugInfo(void);
 void FindFirstConnectedGamepad(void);
 
 HRESULT InitializeSoundEngine(void);
+
+DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
+
+void PlayGameSound(_In_ GAMESOUND* GameSound);
 
 
 // This is defined at the beginning of Main.c.
