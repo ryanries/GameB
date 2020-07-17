@@ -5,6 +5,11 @@
 // Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
 // Follow along on GitHub: https://github.com/ryanries/GameB
 // Find me on Twitter @JosephRyanRies 
+//# License
+//----------
+//The source code in this project is licensed under the MIT license.
+//The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
+//A copy of that license can be found in the 'Assets' directory.
 
 #pragma once
 

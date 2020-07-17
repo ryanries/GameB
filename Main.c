@@ -8,7 +8,7 @@
 //# License
 //----------
 //The source code in this project is licensed under the MIT license.
-//The media assets such as artwork, custom fonts, musicand sound effects are licensed under a separate license.
+//The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
 //A copy of that license can be found in the 'Assets' directory.
 
 // --- TO DO ---
@@ -16,6 +16,8 @@
 // ... show what happens when you don't increment gSFXSourceVoiceSelector
 // ... added the rest of the gamestates to the switch/case blocks just to get rid of the warnings
 //
+// opening splash screen, transitions
+// lower the volume of the menu navigate sound
 // show what happens when we don't use localframecounter
 //
 // Add logging to InitializeHero
@@ -2235,7 +2237,7 @@ DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound)
 
     DWORD DataChunkSize = 0;
 
-    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;    
 
     if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
     {
@@ -2383,7 +2385,7 @@ DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound)
         LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
-    }
+    }    
 
 Exit:
 
