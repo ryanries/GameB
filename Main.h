@@ -130,6 +130,8 @@ typedef struct GAMEINPUT
 
 	int16_t DownKeyIsDown;
 
+	int16_t ChooseKeyIsDown;
+
 	int16_t DebugKeyWasDown;
 
 	int16_t LeftKeyWasDown;
@@ -139,6 +141,8 @@ typedef struct GAMEINPUT
 	int16_t UpKeyWasDown;
 
 	int16_t DownKeyWasDown;
+
+	int16_t ChooseKeyWasDown;
 
 } GAMEINPUT;
 
@@ -313,8 +317,12 @@ void DrawOpeningSplashScreen(void);
 
 void DrawTitleScreen(void);
 
+void DrawExitYesNoScreen(void);
+
 void PPI_OpeningSplashScreen(void);
 
 void PPI_TitleScreen(void);
 
 void PPI_Overworld(void);
+
+void PPI_ExitYesNo(void);
