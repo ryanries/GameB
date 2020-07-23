@@ -112,7 +112,9 @@ typedef enum GAMESTATE
 
 	GAMESTATE_OPTIONSSCREEN,
 
-	GAMESTATE_EXITYESNOSCREEN
+	GAMESTATE_EXITYESNOSCREEN,
+
+	GAMESTATE_GAMEPADUNPLUGGED
 
 } GAMESTATE;
 
@@ -133,6 +135,8 @@ typedef struct GAMEINPUT
 	int16_t ChooseKeyIsDown;
 
 	int16_t DebugKeyWasDown;
+
+	int16_t EscapeKeyWasDown;
 
 	int16_t LeftKeyWasDown;
 
@@ -235,6 +239,8 @@ typedef struct HERO
 
 	GAMEBITMAP Sprite[3][12];
 
+	BOOL Active;
+
 	int16_t ScreenPosX;
 
 	int16_t ScreenPosY;
@@ -319,6 +325,11 @@ void DrawTitleScreen(void);
 
 void DrawExitYesNoScreen(void);
 
+void DrawGamepadUnplugged(void);
+
+void DrawOptionsScreen(void);
+
+
 void PPI_OpeningSplashScreen(void);
 
 void PPI_TitleScreen(void);
@@ -326,3 +337,7 @@ void PPI_TitleScreen(void);
 void PPI_Overworld(void);
 
 void PPI_ExitYesNo(void);
+
+void PPI_GamepadUnplugged(void);
+
+void PPI_OptionsScreen(void);
