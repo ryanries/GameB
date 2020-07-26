@@ -211,6 +211,10 @@ typedef struct GAMEPERFDATA
 
 	int32_t MonitorHeight;
 
+	int32_t WindowWidth;
+
+	int32_t WindowHeight;
+
 	BOOL DisplayDebugInfo;	
 
 	ULONG MinimumTimerResolution;
@@ -263,6 +267,14 @@ typedef struct HERO
 typedef struct REGISTRYPARAMS
 {
 	DWORD LogLevel;
+
+	DWORD SFXVolume;
+
+	DWORD MusicVolume;
+
+	DWORD WindowWidth;
+
+	DWORD WindowHeight;
 
 } REGISTRYPARAMS;
 
