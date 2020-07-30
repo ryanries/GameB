@@ -201,7 +201,7 @@ typedef struct GAMEPERFDATA
 
 	float RawFPSAverage;
 
-	float CookedFPSAverage;
+	float CookedFPSAverage;	
 
 	int64_t PerfFrequency;	
 
@@ -234,6 +234,10 @@ typedef struct GAMEPERFDATA
 	int64_t PreviousSystemTime;
 
 	double CPUPercent;
+
+	uint8_t MaxScaleFactor;
+
+	uint8_t CurrentScaleFactor;
 
 } GAMEPERFDATA;
 
