@@ -27,7 +27,11 @@
 
 #define GAME_VER	"0.9a"
 
-#define GAME_RES_WIDTH	384
+// 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
+// So even when the game runs at full screen, it will have to be centered
+// with black bars on the sides.
+
+#define GAME_RES_WIDTH	384		
 
 #define GAME_RES_HEIGHT	240
 
@@ -207,14 +211,6 @@ typedef struct GAMEPERFDATA
 
 	MONITORINFO MonitorInfo;
 
-	int32_t MonitorWidth;
-
-	int32_t MonitorHeight;
-
-	int32_t WindowWidth;
-
-	int32_t WindowHeight;
-
 	BOOL DisplayDebugInfo;	
 
 	ULONG MinimumTimerResolution;
@@ -276,9 +272,7 @@ typedef struct REGISTRYPARAMS
 
 	DWORD MusicVolume;
 
-	DWORD WindowWidth;
-
-	DWORD WindowHeight;
+	DWORD ScaleFactor;	
 
 } REGISTRYPARAMS;
 
@@ -306,6 +300,8 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
 void RenderFrameGraphics(void);
 
 DWORD LoadRegistryParameters(void);
+
+DWORD SaveRegistryParameters(void);
 
 void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...);
 
@@ -345,6 +341,8 @@ void DrawGamepadUnplugged(void);
 
 void DrawOptionsScreen(void);
 
+void DrawCharacterNaming(void);
+
 
 void PPI_OpeningSplashScreen(void);
 
@@ -357,3 +355,5 @@ void PPI_ExitYesNo(void);
 void PPI_GamepadUnplugged(void);
 
 void PPI_OptionsScreen(void);
+
+void PPI_CharacterNaming(void);

@@ -13,9 +13,8 @@
 
 // --- TO DO ---
 // 
-// Finish the customizable window size in the Options screen
-// save volume and window size to registry
 // shadow effect for text?
+// should we enhance BlitStringToBuffer to support varargs?
 // character naming screen
 // overworld... tile maps...
 // ogg vorbis background music
@@ -78,16 +77,16 @@
 
 #pragma comment(lib, "Winmm.lib")   // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
 
-#pragma comment(lib, "XAudio2.lib") // Audio library
+#pragma comment(lib, "XAudio2.lib") // Audio library.
 
-#pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input
+#pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input.
 
 
-HWND gGameWindow;
+HWND gGameWindow;                   // A global handle to the game window.
 
-BOOL gGameIsRunning;        // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
+BOOL gGameIsRunning;                // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 
-GAMEBITMAP gBackBuffer;
+GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
 
 GAMEBITMAP g6x7Font;
 
@@ -161,7 +160,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 	UNREFERENCED_PARAMETER(CommandLine);
 
-	UNREFERENCED_PARAMETER(CmdShow);
+	UNREFERENCED_PARAMETER(CmdShow);    
 
     MSG Message = { 0 };
 
@@ -556,6 +555,7 @@ DWORD CreateMainGameWindow(void)
 
     WindowClass.lpszClassName = GAME_NAME "_WINDOWCLASS";   
 
+    // This is set in the application manifest, as recommended by MSDN.
     // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     if (RegisterClassExA(&WindowClass) == 0)
@@ -593,33 +593,10 @@ DWORD CreateMainGameWindow(void)
         goto Exit;
     }
 
-    gPerformanceData.MonitorWidth = gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left;
-
-    gPerformanceData.MonitorHeight = gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top;
-
-    if (gPerformanceData.WindowWidth == 0)
-    {
-        gPerformanceData.WindowWidth = gPerformanceData.MonitorWidth;
-    }
-
-    if (gPerformanceData.WindowHeight == 0)
-    {
-        gPerformanceData.WindowHeight = gPerformanceData.MonitorHeight;
-    }
-
-    if (gPerformanceData.WindowHeight > gPerformanceData.MonitorHeight ||
-        gPerformanceData.WindowWidth > gPerformanceData.MonitorWidth)
-    {
-        LogMessageA(LL_INFO, "[%s] The WindowWidth or WindowHeight retrieved from the registry was larger than the current monitor size. Resetting to default.", __FUNCTION__);
-
-        gPerformanceData.WindowHeight = gPerformanceData.MonitorHeight;
-
-        gPerformanceData.WindowWidth = gPerformanceData.MonitorWidth;
-    }
-
     for (uint8_t Counter = 1; Counter < 12; Counter++)
     {
-        if (GAME_RES_WIDTH * Counter > gPerformanceData.MonitorWidth)
+        if (GAME_RES_WIDTH * Counter > (gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left) ||
+            GAME_RES_HEIGHT * Counter > (gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top))
         {
             gPerformanceData.MaxScaleFactor = Counter - 1;
 
@@ -627,7 +604,35 @@ DWORD CreateMainGameWindow(void)
         }
     }
 
-    gPerformanceData.CurrentScaleFactor = gPerformanceData.MaxScaleFactor;
+    if (gRegistryParams.ScaleFactor == 0)
+    {
+        gPerformanceData.CurrentScaleFactor = gPerformanceData.MaxScaleFactor;
+    }
+    else
+    {
+        gPerformanceData.CurrentScaleFactor = (uint8_t)gRegistryParams.ScaleFactor;
+    }
+
+    // This can happen if for example the user has a laptop with a smaller screen,
+    // then docks the laptop into a docking station with a larger screen, then undocks
+    // the laptop again and plays on the smaller screen.
+
+    if (gPerformanceData.CurrentScaleFactor > gPerformanceData.MaxScaleFactor)
+    {
+        gPerformanceData.CurrentScaleFactor = gPerformanceData.MaxScaleFactor;
+
+        LogMessageA(LL_WARNING, "[%s] ScaleFactor read from the registry was larger than the maximum allowable scale factor according to your current monitor size. Resetting CurrentScaleFactor to match MaxScaleFactor.", __FUNCTION__);
+    }
+
+    LogMessageA(LL_INFO, "[%s] Current scale factor is %d. Max scale factor is %d. ", 
+        __FUNCTION__, 
+        gPerformanceData.CurrentScaleFactor, 
+        gPerformanceData.MaxScaleFactor);
+
+    LogMessageA(LL_INFO, "[%s] Will draw at %dx%d.", 
+        __FUNCTION__, 
+        GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor,
+        GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor);
 
     if (SetWindowLongPtrA(gGameWindow, GWL_STYLE, WS_VISIBLE) == 0)
     {
@@ -636,14 +641,14 @@ DWORD CreateMainGameWindow(void)
         LogMessageA(LL_ERROR, "[%s] SetWindowLongPtrA failed! Error 0x%08lx!", __FUNCTION__, Result);
 
         goto Exit;
-    } 
-
+    }     
+        
     if (SetWindowPos(gGameWindow,
         HWND_TOP,
         gPerformanceData.MonitorInfo.rcMonitor.left,
         gPerformanceData.MonitorInfo.rcMonitor.top,
-        gPerformanceData.WindowWidth,
-        gPerformanceData.WindowHeight,
+        gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left,
+        gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top,
         SWP_NOOWNERZORDER | SWP_FRAMECHANGED) == 0)
     {
         Result = GetLastError();
@@ -652,8 +657,6 @@ DWORD CreateMainGameWindow(void)
 
         goto Exit;
     }
-    
-
 
 Exit:
 
@@ -762,6 +765,8 @@ void ProcessPlayerInput(void)
         }
         case GAMESTATE_CHARACTERNAMING:
         {
+            PPI_CharacterNaming();
+
             break;
         }
         case GAMESTATE_OPTIONSSCREEN:
@@ -1035,7 +1040,8 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
 
         PIXEL32 FontSheetPixel = { 0 };
 
-        StartingFontSheetPixel = (FontSheet->BitmapInfo.bmiHeader.biWidth * FontSheet->BitmapInfo.bmiHeader.biHeight) - FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * gFontCharacterPixelOffset[(uint8_t)String[Character]]);
+        StartingFontSheetPixel = (FontSheet->BitmapInfo.bmiHeader.biWidth * FontSheet->BitmapInfo.bmiHeader.biHeight) - \
+            FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * gFontCharacterPixelOffset[(uint8_t)String[Character]]);
 
         for (int YPixel = 0; YPixel < CharHeight; YPixel++)
         {
@@ -1092,6 +1098,8 @@ void RenderFrameGraphics(void)
         }
         case GAMESTATE_CHARACTERNAMING:
         {
+            DrawCharacterNaming();
+
             break;
         }
         case GAMESTATE_OVERWORLD:
@@ -1130,8 +1138,8 @@ void RenderFrameGraphics(void)
     HDC DeviceContext = GetDC(gGameWindow);
 
     StretchDIBits(DeviceContext, 
-        (gPerformanceData.MonitorWidth / 2) - ((GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor) / 2),
-        (gPerformanceData.MonitorHeight / 2) - ((GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor) / 2),
+        ((gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left) / 2) - ((GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor) / 2),
+        ((gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top) / 2) - ((GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor) / 2),
         GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor,
         GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor,
         0, 
@@ -1220,7 +1228,7 @@ DWORD LoadRegistryParameters(void)
 
     DWORD RegBytesRead = sizeof(DWORD);
 
-    Result = RegCreateKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\" GAME_NAME, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &RegKey, &RegDisposition);
+    Result = RegCreateKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\" GAME_NAME, 0, NULL, 0, KEY_READ, NULL, &RegKey, &RegDisposition);
 
     if (Result != ERROR_SUCCESS)
     {
@@ -1258,7 +1266,7 @@ DWORD LoadRegistryParameters(void)
         }
     }
 
-    Result = RegGetValueA(RegKey, NULL, "WindowWidth", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.WindowWidth, &RegBytesRead);
+    Result = RegGetValueA(RegKey, NULL, "ScaleFactor", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.ScaleFactor, &RegBytesRead);
 
     if (Result != ERROR_SUCCESS)
     {
@@ -1266,41 +1274,19 @@ DWORD LoadRegistryParameters(void)
         {
             Result = ERROR_SUCCESS;
 
-            LogMessageA(LL_INFO, "[%s] Registry value 'WindowWidth' not found. Using default of 0.", __FUNCTION__);
+            LogMessageA(LL_INFO, "[%s] Registry value 'ScaleFactor' not found. Using default of 0.", __FUNCTION__);
 
-            gRegistryParams.WindowWidth = 0;
+            gRegistryParams.ScaleFactor = 0;
         }
         else
         {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'WindowWidth' registry value! Error 0x%08lx!", __FUNCTION__, Result);
+            LogMessageA(LL_ERROR, "[%s] Failed to read the 'ScaleFactor' registry value! Error 0x%08lx!", __FUNCTION__, Result);
 
             goto Exit;
         }
     }
 
-    LogMessageA(LL_INFO, "[%s] WindowWidth is %d.", __FUNCTION__, gRegistryParams.WindowWidth);
-
-    Result = RegGetValueA(RegKey, NULL, "WindowHeight", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.WindowHeight, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
-    {
-        if (Result == ERROR_FILE_NOT_FOUND)
-        {
-            Result = ERROR_SUCCESS;
-
-            LogMessageA(LL_INFO, "[%s] Registry value 'WindowHeight' not found. Using default of 0.", __FUNCTION__);
-
-            gRegistryParams.WindowHeight = 0;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'WindowHeight' registry value! Error 0x%08lx!", __FUNCTION__, Result);
-
-            goto Exit;
-        }
-    }
-
-    LogMessageA(LL_INFO, "[%s] WindowHeight is %d.", __FUNCTION__, gRegistryParams.WindowHeight);
+    LogMessageA(LL_INFO, "[%s] ScaleFactor is %d.", __FUNCTION__, gRegistryParams.ScaleFactor);    
 
     Result = RegGetValueA(RegKey, NULL, "SFXVolume", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.SFXVolume, &RegBytesRead);
 
@@ -1310,7 +1296,7 @@ DWORD LoadRegistryParameters(void)
         {
             Result = ERROR_SUCCESS;
 
-            LogMessageA(LL_INFO, "[%s] Registry value 'SFXVolume' not found. Using default of 0.5.", __FUNCTION__);
+            LogMessageA(LL_INFO, "[%s] Registry value 'SFXVolume' not found. Using default of 0.5/50.", __FUNCTION__);
 
             gRegistryParams.SFXVolume = 50;
         }
@@ -1322,7 +1308,7 @@ DWORD LoadRegistryParameters(void)
         }
     }
 
-    LogMessageA(LL_INFO, "[%s] SFXVolume is %.1f.", __FUNCTION__, (float)(gRegistryParams.SFXVolume / 100.0f));
+    LogMessageA(LL_INFO, "[%s] SFXVolume is %.1f/%d.", __FUNCTION__, (float)(gRegistryParams.SFXVolume / 100.0f), gRegistryParams.SFXVolume);
 
     gSFXVolume = (float)(gRegistryParams.SFXVolume / 100.0f);
 
@@ -1334,7 +1320,7 @@ DWORD LoadRegistryParameters(void)
         {
             Result = ERROR_SUCCESS;
 
-            LogMessageA(LL_INFO, "[%s] Registry value 'MusicVolume' not found. Using default of 0.5.", __FUNCTION__);
+            LogMessageA(LL_INFO, "[%s] Registry value 'MusicVolume' not found. Using default of 0.5/50.", __FUNCTION__);
 
             gRegistryParams.MusicVolume = 50;
         }
@@ -1346,9 +1332,76 @@ DWORD LoadRegistryParameters(void)
         }
     }
 
-    LogMessageA(LL_INFO, "[%s] MusicVolume is %.1f.", __FUNCTION__, (float)(gRegistryParams.MusicVolume / 100.0f));
+    LogMessageA(LL_INFO, "[%s] MusicVolume is %.1f/%d.", __FUNCTION__, (float)(gRegistryParams.MusicVolume / 100.0f), gRegistryParams.MusicVolume);
 
     gMusicVolume = (float)(gRegistryParams.MusicVolume / 100.0f);
+
+Exit:
+
+    if (RegKey)
+    {
+        RegCloseKey(RegKey);
+    }
+
+    return(Result);
+}
+
+DWORD SaveRegistryParameters(void)
+{
+    DWORD Result = ERROR_SUCCESS;
+
+    HKEY RegKey = NULL;
+
+    DWORD RegDisposition = 0;    
+
+    DWORD SFXVolume = (DWORD)(gSFXVolume * 100.0f);
+    
+    DWORD MusicVolume = (DWORD)(gMusicVolume * 100.0f);
+
+    Result = RegCreateKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\" GAME_NAME, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &RegKey, &RegDisposition);
+
+    if (Result != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] RegCreateKey failed with error code 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] Reg key open for save.", __FUNCTION__);
+
+    Result = RegSetValueExA(RegKey, "SFXVolume", 0, REG_DWORD, (const BYTE*)&SFXVolume, sizeof(DWORD));
+
+    if (Result != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to set 'SFXVolume' in the registry! Error code 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] SFXVolume saved: %d.", __FUNCTION__, SFXVolume);
+
+    Result = RegSetValueExA(RegKey, "MusicVolume", 0, REG_DWORD, (const BYTE*)&MusicVolume, sizeof(DWORD));
+
+    if (Result != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to set 'MusicVolume' in the registry! Error code 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] MusicVolume saved: %d.", __FUNCTION__, MusicVolume);
+
+    Result = RegSetValueExA(RegKey, "ScaleFactor", 0, REG_DWORD, &gPerformanceData.CurrentScaleFactor, sizeof(DWORD));
+
+    if (Result != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to set 'ScaleFactor' in the registry! Error code 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] ScaleFactor saved: %d.", __FUNCTION__, gPerformanceData.CurrentScaleFactor);
+
 
 Exit:
 
@@ -1462,6 +1515,8 @@ __forceinline void DrawDebugInfo(void)
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSRaw:  %.01f", gPerformanceData.RawFPSAverage);
 
+    //BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0x60, 0x60, 0x60, 0xff }, 1, 1);
+    
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 0);
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSCookd:%.01f", gPerformanceData.CookedFPSAverage);
@@ -1523,6 +1578,27 @@ void MenuItem_TitleScreen_Resume(void)
 
 void MenuItem_TitleScreen_StartNew(void)
 {
+    // If a game is already in progress, this should prompt the user if they are sure that they want to start a new game first,
+    // and lose any unsaved progress.
+    // Otherwise, just go to the character naming screen.
+
+    gPreviousGameState = gCurrentGameState;
+
+    gCurrentGameState = GAMESTATE_CHARACTERNAMING;
+}
+
+void MenuItem_CharacterNaming_Add(void)
+{
+
+}
+
+void MenuItem_CharacterNaming_Back(void)
+{
+
+}
+
+void MenuItem_CharacterNaming_OK(void)
+{
 
 }
 
@@ -1581,7 +1657,16 @@ void MenuItem_OptionsScreen_MusicVolume(void)
 
 void MenuItem_OptionsScreen_ScreenSize(void)
 {
+    if (gPerformanceData.CurrentScaleFactor < gPerformanceData.MaxScaleFactor)
+    {
+        gPerformanceData.CurrentScaleFactor++;
+    }
+    else
+    {
+        gPerformanceData.CurrentScaleFactor = 1;
+    }
 
+    InvalidateRect(gGameWindow, NULL, TRUE);
 }
 
 void MenuItem_OptionsScreen_Back(void)
@@ -1589,6 +1674,11 @@ void MenuItem_OptionsScreen_Back(void)
     gCurrentGameState = gPreviousGameState;
 
     gPreviousGameState = GAMESTATE_OPTIONSSCREEN;
+
+    if (SaveRegistryParameters() != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] SaveRegistryParameters failed!", __FUNCTION__);
+    }
 }
 
 void DrawOpeningSplashScreen(void)
@@ -1684,40 +1774,40 @@ void DrawTitleScreen(void)
     
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    if (LocalFrameCounter == 15)
+    if (LocalFrameCounter == 10)
     {
-        TextColor.Red = 64;
+        TextColor.Red   = 64;
         
         TextColor.Green = 64;
         
-        TextColor.Blue = 64;        
+        TextColor.Blue  = 64;        
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        TextColor.Red   = 128;
+
+        TextColor.Green = 128;
+
+        TextColor.Blue  = 128;
     }
 
     if (LocalFrameCounter == 30)
     {
-        TextColor.Red = 128;
-
-        TextColor.Green = 128;
-
-        TextColor.Blue = 128;
-    }
-
-    if (LocalFrameCounter == 45)
-    {
-        TextColor.Red = 192;
+        TextColor.Red   = 192;
 
         TextColor.Green = 192;
 
-        TextColor.Blue = 192;
+        TextColor.Blue  = 192;
     }
 
-    if (LocalFrameCounter == 60)
+    if (LocalFrameCounter == 40)
     {
-        TextColor.Red = 255;
+        TextColor.Red   = 255;
 
         TextColor.Green = 255;
 
-        TextColor.Blue = 255;
+        TextColor.Blue  = 255;
     }
 
 
@@ -1748,6 +1838,88 @@ void DrawTitleScreen(void)
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
+}
+
+void DrawCharacterNaming(void)
+{
+    static uint64_t LocalFrameCounter;
+
+    static uint64_t LastFrameSeen;
+
+    static PIXEL32 TextColor = { 0x00, 0x00, 0x00, 0x00 };
+
+    if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
+    {
+        LocalFrameCounter = 0;
+
+        TextColor.Red = 0;
+
+        TextColor.Green = 0;
+
+        TextColor.Blue = 0;
+            
+        gMenu_CharacterNaming.SelectedItem = 0;
+    }
+
+    memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+    if (LocalFrameCounter == 10)
+    {
+        TextColor.Red   = 64;
+
+        TextColor.Green = 64;
+
+        TextColor.Blue  = 64;
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        TextColor.Red   = 128;
+
+        TextColor.Green = 128;
+
+        TextColor.Blue  = 128;
+    }
+
+    if (LocalFrameCounter == 30)
+    {
+        TextColor.Red   = 192;
+
+        TextColor.Green = 192;
+
+        TextColor.Blue  = 192;
+    }
+
+    if (LocalFrameCounter == 40)
+    {
+        TextColor.Red   = 255;
+
+        TextColor.Green = 255;
+
+        TextColor.Blue  = 255;
+    }
+
+    BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 90);
+
+    for (uint8_t Counter = 0; Counter < gMenu_CharacterNaming.ItemCount; Counter++)
+    {
+        BlitStringToBuffer(gMenu_CharacterNaming.Items[Counter]->Name,
+            &g6x7Font,
+            &TextColor,
+            gMenu_CharacterNaming.Items[Counter]->x,
+            gMenu_CharacterNaming.Items[Counter]->y);
+    }
+
+    BlitStringToBuffer("»",
+        &g6x7Font,
+        &TextColor,
+        gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->x - 6,
+        gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->y);
+
+    LocalFrameCounter++;
+
+    LastFrameSeen = gPerformanceData.TotalFramesRendered;
+
 }
 
 void DrawExitYesNoScreen(void)
@@ -1806,22 +1978,66 @@ void DrawGamepadUnplugged(void)
 
 void DrawOptionsScreen(void)
 {
-    PIXEL32 White = { 0xFF, 0xFF, 0xFF, 0xFF };
-
     PIXEL32 Grey  = { 0x6F, 0x6F, 0x6F, 0x6F };
 
     static uint64_t LocalFrameCounter;
 
     static uint64_t LastFrameSeen;
 
-    memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+    static PIXEL32 TextColor = { 0x00, 0x00, 0x00, 0x00 };
+
+    char ScreenSizeString[64] = { 0 };
 
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
 
-        gMenu_OptionsScreen.SelectedItem = 0;
-    }    
+        TextColor.Red = 0;
+
+        TextColor.Green = 0;
+
+        TextColor.Blue = 0;       
+            
+        gMenu_OptionsScreen.SelectedItem = 0;        
+    }
+
+    memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+    if (LocalFrameCounter == 10)
+    {
+        TextColor.Red   = 64;
+
+        TextColor.Green = 64;
+
+        TextColor.Blue  = 64;
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        TextColor.Red   = 128;
+
+        TextColor.Green = 128;
+
+        TextColor.Blue  = 128;
+    }
+
+    if (LocalFrameCounter == 30)
+    {
+        TextColor.Red   = 192;
+
+        TextColor.Green = 192;
+
+        TextColor.Blue  = 192;
+    }
+
+    if (LocalFrameCounter == 40)
+    {
+        TextColor.Red   = 255;
+
+        TextColor.Green = 255;
+
+        TextColor.Blue  = 255;
+    }
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
     {
@@ -1829,7 +2045,7 @@ void DrawOptionsScreen(void)
         {
             BlitStringToBuffer(gMenu_OptionsScreen.Items[MenuItem]->Name,
                 &g6x7Font,
-                &White,
+                &TextColor,
                 gMenu_OptionsScreen.Items[MenuItem]->x,
                 gMenu_OptionsScreen.Items[MenuItem]->y);
         }
@@ -1839,11 +2055,14 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (uint8_t)(gSFXVolume * 10))
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 240 + (Volume * 6), 100);
+            if (TextColor.Red == 255)
+            {
+                BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
+            }
         }
         else
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &White, 240 + (Volume * 6), 100);
+            BlitStringToBuffer("\xf2", &g6x7Font, &TextColor, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
         }
     }
 
@@ -1851,19 +2070,28 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (uint8_t)(gMusicVolume * 10))
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 240 + (Volume * 6), 115);
+            if (TextColor.Red == 255)
+            {
+                BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
+            }
         }
         else
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &White, 240 + (Volume * 6), 115);
+            BlitStringToBuffer("\xf2", &g6x7Font, &TextColor, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
         }
     }
 
-    
+    snprintf(ScreenSizeString, 
+        sizeof(ScreenSizeString), 
+        "%dx%d", 
+        GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor, 
+        GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor);
+
+    BlitStringToBuffer(ScreenSizeString, &g6x7Font, &TextColor, 224, gMI_OptionsScreen_ScreenSize.y);    
 
     BlitStringToBuffer("»",
         &g6x7Font,
-        &White,
+        &TextColor,
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->x - 6,
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->y);
 
@@ -1962,6 +2190,11 @@ void PPI_TitleScreen(void)
 
         PlayGameSound(&gSoundMenuChoose);
     }
+}
+
+void PPI_CharacterNaming(void)
+{
+
 }
 
 void PPI_Overworld(void)
