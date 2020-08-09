@@ -13,6 +13,8 @@
 
 // --- TO DO ---
 // 
+// talk about the scope of #define precompiler directives
+// disable keyboard input during gamestate fade-in
 // shadow effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
 // character naming screen
@@ -91,7 +93,7 @@ GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to th
 GAMEBITMAP g6x7Font;
 
 // Map any char value to an offset dictated by the g6x7Font ordering.
-int gFontCharacterPixelOffset[] = {
+int32_t gFontCharacterPixelOffset[] = {
     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
     //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
@@ -1589,12 +1591,28 @@ void MenuItem_TitleScreen_StartNew(void)
 
 void MenuItem_CharacterNaming_Add(void)
 {
+    if (strlen(gPlayer.Name) < 8)
+    {
+        gPlayer.Name[strlen(gPlayer.Name)] = gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name[0];
 
+        PlayGameSound(&gSoundMenuChoose);
+    }
 }
 
 void MenuItem_CharacterNaming_Back(void)
 {
+    if (strlen(gPlayer.Name) < 1)
+    {
+        gPreviousGameState = gCurrentGameState;
 
+        gCurrentGameState = GAMESTATE_TITLESCREEN;
+    }
+    else
+    {
+        gPlayer.Name[strlen(gPlayer.Name) - 1] = '\0';
+    }
+
+    PlayGameSound(&gSoundMenuChoose);
 }
 
 void MenuItem_CharacterNaming_OK(void)
@@ -1899,7 +1917,21 @@ void DrawCharacterNaming(void)
         TextColor.Blue  = 255;
     }
 
-    BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 90);
+    BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 16);
+
+    Blit32BppBitmapToBuffer(&gPlayer.Sprite[SUIT_0][FACING_DOWN_0], 125, 64);
+
+    for (uint8_t Letter = 0; Letter < 8; Letter++)
+    {
+        if (gPlayer.Name[Letter] == '\0')
+        {
+            BlitStringToBuffer("_", &g6x7Font, &TextColor, 150 + (Letter * 6), 64);
+        }
+        else
+        {
+            BlitStringToBuffer(&gPlayer.Name[Letter], &g6x7Font, &TextColor, 150 + (Letter * 6), 64);
+        }
+    }
 
     for (uint8_t Counter = 0; Counter < gMenu_CharacterNaming.ItemCount; Counter++)
     {
@@ -1924,37 +1956,89 @@ void DrawCharacterNaming(void)
 
 void DrawExitYesNoScreen(void)
 {
-    PIXEL32 White = { 0xFF, 0xFF, 0xFF, 0xFF };
-
     static uint64_t LocalFrameCounter;
 
     static uint64_t LastFrameSeen;
 
+    static PIXEL32 TextColor = { 0x00, 0x00, 0x00, 0x00 };
+
+    if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
+    {
+        LocalFrameCounter = 0;
+
+        TextColor.Red = 0;
+
+        TextColor.Green = 0;
+
+        TextColor.Blue = 0;        
+    }
+
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+    if (LocalFrameCounter == 10)
+    {
+        TextColor.Red = 64;
+
+        TextColor.Green = 64;
+
+        TextColor.Blue = 64;
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        TextColor.Red = 128;
+
+        TextColor.Green = 128;
+
+        TextColor.Blue = 128;
+    }
+
+    if (LocalFrameCounter == 30)
+    {
+        TextColor.Red = 192;
+
+        TextColor.Green = 192;
+
+        TextColor.Blue = 192;
+    }
+
+    if (LocalFrameCounter == 40)
+    {
+        TextColor.Red = 255;
+
+        TextColor.Green = 255;
+
+        TextColor.Blue = 255;
+    }
 
     BlitStringToBuffer(gMenu_ExitYesNo.Name, 
         &g6x7Font, 
-        &White, 
+        &TextColor,
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Name) * 6) / 2), 
         60);
 
     BlitStringToBuffer(gMenu_ExitYesNo.Items[0]->Name, 
         &g6x7Font, 
-        &White, 
+        &TextColor,
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Items[0]->Name) * 6) / 2), 
         100);
 
     BlitStringToBuffer(gMenu_ExitYesNo.Items[1]->Name,
         &g6x7Font,
-        &White,
+        &TextColor,
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Items[1]->Name) * 6) / 2),
         115);
 
     BlitStringToBuffer("»",
         &g6x7Font,
-        &White,
+        &TextColor,
         gMenu_ExitYesNo.Items[gMenu_ExitYesNo.SelectedItem]->x - 6,
         gMenu_ExitYesNo.Items[gMenu_ExitYesNo.SelectedItem]->y);
+
+
+    LocalFrameCounter++;
+
+    LastFrameSeen = gPerformanceData.TotalFramesRendered;
 }
 
 void DrawGamepadUnplugged(void)
@@ -2194,7 +2278,99 @@ void PPI_TitleScreen(void)
 
 void PPI_CharacterNaming(void)
 {
+    // Character Naming Menu
 
+    // A B C D E F G H I J K L M 
+    // N O P Q R S T U V W X Y Z
+    // a b c d e f g h i j k l m
+    // n o p q r s t u v w x y z
+    // Back                   OK
+
+
+#define BACK_BUTTON 52
+
+#define OK_BUTTON   53
+
+#define CAPITAL_M   12
+
+#define LOWERCASE_N 37
+
+#define LOWERCASE_Z 51
+
+    if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
+    {
+        if (gMenu_CharacterNaming.SelectedItem > CAPITAL_M)
+        {
+            gMenu_CharacterNaming.SelectedItem -= 13;            
+        }
+        else
+        {
+            gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;            
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
+    }
+
+    if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
+    {
+        if (gMenu_CharacterNaming.SelectedItem < 39)
+        {
+            gMenu_CharacterNaming.SelectedItem += 13;            
+        }
+        else if (gMenu_CharacterNaming.SelectedItem >= LOWERCASE_N)
+        {
+            gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
+    }
+
+    if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
+    {
+        if (gMenu_CharacterNaming.SelectedItem == 0 ||
+            gMenu_CharacterNaming.SelectedItem == 13 ||
+            gMenu_CharacterNaming.SelectedItem == 26 ||
+            gMenu_CharacterNaming.SelectedItem == 39)
+        {
+            gMenu_CharacterNaming.SelectedItem += 12;            
+        }
+        else
+        {
+            gMenu_CharacterNaming.SelectedItem--;
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
+    }
+
+    if (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown)
+    {
+        if (gMenu_CharacterNaming.SelectedItem == 12 ||
+            gMenu_CharacterNaming.SelectedItem == 25 ||
+            gMenu_CharacterNaming.SelectedItem == 38 ||
+            gMenu_CharacterNaming.SelectedItem == LOWERCASE_Z)
+        {
+            gMenu_CharacterNaming.SelectedItem -= 12;            
+        }
+        else
+        {
+            if (gMenu_CharacterNaming.SelectedItem < OK_BUTTON)
+            {
+                gMenu_CharacterNaming.SelectedItem++;
+            }
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
+    }
+
+    if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
+    {
+        gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Action();        
+    }
+
+    if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
+    {
+        MenuItem_CharacterNaming_Back();
+    }
 }
 
 void PPI_Overworld(void)

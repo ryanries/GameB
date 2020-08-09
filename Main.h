@@ -239,7 +239,7 @@ typedef struct GAMEPERFDATA
 
 typedef struct HERO
 {
-	char Name[12];
+	char Name[9];
 
 	GAMEBITMAP Sprite[3][12];
 
