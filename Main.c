@@ -45,8 +45,6 @@
 //
 // Tile maps
 
-#define AVX                         // Valid options are SSE2, AVX, or nothing.
-
 #pragma warning(push, 3)            // Temporarily reduce warning level for headers over which we have no control.
 
 #include <stdio.h>                  // String manipulation functions such as sprintf, etc.
@@ -54,6 +52,8 @@
 #include <windows.h>                // The primary header file for the Windows API
 
 #include <psapi.h>                  // Process Status API, e.g. GetProcessMemoryInfo
+
+#define AVX                         // Valid options are SSE2, AVX, or nothing.
 
 #ifdef AVX
 
@@ -1290,9 +1290,9 @@ void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap)
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
-            BitmapOctoPixel = _mm256_loadu_si256((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+            BitmapOctoPixel = _mm256_loadu_si256((const __m256i*)((PIXEL32*)gOverworld01.Memory + BitmapOffset));
 
-            _mm256_store_si256((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BitmapOctoPixel);
+            _mm256_store_si256((__m256i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapOctoPixel);
         }
     }
 #elif defined SSE2    
@@ -1306,9 +1306,9 @@ void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap)
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
-            BitmapQuadPixel = _mm_load_si128((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+            BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)gOverworld01.Memory + BitmapOffset));
 
-            _mm_store_si128((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BitmapQuadPixel);
+            _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
         }
     }
 
