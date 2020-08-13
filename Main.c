@@ -92,6 +92,10 @@ GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to th
 
 GAMEBITMAP g6x7Font;
 
+GAMEBITMAP gOverworld01;
+
+UPOINT gCamera;
+
 // Map any char value to an offset dictated by the g6x7Font ordering.
 int32_t gFontCharacterPixelOffset[] = {
     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
@@ -124,7 +128,7 @@ XINPUT_STATE gGamepadState;
 
 int8_t gGamepadID = -1;
 
-GAMESTATE gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+GAMESTATE gCurrentGameState = GAMESTATE_OVERWORLD;
 
 GAMESTATE gPreviousGameState;
 
@@ -272,6 +276,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.PreviousSystemTime);
 
+    // The timeBeginPeriod function controls a global system-wide timer. So
+    // increasing the clock resolution here will affect all processes running on this
+    // entire system. It will increase context switching, the rate at which timers
+    // fire across the entire system, etc. Due to this, Microsoft generally discourages 
+    // the use of timeBeginPeriod completely. However, we need it, because without 
+    // 1ms timer resolution, we simply cannot maintain a reliable 60 frames per second.
+    // Also, we don't need to worry about calling timeEndPeriod, because Windows will
+    // automatically cancel our requested timer resolution once this process exits.
+
     if (timeBeginPeriod(1) == TIMERR_NOCANDO)
     {
         LogMessageA(LL_ERROR, "[%s] Failed to set global timer resolution!", __FUNCTION__);
@@ -286,6 +299,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         gPerformanceData.MinimumTimerResolution,
         gPerformanceData.MaximumTimerResolution,
         gPerformanceData.CurrentTimerResolution);
+
+    // Increase process and thread priority to minimize the chances of another thread on the system
+    // preempting us when we need to run and causing a stutter in our frame rate. (Though it can still happen.)
 
     if (SetPriorityClass(ProcessHandle, HIGH_PRIORITY_CLASS) == 0)
     {
@@ -315,6 +331,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     if ((Load32BppBitmapFromFile(".\\Assets\\6x7Font.bmpx", &g6x7Font)) != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed!", __FUNCTION__);
+
+        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    if ((Load32BppBitmapFromFile(".\\Assets\\Maps\\Overworld01.bmpx", &gOverworld01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.bmpx failed!", __FUNCTION__);
 
         MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
 
@@ -351,6 +376,13 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     
     QueryPerformanceFrequency((LARGE_INTEGER*)&gPerformanceData.PerfFrequency);
 
+
+    // This is our global backbuffer onto which we will draw all of our graphics.
+    // This buffer gets drawn and blitted onto the screen 60 times per second.
+    // We don't have to worry about freeing the memory allocated for this buffer
+    // because it is intended to last throughout the entire lifetime of the process.
+    // Windows will automatically deallocate this memory when the game exits.
+
     gBackBuffer.BitmapInfo.bmiHeader.biSize = sizeof(gBackBuffer.BitmapInfo.bmiHeader);
 
     gBackBuffer.BitmapInfo.bmiHeader.biWidth = GAME_RES_WIDTH;
@@ -374,7 +406,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    memset(gBackBuffer.Memory, 0x7F, GAME_DRAWING_AREA_MEMORY_SIZE);
+#ifdef _DEBUG
+
+    // If this is a debug build, initialize the memory for the backbuffer to 0xCC
+    // Incidentally, the byte 0xCC is also int 3, which is the CPU instruction that causes
+    // a debug break.
+
+    memset(gBackBuffer.Memory, 0xCC, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+#endif
 
     if (InitializeHero() != ERROR_SUCCESS)
     {
@@ -384,6 +424,14 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         goto Exit;
     }
+
+
+    // This is the main game loop. Setting gGameIsRunning to FALSE at any point will cause
+    // the game to exit immediately. The loop has two important functions: ProcessPlayerInput
+    // and RenderFrameGraphics. The loop will execute these two duties as quickly as possible,
+    // but will then sleep for a few milliseconds using a precise timing mechanism in order 
+    // to achieve a smooth 60 frames per second. We also calculate some performance statistics
+    // every 2 seconds or 120 frames.
 
     gGameIsRunning = TRUE;
 
@@ -423,10 +471,11 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
             QueryPerformanceCounter((LARGE_INTEGER*)&FrameEnd);
 
             // If we are less than 75% of the way through the current frame, then rest.
+            // Sleep(1) is only anywhere near 1 millisecond if we have previously set the global
+            // system timer resolution to 1ms or below using timeBeginPeriod.
 
             if (ElapsedMicroseconds < (TARGET_MICROSECONDS_PER_FRAME * 0.75f))
-            {
-                // Could be anywhere from 1ms to a full system timer tick? (~15.625ms)
+            {                
                 Sleep(1);
             }
         }
@@ -476,7 +525,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 Exit:
 
-    LogMessageA(LL_INFO, "Game is exiting.\r\n");
+    LogMessageA(LL_INFO, "[%s] Game is exiting.\r\n", __FUNCTION__);
 
 	return(0);
 }
@@ -547,11 +596,11 @@ DWORD CreateMainGameWindow(void)
     WindowClass.hIconSm = LoadIconA(NULL, IDI_APPLICATION);
 
     WindowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
-#ifdef _DEBUG
-    WindowClass.hbrBackground = CreateSolidBrush(RGB(255, 0, 255));
-#else
+//#ifdef _DEBUG
+//    WindowClass.hbrBackground = CreateSolidBrush(RGB(255, 0, 255));
+//#else
     WindowClass.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));
-#endif
+//#endif
 
     WindowClass.lpszMenuName = NULL;
 
@@ -909,9 +958,9 @@ DWORD InitializeHero(void)
 {
     DWORD Error = ERROR_SUCCESS;
 
-    gPlayer.ScreenPosX = 192;
+    gPlayer.ScreenPos.x = 192;
 
-    gPlayer.ScreenPosY = 64;
+    gPlayer.ScreenPos.y = 64;
 
     gPlayer.CurrentArmor = SUIT_0;
 
@@ -1106,7 +1155,7 @@ void RenderFrameGraphics(void)
         }
         case GAMESTATE_OVERWORLD:
         {
-            //DrawOverworld();
+            DrawOverworld();
 
             break;
         }
@@ -1218,6 +1267,69 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
             }
         }
     }    
+}
+
+void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap)
+{
+    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
+
+    int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
+        GameBitmap->BitmapInfo.bmiHeader.biWidth) + gCamera.x - (GameBitmap->BitmapInfo.bmiHeader.biWidth * gCamera.y);
+
+    int32_t MemoryOffset = 0;
+
+    int32_t BitmapOffset = 0;
+#ifdef AVX
+    __m256i BitmapOctoPixel;
+
+    for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
+    {
+        for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel += 8)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            BitmapOctoPixel = _mm256_loadu_si256((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+
+            _mm256_store_si256((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BitmapOctoPixel);
+        }
+    }
+#elif defined SSE2    
+    __m128i BitmapQuadPixel;
+
+    for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
+    {
+        for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel += 4)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            BitmapQuadPixel = _mm_load_si128((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+
+            _mm_store_si128((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BitmapQuadPixel);
+        }
+    }
+
+
+#else
+    PIXEL32 BitmapPixel = { 0 };
+
+    for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
+    {
+        for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel++)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
+
+            memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
+        }
+    }
+#endif
 }
 
 DWORD LoadRegistryParameters(void)
@@ -1553,7 +1665,7 @@ __forceinline void DrawDebugInfo(void)
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 64);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenXY:%d,%d", gPlayer.ScreenPosX, gPlayer.ScreenPosY);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenXY:%hu,%hu", gPlayer.ScreenPos.x, gPlayer.ScreenPos.y);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 72);
 }
@@ -1617,7 +1729,16 @@ void MenuItem_CharacterNaming_Back(void)
 
 void MenuItem_CharacterNaming_OK(void)
 {
+    if (strlen(gPlayer.Name) > 0)
+    {
+        gPreviousGameState = gCurrentGameState;
 
+        gCurrentGameState = GAMESTATE_OVERWORLD;
+
+        gPlayer.Active = TRUE;
+
+        PlayGameSound(&gSoundMenuChoose);
+    }
 }
 
 void MenuItem_TitleScreen_Options(void)
@@ -2167,6 +2288,37 @@ void DrawOptionsScreen(void)
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
 }
 
+void DrawOverworld(void)
+{
+    static uint64_t LocalFrameCounter;
+
+    static uint64_t LastFrameSeen;
+
+    static PIXEL32 TextColor;
+
+    
+
+    if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
+    {
+        LocalFrameCounter = 0;
+
+        memset(&TextColor, 0, sizeof(PIXEL32));
+    }
+
+    //memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
+
+    BlitTileMapToBuffer(&gOverworld01);
+
+    //Blit32BppBitmapToBuffer(&gOverworld01, 0, 0);
+
+    Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction], gPlayer.ScreenPos.x, gPlayer.ScreenPos.y);
+
+
+    LocalFrameCounter++;
+
+    LastFrameSeen = gPerformanceData.TotalFramesRendered;
+}
+
 void PPI_OpeningSplashScreen(void)
 {
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
@@ -2376,7 +2528,7 @@ void PPI_Overworld(void)
     {
         if (gGameInput.DownKeyIsDown)
         {
-            if (gPlayer.ScreenPosY < GAME_RES_HEIGHT - 16)
+            if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 16)
             {
                 gPlayer.Direction = DOWN;
 
@@ -2385,7 +2537,7 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.LeftKeyIsDown)
         {
-            if (gPlayer.ScreenPosX > 0)
+            if (gPlayer.ScreenPos.x > 0)
             {
                 gPlayer.Direction = LEFT;
 
@@ -2394,7 +2546,7 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.RightKeyIsDown)
         {
-            if (gPlayer.ScreenPosX < GAME_RES_WIDTH - 16)
+            if (gPlayer.ScreenPos.x < GAME_RES_WIDTH - 16)
             {
                 gPlayer.Direction = RIGHT;
 
@@ -2403,7 +2555,7 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.UpKeyIsDown)
         {
-            if (gPlayer.ScreenPosY > 0)
+            if (gPlayer.ScreenPos.y > 0)
             {
                 gPlayer.Direction = UP;
 
@@ -2417,19 +2569,19 @@ void PPI_Overworld(void)
 
         if (gPlayer.Direction == DOWN)
         {
-            gPlayer.ScreenPosY++;
+            gPlayer.ScreenPos.y++;
         }
         else if (gPlayer.Direction == LEFT)
         {
-            gPlayer.ScreenPosX--;
+            gPlayer.ScreenPos.x--;
         }
         else if (gPlayer.Direction == RIGHT)
         {
-            gPlayer.ScreenPosX++;
+            gPlayer.ScreenPos.x++;
         }
         else if (gPlayer.Direction == UP)
         {
-            gPlayer.ScreenPosY--;
+            gPlayer.ScreenPos.y--;
         }
 
         switch (gPlayer.MovementRemaining)

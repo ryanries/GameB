@@ -122,6 +122,14 @@ typedef enum GAMESTATE
 
 } GAMESTATE;
 
+typedef struct UPOINT
+{
+	uint16_t x;
+
+	uint16_t y;
+
+} UPOINT;
+
 typedef struct GAMEINPUT
 {
 	int16_t EscapeKeyIsDown;
@@ -245,9 +253,7 @@ typedef struct HERO
 
 	BOOL Active;
 
-	int16_t ScreenPosX;
-
-	int16_t ScreenPosY;
+	UPOINT ScreenPos;	
 
 	uint8_t MovementRemaining;
 
@@ -294,6 +300,8 @@ DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitma
 DWORD InitializeHero(void);
 
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y);
+
+void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap);
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 
@@ -342,6 +350,8 @@ void DrawGamepadUnplugged(void);
 void DrawOptionsScreen(void);
 
 void DrawCharacterNaming(void);
+
+void DrawOverworld(void);
 
 
 void PPI_OpeningSplashScreen(void);
