@@ -192,11 +192,22 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CharacterNamingScreen.c" />
+    <ClCompile Include="ExitYesNoScreen.c" />
+    <ClCompile Include="GamepadUnplugged.c" />
     <ClCompile Include="Main.c" />
+    <ClCompile Include="OpeningSplashScreen.c" />
+    <ClCompile Include="OptionsScreen.c" />
+    <ClCompile Include="TitleScreen.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CharacterNamingScreen.h" />
+    <ClInclude Include="ExitYesNoScreen.h" />
+    <ClInclude Include="GamepadUnplugged.h" />
     <ClInclude Include="Main.h" />
-    <ClInclude Include="Menus.h" />
+    <ClInclude Include="OpeningSplashScreen.h" />
+    <ClInclude Include="OptionsScreen.h" />
+    <ClInclude Include="TitleScreen.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

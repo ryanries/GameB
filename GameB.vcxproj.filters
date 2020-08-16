@@ -18,12 +18,45 @@
     <ClCompile Include="Main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="OpeningSplashScreen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TitleScreen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OptionsScreen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ExitYesNoScreen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterNamingScreen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GamepadUnplugged.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Menus.h">
+    <ClInclude Include="CharacterNamingScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OpeningSplashScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ExitYesNoScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OptionsScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TitleScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GamepadUnplugged.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

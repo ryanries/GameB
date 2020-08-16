@@ -13,6 +13,40 @@
 
 #pragma once
 
+#pragma warning(push, 3)
+
+#include <Windows.h>
+
+#include <xaudio2.h>                // Audio library
+
+#pragma comment(lib, "XAudio2.lib") // Audio library.
+
+#include <stdio.h>                  // String manipulation functions such as sprintf, etc.
+
+#include <psapi.h>                  // Process Status API, e.g. GetProcessMemoryInfo
+
+#include <Xinput.h>                 // Xbox 360 gamepad input
+
+#pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input.
+
+#include <stdint.h>                 // Nicer data types, e.g., uint8_t, int32_t, etc.
+
+#pragma comment(lib, "Winmm.lib")   // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+
+#define AVX                         // Valid options are SSE2, AVX, or nothing.
+
+#ifdef AVX
+
+#include <immintrin.h>              // AVX (Advanced Vector Extensions)
+
+#elif defined SSE2
+
+#include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
+
+#endif
+
+#pragma warning(pop)
+
 #ifdef _DEBUG
 
 #define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
@@ -167,7 +201,6 @@ typedef struct GAMEINPUT
 #define FONT_SHEET_CHARACTERS_PER_ROW 98
 
 
-
 #pragma warning(disable: 4820)	// Disable warning about structure padding
 
 #pragma warning(disable: 5045)	// Disable warning about Spectre/Meltdown CPU vulnerability
@@ -282,6 +315,61 @@ typedef struct REGISTRYPARAMS
 
 } REGISTRYPARAMS;
 
+typedef struct MENUITEM
+{
+	char* Name;
+
+	int16_t x;
+
+	int16_t y;
+
+	BOOL Enabled;
+
+	void(*Action)(void);
+
+} MENUITEM;
+
+typedef struct MENU
+{
+	char* Name;
+
+	uint8_t SelectedItem;
+
+	uint8_t ItemCount;
+
+	MENUITEM** Items;
+
+} MENU;
+
+
+GAMEPERFDATA gPerformanceData;
+
+GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
+
+GAMESTATE gCurrentGameState;
+
+GAMESTATE gPreviousGameState;
+
+GAMEINPUT gGameInput;
+
+GAMEBITMAP g6x7Font;
+
+GAMESOUND gSoundSplashScreen;
+
+GAMESOUND gSoundMenuNavigate;
+
+GAMESOUND gSoundMenuChoose;
+
+HERO gPlayer;
+
+float gSFXVolume;
+
+float gMusicVolume;
+
+int8_t gGamepadID;
+
+HWND gGameWindow;                   // A global handle to the game window.
+
 
 
 
@@ -339,31 +427,10 @@ void ClearScreen(_In_ PIXEL32* Color);
 
 #endif
 
-void DrawOpeningSplashScreen(void);
 
-void DrawTitleScreen(void);
 
-void DrawExitYesNoScreen(void);
-
-void DrawGamepadUnplugged(void);
-
-void DrawOptionsScreen(void);
-
-void DrawCharacterNaming(void);
 
 void DrawOverworld(void);
 
 
-void PPI_OpeningSplashScreen(void);
-
-void PPI_TitleScreen(void);
-
 void PPI_Overworld(void);
-
-void PPI_ExitYesNo(void);
-
-void PPI_GamepadUnplugged(void);
-
-void PPI_OptionsScreen(void);
-
-void PPI_CharacterNaming(void);
