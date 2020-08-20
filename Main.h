@@ -1,8 +1,9 @@
-// Codename: GameB
-// Will come up with a better name later.
+// Filename: Main.h
+// Project:  GameB
+// TODO: Come up with a better name.
 // 2020 Joseph Ryan Ries <ryanries09@gmail.com>
 // My YouTube series where we program an entire video game from scratch in C.
-// Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
+// Watch it on YouTube:    https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7
 // Follow along on GitHub: https://github.com/ryanries/GameB
 // Find me on Twitter @JosephRyanRies 
 //# License
@@ -13,11 +14,17 @@
 
 #pragma once
 
-#pragma warning(push, 3)
+#pragma warning(disable: 4820)		// Disable warning about structure padding.
 
-#include <Windows.h>
+#pragma warning(disable: 5045)		// Disable warning about Spectre/Meltdown CPU vulnerability.
 
-#include <xaudio2.h>                // Audio library
+#pragma warning(disable: 4710)		// Disable warning about function not inlined.
+
+#pragma warning(push, 3)			// Temporarily reduce warning level while including header files over which we have no control.
+
+#include <Windows.h>				// The Windows API.
+
+#include <xaudio2.h>                // Audio library.
 
 #pragma comment(lib, "XAudio2.lib") // Audio library.
 
@@ -45,7 +52,7 @@
 
 #endif
 
-#pragma warning(pop)
+#pragma warning(pop)				// Restore warning level to /Wall.
 
 #ifdef _DEBUG
 
@@ -62,16 +69,15 @@
 #define GAME_VER	"0.9a"
 
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
-// So even when the game runs at full screen, it will have to be centered
-// with black bars on the sides.
+// So when the game runs at full screen, it will have to be centered with black bars on the sides.
 
-#define GAME_RES_WIDTH	384		
+#define GAME_RES_WIDTH	384
 
 #define GAME_RES_HEIGHT	240
 
 #define GAME_BPP		32
 
-#define GAME_DRAWING_AREA_MEMORY_SIZE	(GAME_RES_WIDTH * GAME_RES_HEIGHT * (GAME_BPP / 8))
+#define GAME_DRAWING_AREA_MEMORY_SIZE		(GAME_RES_WIDTH * GAME_RES_HEIGHT * (GAME_BPP / 8))
 
 #define CALCULATE_AVG_FPS_EVERY_X_FRAMES	120
 
@@ -109,6 +115,16 @@
 
 #define FACING_UPWARD_2	11
 
+#define LOG_FILE_NAME GAME_NAME ".log"
+
+#define FONT_SHEET_CHARACTERS_PER_ROW 98
+
+// This is for using the undocumented Windows API function NtQueryTimerResolution.
+typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
+
+_NtQueryTimerResolution NtQueryTimerResolution;
+
+/////////// BEGIN GLOBAL ENUMS /////////////
 
 typedef enum DIRECTION
 {
@@ -156,6 +172,10 @@ typedef enum GAMESTATE
 
 } GAMESTATE;
 
+/////////// END GLOBAL ENUMS /////////////
+
+/////////// BEGIN GLOBAL STRUCTS /////////////
+
 typedef struct UPOINT
 {
 	uint16_t x;
@@ -196,22 +216,7 @@ typedef struct GAMEINPUT
 
 } GAMEINPUT;
 
-#define LOG_FILE_NAME GAME_NAME ".log"
-
-#define FONT_SHEET_CHARACTERS_PER_ROW 98
-
-
-#pragma warning(disable: 4820)	// Disable warning about structure padding
-
-#pragma warning(disable: 5045)	// Disable warning about Spectre/Meltdown CPU vulnerability
-
-#pragma warning(disable: 4710)	// Disable warning about function not inlined
-
-typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
-
-_NtQueryTimerResolution NtQueryTimerResolution;
-
-
+// GAMEBITMAP is any sort of bitmap, which might be a sprite, or a background, even the back buffer itself is a GAMEBITMAP.
 typedef struct GAMEBITMAP
 {
 	BITMAPINFO BitmapInfo;
@@ -278,31 +283,59 @@ typedef struct GAMEPERFDATA
 
 } GAMEPERFDATA;
 
+typedef struct TILEMAP
+{
+	uint16_t Width;
+
+	uint16_t Height;
+
+	uint8_t** Map;
+
+} TILEMAP;
+
+typedef struct GAMEMAP
+{
+	TILEMAP TileMap;
+
+	GAMEBITMAP GameBitmap;
+
+} GAMEMAP;
+
+// This is the player!
 typedef struct HERO
 {
 	char Name[9];
 
-	GAMEBITMAP Sprite[3][12];
+	GAMEBITMAP Sprite[3][12];	// 3 suits of armor, 12 sprites for each armor set.
 
 	BOOL Active;
 
-	UPOINT ScreenPos;	
+	UPOINT ScreenPos;			// Note screen position and world position are two different things.
 
-	uint8_t MovementRemaining;
+	uint8_t MovementRemaining;	// This will be non-zero when the player is in motion. If 0, player is standing still.
 
 	DIRECTION Direction;
 
-	uint8_t CurrentArmor;
+	uint8_t CurrentArmor;		// SUIT_0, SUIT_1, or SUIT_2
 
 	uint8_t SpriteIndex;	
 
-	int32_t HP;
+	// TODO: Figure out how the stats are going to work.
+	int16_t HP;
 
-	int32_t Strength;
+	int32_t XP;
 
-	int32_t MP;
+	int16_t Money;
+
+	int16_t Strength;
+
+	int16_t Luck;
+
+	int16_t MP;
+
 } HERO;
 
+// Any value that will be saved to or loaded from the Windows registry goes here.
 typedef struct REGISTRYPARAMS
 {
 	DWORD LogLevel;
@@ -315,6 +348,8 @@ typedef struct REGISTRYPARAMS
 
 } REGISTRYPARAMS;
 
+// Every MENU in the game is a collection of MENUITEMs.
+// This includes everything from simple Yes/No choices, to character naming dialogs, to vendor menus, etc.
 typedef struct MENUITEM
 {
 	char* Name;
@@ -341,18 +376,23 @@ typedef struct MENU
 
 } MENU;
 
+/////////// END GLOBAL STRUCTS /////////////
+
+
 
 GAMEPERFDATA gPerformanceData;
 
 GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
+
+GAMEBITMAP g6x7Font;
+
+GAMEMAP gOverworld01;
 
 GAMESTATE gCurrentGameState;
 
 GAMESTATE gPreviousGameState;
 
 GAMEINPUT gGameInput;
-
-GAMEBITMAP g6x7Font;
 
 GAMESOUND gSoundSplashScreen;
 
@@ -370,10 +410,11 @@ int8_t gGamepadID;
 
 HWND gGameWindow;                   // A global handle to the game window.
 
+IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 
+IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
-
-
+/////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
 
@@ -411,8 +452,6 @@ DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
 
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
-
-// This is defined at the beginning of Main.c.
 #ifdef AVX
 
 void ClearScreen(_In_ __m256i* Color);
@@ -427,10 +466,4 @@ void ClearScreen(_In_ PIXEL32* Color);
 
 #endif
 
-
-
-
-void DrawOverworld(void);
-
-
-void PPI_Overworld(void);
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);

@@ -147,3 +147,33 @@ void PPI_TitleScreen(void)
         PlayGameSound(&gSoundMenuChoose);
     }
 }
+
+void MenuItem_TitleScreen_Resume(void)
+{
+
+}
+
+void MenuItem_TitleScreen_StartNew(void)
+{
+    // If a game is already in progress, this should prompt the user if they are sure that they want to start a new game first,
+    // and lose any unsaved progress.
+    // Otherwise, just go to the character naming screen.
+
+    gPreviousGameState = gCurrentGameState;
+
+    gCurrentGameState = GAMESTATE_CHARACTERNAMING;
+}
+
+void MenuItem_TitleScreen_Options(void)
+{
+    gPreviousGameState = gCurrentGameState;
+
+    gCurrentGameState = GAMESTATE_OPTIONSSCREEN;
+}
+
+void MenuItem_TitleScreen_Exit(void)
+{
+    gPreviousGameState = gCurrentGameState;
+
+    gCurrentGameState = GAMESTATE_EXITYESNOSCREEN;
+}

@@ -170,3 +170,56 @@ void PPI_OptionsScreen(void)
         PlayGameSound(&gSoundMenuChoose);
     }
 }
+
+void MenuItem_OptionsScreen_Back(void)
+{
+    gCurrentGameState = gPreviousGameState;
+
+    gPreviousGameState = GAMESTATE_OPTIONSSCREEN;
+
+    if (SaveRegistryParameters() != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] SaveRegistryParameters failed!", __FUNCTION__);
+    }
+}
+
+void MenuItem_OptionsScreen_ScreenSize(void)
+{
+    if (gPerformanceData.CurrentScaleFactor < gPerformanceData.MaxScaleFactor)
+    {
+        gPerformanceData.CurrentScaleFactor++;
+    }
+    else
+    {
+        gPerformanceData.CurrentScaleFactor = 1;
+    }
+
+    InvalidateRect(gGameWindow, NULL, TRUE);
+}
+
+void MenuItem_OptionsScreen_MusicVolume(void)
+{
+    gMusicVolume += 0.1f;
+
+    if ((uint8_t)(gMusicVolume * 10) > 10)
+    {
+        gMusicVolume = 0.0f;
+    }
+
+    gXAudioMusicSourceVoice->lpVtbl->SetVolume(gXAudioMusicSourceVoice, gMusicVolume, XAUDIO2_COMMIT_NOW);
+}
+
+void MenuItem_OptionsScreen_SFXVolume(void)
+{
+    gSFXVolume += 0.1f;
+
+    if ((uint8_t)(gSFXVolume * 10) > 10)
+    {
+        gSFXVolume = 0.0f;
+    }
+
+    for (uint8_t Counter = 0; Counter < NUMBER_OF_SFX_SOURCE_VOICES; Counter++)
+    {
+        gXAudioSFXSourceVoice[Counter]->lpVtbl->SetVolume(gXAudioSFXSourceVoice[Counter], gSFXVolume, XAUDIO2_COMMIT_NOW);
+    }
+}
