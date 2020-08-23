@@ -54,6 +54,8 @@
 
 #pragma warning(pop)				// Restore warning level to /Wall.
 
+#include "Tiles.h"
+
 #ifdef _DEBUG
 
 #define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
@@ -312,6 +314,8 @@ typedef struct HERO
 
 	UPOINT ScreenPos;			// Note screen position and world position are two different things.
 
+	UPOINT WorldPos;
+
 	uint8_t MovementRemaining;	// This will be non-zero when the player is in motion. If 0, player is standing still.
 
 	DIRECTION Direction;
@@ -414,6 +418,8 @@ IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 
 IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
+uint8_t gPassableTiles[1];
+
 /////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
@@ -430,7 +436,7 @@ DWORD InitializeHero(void);
 
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y);
 
-void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap);
+void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap);
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 

@@ -17,17 +17,25 @@ void DrawOverworld(void)
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
-    }
+    }    
 
-    //memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
-
-    BlitTileMapToBuffer(&gOverworld01.GameBitmap);
-
-    //Blit32BppBitmapToBuffer(&gOverworld01, 0, 0);
+    BlitBackgroundToBuffer(&gOverworld01.GameBitmap);    
 
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction], 
         gPlayer.ScreenPos.x, 
         gPlayer.ScreenPos.y);
+
+    for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
+    {
+        for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
+        {
+            char Buffer[8] = { 0 };
+
+            _itoa_s(gOverworld01.TileMap.Map[Column][Row], Buffer, sizeof(Buffer), 10);
+
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, Column * 16, Row * 16);
+        }
+    }
 
 
     LocalFrameCounter++;
@@ -47,38 +55,101 @@ void PPI_Overworld(void)
     {
         if (gGameInput.DownKeyIsDown)
         {
-            if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 16)
-            {
-                gPlayer.Direction = DOWN;
+            BOOL CanMoveToDesiredTile = FALSE;
 
-                gPlayer.MovementRemaining = 16;
+            for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
+            {
+                if (gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16] == gPassableTiles[Counter])
+                {
+                    CanMoveToDesiredTile = TRUE;
+
+                    break;
+                }
+            }
+
+            if (CanMoveToDesiredTile)
+            {
+                if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 16)
+                {
+                    gPlayer.Direction = DOWN;
+
+                    gPlayer.MovementRemaining = 16;
+                }
             }
         }
         else if (gGameInput.LeftKeyIsDown)
         {
-            if (gPlayer.ScreenPos.x > 0)
-            {
-                gPlayer.Direction = LEFT;
+            BOOL CanMoveToDesiredTile = FALSE;
 
-                gPlayer.MovementRemaining = 16;
+            for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
+            {
+                if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1] == gPassableTiles[Counter])
+                {
+                    CanMoveToDesiredTile = TRUE;
+
+                    break;
+                }
+            }
+
+            if (CanMoveToDesiredTile)
+            {
+                if (gPlayer.ScreenPos.x > 0)
+                {
+                    gPlayer.Direction = LEFT;
+
+                    gPlayer.MovementRemaining = 16;
+                }
             }
         }
         else if (gGameInput.RightKeyIsDown)
         {
-            if (gPlayer.ScreenPos.x < GAME_RES_WIDTH - 16)
-            {
-                gPlayer.Direction = RIGHT;
+            BOOL CanMoveToDesiredTile = FALSE;
 
-                gPlayer.MovementRemaining = 16;
+            for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
+            {
+                if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1] == gPassableTiles[Counter])
+                {
+                    CanMoveToDesiredTile = TRUE;
+
+                    break;
+                }
+            }
+
+            if (CanMoveToDesiredTile)
+            {
+                if (gPlayer.ScreenPos.x < GAME_RES_WIDTH - 16)
+                {
+                    gPlayer.Direction = RIGHT;
+
+                    gPlayer.MovementRemaining = 16;
+                }
             }
         }
         else if (gGameInput.UpKeyIsDown)
         {
+            BOOL CanMoveToDesiredTile = FALSE;
+
             if (gPlayer.ScreenPos.y > 0)
             {
-                gPlayer.Direction = UP;
+                for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
+                {
+                    if (gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16] == gPassableTiles[Counter])
+                    {
+                        CanMoveToDesiredTile = TRUE;
 
-                gPlayer.MovementRemaining = 16;
+                        break;
+                    }
+                }
+            }
+
+            if (CanMoveToDesiredTile)
+            {
+                if (gPlayer.ScreenPos.y > 0)
+                {
+                    gPlayer.Direction = UP;
+
+                    gPlayer.MovementRemaining = 16;
+                }
             }
         }
     }
@@ -89,18 +160,26 @@ void PPI_Overworld(void)
         if (gPlayer.Direction == DOWN)
         {
             gPlayer.ScreenPos.y++;
+
+            gPlayer.WorldPos.y++;
         }
         else if (gPlayer.Direction == LEFT)
         {
             gPlayer.ScreenPos.x--;
+
+            gPlayer.WorldPos.x--;
         }
         else if (gPlayer.Direction == RIGHT)
         {
             gPlayer.ScreenPos.x++;
+
+            gPlayer.WorldPos.x++;
         }
         else if (gPlayer.Direction == UP)
         {
             gPlayer.ScreenPos.y--;
+
+            gPlayer.WorldPos.y--;
         }
 
         switch (gPlayer.MovementRemaining)

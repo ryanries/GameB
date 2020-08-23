@@ -209,6 +209,7 @@
     <ClInclude Include="OpeningSplashScreen.h" />
     <ClInclude Include="OptionsScreen.h" />
     <ClInclude Include="Overworld.h" />
+    <ClInclude Include="Tiles.h" />
     <ClInclude Include="TitleScreen.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

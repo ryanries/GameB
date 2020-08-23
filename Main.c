@@ -19,6 +19,7 @@
 // talk about the scope of #define precompiler directives
 // disable keyboard input during gamestate fade-in
 // shadow effect for text?
+// gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
 // overworld... tile maps...
 // ogg vorbis background music
@@ -57,6 +58,10 @@
 #include "CharacterNamingScreen.h"
 
 #include "Overworld.h"
+
+
+
+
 
 BOOL gGameIsRunning;                // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 
@@ -134,7 +139,13 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     HANDLE ProcessHandle = GetCurrentProcess();
 
+    gCurrentGameState = GAMESTATE_OVERWORLD;
+    
     gGamepadID = -1;
+
+    gPassableTiles[0] = TILE_GRASS_01;
+
+
 
     if (LoadRegistryParameters() != ERROR_SUCCESS)
     {
@@ -911,6 +922,10 @@ DWORD InitializeHero(void)
 
     gPlayer.ScreenPos.y = 64;
 
+    gPlayer.WorldPos.x = 192;
+
+    gPlayer.WorldPos.y = 64;
+
     gPlayer.CurrentArmor = SUIT_0;
 
     gPlayer.Direction = DOWN;
@@ -1218,7 +1233,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
     }    
 }
 
-void BlitTileMapToBuffer(_In_ GAMEBITMAP* GameBitmap)
+void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
 
@@ -1618,9 +1633,13 @@ __forceinline void DrawDebugInfo(void)
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 72);
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CameraXY:%hu,%hu", gCamera.x, gCamera.y);
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "WorldXY: %hu,%hu", gPlayer.WorldPos.x, gPlayer.WorldPos.y);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 80);
+
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CameraXY:%hu,%hu", gCamera.x, gCamera.y);
+
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 88);
 }
 
 void FindFirstConnectedGamepad(void)
@@ -1953,6 +1972,10 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
 
     char TempBuffer[16] = { 0 };
 
+    uint16_t Rows = 0;
+
+    uint16_t Columns = 0;
+
     if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
     {
         Error = GetLastError();
@@ -1971,7 +1994,7 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
         goto Exit;
     }
 
-    LogMessageA(LL_INFO, "[%s] Size of file %s: %lu.", __FUNCTION__, FileName, FileSize.QuadPart);
+    LogMessageA(LL_INFO, "[%s] Size of file %s is %lu bytes.", __FUNCTION__, FileName, FileSize.QuadPart);
 
     if (FileSize.QuadPart < 300)
     {
@@ -2133,14 +2156,18 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
     {
         Error = ERROR_INVALID_DATA;
 
-        LogMessageA(LL_ERROR, "[%s] Width attribute was 0! 0x%08lx!", __FUNCTION__, Error);
+        LogMessageA(LL_ERROR, "[%s] Height attribute was 0! 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     LogMessageA(LL_INFO, "[%s] %s TileMap dimensions: %dx%d.", __FUNCTION__, FileName, TileMap->Width, TileMap->Height);
 
-    TileMap->Map = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, TileMap->Height * sizeof(void*));
+    Rows = TileMap->Height;
+
+    Columns = TileMap->Width;
+
+    TileMap->Map = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Rows * sizeof(void*));
 
     if (TileMap->Map == NULL)
     {
@@ -2153,7 +2180,7 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
 
     for (uint16_t Counter = 0; Counter < TileMap->Height; Counter++)
     {
-        TileMap->Map[Counter] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, TileMap->Width * sizeof(void*));
+        TileMap->Map[Counter] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Columns * sizeof(void*));
 
         if (TileMap->Map[Counter] == NULL)
         {
@@ -2162,6 +2189,75 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
             LogMessageA(LL_ERROR, "[%s] HeapAlloc failed! 0x%08lx!", __FUNCTION__, Error);
 
             goto Exit;
+        }
+    }
+
+    BytesRead = 0;
+
+    memset(TempBuffer, 0, sizeof(TempBuffer));
+
+    if ((Cursor = strstr(FileBuffer, ",")) == NULL)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Could not find a comma character in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+        goto Exit;
+    }
+
+    while (*Cursor != '\r' && *Cursor != '\n')
+    {
+        if (BytesRead > 3)
+        {
+            Error = ERROR_INVALID_DATA;
+
+            LogMessageA(LL_ERROR, "[%s] Could not find a new line character at the beginning of the tile map data in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+            goto Exit;
+        }
+
+        BytesRead++;
+
+        Cursor--;
+    }
+
+    Cursor++;
+
+    for (uint16_t Row = 0; Row < Rows; Row++)
+    {
+        for (uint16_t Column = 0; Column < Columns; Column++)
+        {
+            memset(TempBuffer, 0, sizeof(TempBuffer));
+
+            if (*Cursor == '\r' || *Cursor == '\n')
+            {
+                Cursor++;
+
+                continue;
+            }
+
+            for (uint8_t Counter = 0; Counter < 8; Counter++)
+            {
+                if (*Cursor == ',' || *Cursor == '<')
+                {
+                    if (((TileMap->Map[Row][Column]) = (uint8_t)atoi(TempBuffer)) == 0)
+                    {
+                        Error = ERROR_INVALID_DATA;
+
+                        LogMessageA(LL_ERROR, "[%s] atoi failed while converting tile map data in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+                        goto Exit;
+                    }
+
+                    Cursor++;
+
+                    break;
+                }
+
+                TempBuffer[Counter] = *Cursor;
+
+                Cursor++;
+            }
         }
     }
 
