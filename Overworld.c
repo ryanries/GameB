@@ -19,23 +19,24 @@ void DrawOverworld(void)
         memset(&TextColor, 0, sizeof(PIXEL32));
     }    
 
-    BlitBackgroundToBuffer(&gOverworld01.GameBitmap);    
+    BlitBackgroundToBuffer(&gOverworld01.GameBitmap);
 
-    Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction], 
-        gPlayer.ScreenPos.x, 
+    //for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
+    //{
+    //    for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
+    //    {
+    //        char Buffer[8] = { 0 };
+
+    //        _itoa_s(gOverworld01.TileMap.Map[Row][Column], Buffer, sizeof(Buffer), 10);
+
+    //        BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (Column * 16) + 5, (Row * 16) + 4);
+    //        
+    //    }
+    //}
+
+    Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
+        gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y);
-
-    for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
-    {
-        for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
-        {
-            char Buffer[8] = { 0 };
-
-            _itoa_s(gOverworld01.TileMap.Map[Column][Row], Buffer, sizeof(Buffer), 10);
-
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, Column * 16, Row * 16);
-        }
-    }
 
 
     LocalFrameCounter++;
@@ -75,7 +76,8 @@ void PPI_Overworld(void)
 
                     gPlayer.MovementRemaining = 16;
                 }
-            }
+            }         
+
         }
         else if (gGameInput.LeftKeyIsDown)
         {
@@ -159,25 +161,67 @@ void PPI_Overworld(void)
 
         if (gPlayer.Direction == DOWN)
         {
-            gPlayer.ScreenPos.y++;
+            if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 64)
+            {
+                gPlayer.ScreenPos.y++;
+            }
+            else
+            {
+                gCamera.y++;
+            }
 
             gPlayer.WorldPos.y++;
         }
         else if (gPlayer.Direction == LEFT)
         {
-            gPlayer.ScreenPos.x--;
+            if (gPlayer.ScreenPos.x > 64)
+            {
+                gPlayer.ScreenPos.x--;
+            }
+            else
+            {
+                if (gCamera.x > 0)
+                {
+                    gCamera.x--;
+                }
+                else
+                {
+                    gPlayer.ScreenPos.x--;
+                }
+            }
 
             gPlayer.WorldPos.x--;
         }
         else if (gPlayer.Direction == RIGHT)
         {
-            gPlayer.ScreenPos.x++;
+            if (gPlayer.ScreenPos.x < GAME_RES_WIDTH - 64)
+            {
+                gPlayer.ScreenPos.x++;
+            }
+            else
+            {
+                gCamera.x++;
+            }
 
             gPlayer.WorldPos.x++;
         }
         else if (gPlayer.Direction == UP)
         {
-            gPlayer.ScreenPos.y--;
+            if (gPlayer.ScreenPos.y > 64)
+            {
+                gPlayer.ScreenPos.y--;
+            }
+            else
+            {
+                if (gCamera.y > 0)
+                {
+                    gCamera.y--;
+                }
+                else
+                {
+                    gPlayer.ScreenPos.y--;
+                }
+            }
 
             gPlayer.WorldPos.y--;
         }

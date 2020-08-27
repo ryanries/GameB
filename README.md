@@ -6,6 +6,8 @@
 
 ![YouTube_Screenshot2](YoutubeScreenshot2.png "YouTube_Screenshot2")
 
+![YouTube_Screenshot2](YoutubeScreenshot3.png "YouTube_Screenshot3")
+
  We are going to make a retro-style video game from scratch, using the C programming language.
  
  This source code repository is companion material to go along with my video series on YouTube.

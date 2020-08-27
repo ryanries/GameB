@@ -65,7 +65,7 @@
 
 BOOL gGameIsRunning;                // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 
-UPOINT gCamera;
+
 
 // Map any char value to an offset dictated by the g6x7Font ordering.
 int32_t gFontCharacterPixelOffset[] = {
@@ -109,7 +109,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 	UNREFERENCED_PARAMETER(CommandLine);
 
-	UNREFERENCED_PARAMETER(CmdShow);    
+	UNREFERENCED_PARAMETER(CmdShow);        
 
     MSG Message = { 0 };
 
@@ -2207,7 +2207,7 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
 
     while (*Cursor != '\r' && *Cursor != '\n')
     {
-        if (BytesRead > 3)
+        if (BytesRead > 4)
         {
             Error = ERROR_INVALID_DATA;
 
@@ -2229,11 +2229,13 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
         {
             memset(TempBuffer, 0, sizeof(TempBuffer));
 
+            Skip:
+
             if (*Cursor == '\r' || *Cursor == '\n')
             {
                 Cursor++;
 
-                continue;
+                goto Skip;
             }
 
             for (uint8_t Counter = 0; Counter < 8; Counter++)

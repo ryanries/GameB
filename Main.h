@@ -420,6 +420,8 @@ IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
 uint8_t gPassableTiles[1];
 
+UPOINT gCamera;
+
 /////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
