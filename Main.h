@@ -1,16 +1,19 @@
 // Filename: Main.h
-// Project:  GameB
-// TODO: Come up with a better name.
+// Declarations that should be shared across multiple compilation units should go here.
+//
+// Project Codename: GameB
+// TODO: Come up with a better name later.
 // 2020 Joseph Ryan Ries <ryanries09@gmail.com>
 // My YouTube series where we program an entire video game from scratch in C.
-// Watch it on YouTube:    https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7
+// Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
 // Follow along on GitHub: https://github.com/ryanries/GameB
 // Find me on Twitter @JosephRyanRies 
-//# License
-//----------
-//The source code in this project is licensed under the MIT license.
-//The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
-//A copy of that license can be found in the 'Assets' directory.
+// # License
+// ----------
+// The source code in this project is licensed under the MIT license.
+// The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
+// A copy of that license can be found in the 'Assets' directory.
+// stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
 #pragma once
 
@@ -27,6 +30,8 @@
 #include <xaudio2.h>                // Audio library.
 
 #pragma comment(lib, "XAudio2.lib") // Audio library.
+
+#include "stb_vorbis.h"				// stb_vorbis by Sean T. Barrett - http://nothings.org/
 
 #include <stdio.h>                  // String manipulation functions such as sprintf, etc.
 
@@ -404,6 +409,8 @@ GAMESOUND gSoundMenuNavigate;
 
 GAMESOUND gSoundMenuChoose;
 
+GAMESOUND gMusicOverworld01;
+
 HERO gPlayer;
 
 float gSFXVolume;
@@ -460,6 +467,8 @@ DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
 
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
+void PlayGameMusic(_In_ GAMESOUND* GameSound);
+
 #ifdef AVX
 
 void ClearScreen(_In_ __m256i* Color);
@@ -475,3 +484,5 @@ void ClearScreen(_In_ PIXEL32* Color);
 #endif
 
 DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);
+
+DWORD LoadOggFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);

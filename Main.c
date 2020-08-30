@@ -1,18 +1,24 @@
-// Codename: GameB
-// Will come up with a better name later.
+// Filename: Main.c
+// Contains WinMain, which is the entry point of the entire game, as well as code for functions
+// that are common across multiple game states or are considered fundamental infrastructure.
+//
+// Project Codename: GameB
+// TODO: Come up with a better name later.
 // 2020 Joseph Ryan Ries <ryanries09@gmail.com>
 // My YouTube series where we program an entire video game from scratch in C.
 // Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
 // Follow along on GitHub: https://github.com/ryanries/GameB
 // Find me on Twitter @JosephRyanRies 
-//# License
-//----------
-//The source code in this project is licensed under the MIT license.
-//The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
-//A copy of that license can be found in the 'Assets' directory.
+// # License
+// ----------
+// The source code in this project is licensed under the MIT license.
+// The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
+// A copy of that license can be found in the 'Assets' directory.
+// stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
 // --- TODO ---
-// Talk about TODO
+// Add more comments
+// Draw tile numbers for debugging on only tiles adjacent to player
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
@@ -43,7 +49,8 @@
 //
 // Tile maps
 
-#include "Main.h"                   // The primary header file that defines stuff specific to our game.
+// Contains global declarations shared among multiple files.
+#include "Main.h"                   
 
 #include "OpeningSplashScreen.h"
 
@@ -59,13 +66,8 @@
 
 #include "Overworld.h"
 
-
-
-
-
-BOOL gGameIsRunning;                // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
-
-
+// Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
+BOOL gGameIsRunning;    
 
 // Map any char value to an offset dictated by the g6x7Font ordering.
 int32_t gFontCharacterPixelOffset[] = {
@@ -330,6 +332,13 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     if (LoadWavFromFile(".\\Assets\\MenuChoose.wav", &gSoundMenuChoose) != ERROR_SUCCESS)
     {
         MessageBoxA(NULL, "LoadWavFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    if (LoadOggFromFile(".\\Assets\\Overworld01.ogg", &gMusicOverworld01) != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "LoadOggFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
     }
@@ -1233,6 +1242,11 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
     }    
 }
 
+// Draws a subsection of a background across the entire screen.
+// The background may be an entire overworld map which may be much larger than the screen.
+// Uses gCamera to control which part of the background gets drawn to the screen.
+// The camera is panned around based on the character's movement. E.g., when the player
+// walks toward the edge of the screen, the camera gets pushed in that direction.
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
@@ -1956,6 +1970,19 @@ void PlayGameSound(_In_ GAMESOUND* GameSound)
     }
 }
 
+void PlayGameMusic(_In_ GAMESOUND* GameSound)
+{
+    gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+
+    gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+
+    GameSound->Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+
+    gXAudioMusicSourceVoice->lpVtbl->SubmitSourceBuffer(gXAudioMusicSourceVoice, &GameSound->Buffer, NULL);
+
+    gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
+}
+
 DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
 {
     DWORD Error = ERROR_SUCCESS;
@@ -2263,6 +2290,111 @@ DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
         }
     }
 
+
+Exit:
+
+    if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    {
+        CloseHandle(FileHandle);
+    }
+
+    if (FileBuffer)
+    {
+        HeapFree(GetProcessHeap(), 0, FileBuffer);
+    }
+
+    return(Error);
+}
+
+// Loads and decodes an Ogg Vorbis music file using Sean Barrett's stb_vorbis.c
+DWORD LoadOggFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    LARGE_INTEGER FileSize = { 0 };
+
+    DWORD BytesRead = 0;
+
+    void* FileBuffer = NULL;
+
+    int SamplesDecoded = 0;
+
+    int Channels = 0;
+
+    int SampleRate = 0;
+
+    short* DecodedAudio = NULL;
+
+    if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (GetFileSizeEx(FileHandle, &FileSize) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] GetFileSizeEx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] Size of file %s is %lu bytes.", __FUNCTION__, FileName, FileSize.QuadPart);
+
+    FileBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, FileSize.QuadPart);
+
+    if (FileBuffer == NULL)
+    {
+        Error = ERROR_OUTOFMEMORY;
+
+        LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, FileBuffer, (DWORD)FileSize.QuadPart, &BytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    SamplesDecoded = stb_vorbis_decode_memory(FileBuffer, (int)FileSize.QuadPart, &Channels, &SampleRate, &DecodedAudio);
+
+    if (SamplesDecoded < 1)
+    {
+        Error = ERROR_BAD_COMPRESSION_BUFFER;
+
+        LogMessageA(LL_ERROR, "[%s] stb_vorbis_decode_memory failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    GameSound->WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+
+    GameSound->WaveFormat.nChannels = (WORD)Channels;
+
+    GameSound->WaveFormat.nSamplesPerSec = SampleRate;
+
+    GameSound->WaveFormat.nAvgBytesPerSec = GameSound->WaveFormat.nSamplesPerSec * GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->WaveFormat.nBlockAlign = GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->WaveFormat.wBitsPerSample = 16;
+
+    GameSound->Buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    GameSound->Buffer.AudioBytes = SamplesDecoded * GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->Buffer.pAudioData = (const BYTE*)DecodedAudio;
 
 Exit:
 

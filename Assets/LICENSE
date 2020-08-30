@@ -1,11 +1,20 @@
 Game Assets License
 
-The source code in this project is licensed under the MIT license.
+The source code in this project is licensed under the MIT license, with the exception of
+stb_vorbis, which is public domain. A copy of the license for stb_vorbis can be found in the stb_vorbis.c file.
 The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
 This is that license.
 
-All of the artwork, custom fonts, music and sound effects for this project
+The artwork, custom fonts, music and sound effects for this project
 are Copyright 2020 by Joseph Ryan Ries, and all rights are reserved.
+The background music (the files with an *.ogg file extension,) was
+created by nocturnalplant: 
+- thenocturnalplant@gmail.com 
+- http://nocturnalplant.com
+- http://nocturnalplant.bandcamp.com
+Ownership of the music is retained by its creator nocturnalplant, and the music
+has been licensed from its creator so that it may be used only in this project.
+
 Anyone obtaining a copy of these materials is granted a
 personal, non-assignable, non-transferable, non-commercial license to
 use the artwork, custom fonts, music and sound effects for their own personal

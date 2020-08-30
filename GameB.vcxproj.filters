@@ -39,6 +39,9 @@
     <ClCompile Include="Overworld.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="stb_vorbis.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Main.h">
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Tiles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stb_vorbis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

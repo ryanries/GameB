@@ -1,3 +1,20 @@
+// Filename: Overworld.c
+// Contains code for the functions that are specific to the overworld game state.
+//
+// Project Codename: GameB
+// TODO: Come up with a better name later.
+// 2020 Joseph Ryan Ries <ryanries09@gmail.com>
+// My YouTube series where we program an entire video game from scratch in C.
+// Watch it on YouTube:    https://www.youtube.com/watch?v=3zFFrBSdBvA
+// Follow along on GitHub: https://github.com/ryanries/GameB
+// Find me on Twitter @JosephRyanRies 
+// # License
+// ----------
+// The source code in this project is licensed under the MIT license.
+// The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
+// A copy of that license can be found in the 'Assets' directory.
+// stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
+
 #include "Main.h"
 
 #include "Overworld.h"
@@ -10,17 +27,21 @@ void DrawOverworld(void)
 
     static PIXEL32 TextColor;
 
-
-
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
-    }    
+    }
+
+    if (LocalFrameCounter == 60)
+    {
+        PlayGameMusic(&gMusicOverworld01);
+    }
 
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap);
 
+    // TODO: if debug turned on, draw only the tile numbers adjacent to the player
     //for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
     //{
     //    for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
@@ -44,16 +65,27 @@ void DrawOverworld(void)
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
 }
 
+// Process Player Input for the Overworld game state.
+// This typically involves the player moving around on the screen.
+// TODO: Make a gCurrentMap so that this works for any map we if choose to swap maps.
 void PPI_Overworld(void)
 {
-    // TODO remove this
+    // TODO remove this - it is just for debugging
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
     {
         SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
     }
 
+    // If the player has no movement remaining, it means the player is standing still.    
+
     if (!gPlayer.MovementRemaining)
     {
+        // If the player wants to move downward, we need to consult the tilemap to see
+        // if the destination tile can be stepped on - e.g., is it grass or is it water?
+        // We do this for all four directions - just check the adjacent tile to see if it's passable
+        // before we allow the player to move there. Careful about index out of bounds errors if the
+        // player is near the edge of the map.
+        
         if (gGameInput.DownKeyIsDown)
         {
             BOOL CanMoveToDesiredTile = FALSE;
@@ -155,8 +187,15 @@ void PPI_Overworld(void)
             }
         }
     }
-    else
-    {
+    else 
+    {       
+        // gPlayer.MovementRemaining was greater than 0, which means the player is currently in motion.
+        // The player must move exactly 16 pixels (1 tile) to complete a full movement. You cannot 
+        // cancel a movement in progress or change directions during the middle of a movement.
+        // If player is near the center of the screen, then adjust only player's screen position.
+        // If player is near the edge of the screen, then pan the camera instead of changing player's screen position.
+        // (Unless player is near the edge of the map, thus the camera cannot pan any further.)
+
         gPlayer.MovementRemaining--;
 
         if (gPlayer.Direction == DOWN)
@@ -225,6 +264,10 @@ void PPI_Overworld(void)
 
             gPlayer.WorldPos.y--;
         }
+
+        // During the course of the player's 16 pixel motion, we are changing player's sprite index
+        // 4 times. One foot forward, neutral, other foot forward, neutral. This achieves a walking
+        // animation effect as the player is moving. You want to end on neutral/standing still.
 
         switch (gPlayer.MovementRemaining)
         {
