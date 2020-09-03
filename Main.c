@@ -141,7 +141,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     HANDLE ProcessHandle = GetCurrentProcess();
 
-    gCurrentGameState = GAMESTATE_OVERWORLD;
+    //gCurrentGameState = GAMESTATE_OVERWORLD;
     
     gGamepadID = -1;
 
