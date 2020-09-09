@@ -42,3 +42,5 @@ You probably have to restart Visual Studio after creating this environment varia
 The source code in this project is licensed under the MIT license.
 The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
 A copy of that license can be found in the 'Assets' directory.
+stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
+miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
