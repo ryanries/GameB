@@ -15,6 +15,7 @@
 // The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
+// miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
 // Add more comments
@@ -28,8 +29,6 @@
 // gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
 // overworld... tile maps...
-// ogg vorbis background music
-// archive format for game assets?
 // Optimization: String caching?
 // Add logging to InitializeHero
 //
@@ -50,21 +49,33 @@
 // Tile maps
 
 // Contains global declarations shared among multiple files.
-#include "Main.h"                   
+#include "Main.h"
 
+// Contains declarations that are specific to the Opening Splash Screen game state.
 #include "OpeningSplashScreen.h"
 
+// Contains declarations that are specific to the Title Screen game state.
 #include "TitleScreen.h"
 
+// Contains declarations that are specific to the Options Screen game state.
 #include "OptionsScreen.h"
 
+// Contains declarations that are specific to the Exit Yes/No Screen game state.
 #include "ExitYesNoScreen.h"
 
+// Contains declarations that are specific to the Gamepad Unplugged Screen game state.
 #include "GamepadUnplugged.h"
 
+// Contains declarations that are specific to the Character Naming Screen game state.
 #include "CharacterNamingScreen.h"
 
+// Contains declarations that are specific to the Overworld game state.
 #include "Overworld.h"
+
+// Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
+// the constants so that the exact file format is only readable by our game and not common
+// tools such as 7zip, WinRAR, etc.
+#include "miniz.h"  
 
 // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 BOOL gGameIsRunning;    
@@ -89,20 +100,35 @@ int32_t gFontCharacterPixelOffset[] = {
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
 };
 
+// If the game window does not have focus, then do not process player input.
 BOOL gWindowHasFocus;
 
+// Any values that are read from and stored in Windows registry go in this struct.
 REGISTRYPARAMS gRegistryParams;
 
+// Holds the state of the Xbox360 gamepad, e.g., is the X button currently pushed or not?
 XINPUT_STATE gGamepadState;
 
+// The COM interface for XAudio2, which is a Microsoft audio library that we 
+// use for playing sounds and music. XAudio2 uses the concept of source voices and
+// mastering voices. We submit audio data to the source voice, and the source
+// voice sends that to the mastering voice, which mixes everything together and sends the final audio 
+// data to the playback device.
+// We only use a single mastering voice, but we use one source voice for background music and 
+// we use 4 source voices for sound effects. By using 4 source voices for sound effects, we can
+// play up to 4 SFX simultaneously. Otherwise, submitting multiple buffers to the same source voice
+// before the previous sound has finished playing will simply queue up the sounds to play one after
+// the other.
 IXAudio2* gXAudio;
 
 IXAudio2MasteringVoice* gXAudioMasteringVoice;
 
+// This is an iterator used to rapidly cycle through source voices 0-3 so we can play
+// up to 4 sound effects simultaneously.
 uint8_t gSFXSourceVoiceSelector;
 
 
-
+// The game's entry point.
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
 {
     UNREFERENCED_PARAMETER(Instance);
@@ -315,7 +341,14 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    if (LoadWavFromFile(".\\Assets\\SplashScreen.wav", &gSoundSplashScreen) != ERROR_SUCCESS)
+    //if (LoadWavFromFile(".\\Assets\\SplashScreen.wav", &gSoundSplashScreen) != ERROR_SUCCESS)
+    //{
+    //    MessageBoxA(NULL, "LoadWavFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
+
+    //    goto Exit;
+    //}
+
+    if (LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen) != ERROR_SUCCESS)
     {
         MessageBoxA(NULL, "LoadWavFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
 
@@ -1956,6 +1989,204 @@ Exit:
     return(Error);
 }
 
+DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    //DWORD NumberOfBytesRead = 0;
+
+    DWORD RIFF = 0;
+
+    uint16_t DataChunkOffset = 0;
+
+    DWORD DataChunkSearcher = 0;
+
+    BOOL DataChunkFound = FALSE;
+
+    DWORD DataChunkSize = 0;
+
+    //HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    //void* AudioData = NULL;
+
+
+    //if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    memcpy(&RIFF, Buffer, sizeof(DWORD));
+
+    //if (ReadFile(FileHandle, &RIFF, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    if (RIFF != 0x46464952) // "RIFF" backwards
+    {
+        Error = ERROR_FILE_INVALID;
+
+        LogMessageA(LL_ERROR, "[%s] First four bytes of memory buffer are not 'RIFF'!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    //if (SetFilePointer(FileHandle, 20, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    memcpy(&GameSound->WaveFormat, (BYTE*)Buffer + 20, sizeof(WAVEFORMATEX));
+
+    //if (ReadFile(FileHandle, &GameSound->WaveFormat, sizeof(WAVEFORMATEX), &NumberOfBytesRead, NULL) == 0)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    if (GameSound->WaveFormat.nBlockAlign != ((GameSound->WaveFormat.nChannels * GameSound->WaveFormat.wBitsPerSample) / 8) ||
+        (GameSound->WaveFormat.wFormatTag != WAVE_FORMAT_PCM) ||
+        (GameSound->WaveFormat.wBitsPerSample != 16))
+    {
+        Error = ERROR_DATATYPE_MISMATCH;
+
+        LogMessageA(LL_ERROR, "[%s] This wav data in the memory buffer did not meet the format requirements! Only PCM format, 44.1KHz, 16 bits per sample wav files are supported. 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    while (DataChunkFound == FALSE)
+    {
+        //if (SetFilePointer(FileHandle, DataChunkOffset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+        //{
+        //    Error = GetLastError();
+
+        //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+        //    goto Exit;
+        //}
+
+        //if (ReadFile(FileHandle, &DataChunkSearcher, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+        //{
+        //    Error = GetLastError();
+
+        //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        //    goto Exit;
+        //}
+
+        memcpy(&DataChunkSearcher, (BYTE*)Buffer + DataChunkOffset, sizeof(DWORD));
+
+        if (DataChunkSearcher == 0x61746164) // 'data', backwards
+        {
+            DataChunkFound = TRUE;
+
+            break;
+        }
+        else
+        {
+            DataChunkOffset += 4;
+        }
+
+        if (DataChunkOffset > 256)
+        {
+            Error = ERROR_DATATYPE_MISMATCH;
+
+            LogMessageA(LL_ERROR, "[%s] Data chunk not found within first 256 bytes of the memory buffer! 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+    }
+
+    //if (SetFilePointer(FileHandle, DataChunkOffset + 4, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    memcpy(&DataChunkSize, (BYTE*)Buffer + DataChunkOffset + 4, sizeof(DWORD));
+
+    //if (ReadFile(FileHandle, &DataChunkSize, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    //AudioData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, DataChunkSize);
+
+    //if (AudioData == NULL)
+    //{
+    //    Error = ERROR_NOT_ENOUGH_MEMORY;
+
+    //    LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    GameSound->Buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    GameSound->Buffer.AudioBytes = DataChunkSize;
+
+    //if (SetFilePointer(FileHandle, DataChunkOffset + 8, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    //if (ReadFile(FileHandle, AudioData, DataChunkSize, &NumberOfBytesRead, NULL) == 0)
+    //{
+    //    Error = GetLastError();
+
+    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+    //    goto Exit;
+    //}
+
+    GameSound->Buffer.pAudioData = (BYTE*)Buffer + DataChunkOffset + 8;
+
+Exit:
+
+    if (Error == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Successfully loaded wav from memory.", __FUNCTION__);
+    }
+    else
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to load wav from memory! Error: 0x%08lx!", __FUNCTION__, Error);
+    }
+
+    //if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    //{
+    //    CloseHandle(FileHandle);
+    //}
+
+    return(Error);
+}
+
 void PlayGameSound(_In_ GAMESOUND* GameSound)
 {
     gXAudioSFXSourceVoice[gSFXSourceVoiceSelector]->lpVtbl->SubmitSourceBuffer(gXAudioSFXSourceVoice[gSFXSourceVoiceSelector], &GameSound->Buffer, NULL);
@@ -2407,6 +2638,101 @@ Exit:
     {
         HeapFree(GetProcessHeap(), 0, FileBuffer);
     }
+
+    return(Error);
+}
+
+DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    mz_zip_archive Archive = { 0 };
+
+    BYTE* DecompressedBuffer = NULL;
+
+    size_t DecompressedSize = 0;
+
+    BOOL FileFoundInArchive = FALSE;
+
+    if ((mz_zip_reader_init_file(&Archive, ArchiveName, 0)) == FALSE)
+    {
+        Error = mz_zip_get_last_error(&Archive);
+
+        LogMessageA(LL_ERROR, "[%s] mz_zip_reader_init_file failed with 0x%08lx on archive file %s!", __FUNCTION__, Error, ArchiveName);
+
+        goto Exit;
+    }
+
+    // Iterate through each file in the archive until we find the file we are looking for.
+
+    for (int FileIndex = 0; FileIndex < (int)mz_zip_reader_get_num_files(&Archive); FileIndex++)
+    {
+        mz_zip_archive_file_stat CompressedFileStatistics = { 0 };
+
+        if (mz_zip_reader_file_stat(&Archive, FileIndex, &CompressedFileStatistics) == MZ_FALSE)
+        {
+            Error = mz_zip_get_last_error(&Archive);
+
+            LogMessageA(LL_ERROR, "[%s] mz_zip_reader_file_stat failed with 0x%08lx! Archive: %s File: %s", __FUNCTION__, Error, ArchiveName, AssetFileName);
+
+            goto Exit;
+        }
+
+        if (_stricmp(CompressedFileStatistics.m_filename, AssetFileName) == 0)
+        {
+            FileFoundInArchive = TRUE;
+
+            if ((DecompressedBuffer = mz_zip_reader_extract_to_heap(&Archive, FileIndex, &DecompressedSize, 0)) == NULL)
+            {
+                Error = mz_zip_get_last_error(&Archive);
+
+                LogMessageA(LL_ERROR, "[%s] mz_zip_reader_extract_to_heap failed with 0x%08lx! Archive: %s File: %s", __FUNCTION__, Error, ArchiveName, AssetFileName);
+
+                goto Exit;
+            }
+
+            break;
+        }
+    }
+
+    if (FileFoundInArchive == FALSE)
+    {
+        Error = ERROR_FILE_NOT_FOUND;
+
+        LogMessageA(LL_ERROR, "[%s] File %s was not found in archive %s! 0x%08lx", __FUNCTION__, AssetFileName, ArchiveName, Error);
+
+        goto Exit;
+    }
+
+    switch (ResourceType)
+    {
+        case RESOURCE_TYPE_WAV:
+        {
+            Error = LoadWavFromMemory(DecompressedBuffer, Resource);
+
+            break;
+        }
+        case RESOURCE_TYPE_OGG:
+        {
+            break;
+        }
+        case RESOURCE_TYPE_TILEMAP:
+        {
+            break;
+        }
+        case RESOURCE_TYPE_BMPX:
+        {
+            break;
+        }
+        default:
+        {
+            ASSERT(FALSE, "Unknown resource type!");
+        }
+    }
+
+Exit:    
+        
+    mz_zip_reader_end(&Archive);    
 
     return(Error);
 }

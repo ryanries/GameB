@@ -24,6 +24,36 @@
  *
  **************************************************************************/
 
+#pragma warning(disable: 4548)
+
+#pragma warning(disable: 5045)
+
+#pragma warning(disable: 26451)
+
+#pragma warning(disable: 4024)
+
+#pragma warning(disable: 4820)
+
+#pragma warning(disable: 4255)
+
+#pragma warning(disable: 4477)
+
+#pragma warning(disable: 4127)
+
+#pragma warning(disable: 5045)
+
+#pragma warning(disable: 4061)
+
+#pragma warning(disable: 6386)
+
+#pragma warning(disable: 6297)
+
+#pragma warning(disable: 4711)
+
+#pragma warning(disable: 4710)
+
+#pragma warning(disable: 4100)
+
 #include  "miniz.h"
 
 typedef unsigned char mz_validate_uint16[sizeof(mz_uint16) == 2 ? 1 : -1];
@@ -3102,23 +3132,30 @@ static FILE *mz_freopen(const char *pPath, const char *pMode, FILE *pStream)
 #define MZ_TOLOWER(c) ((((c) >= 'A') && ((c) <= 'Z')) ? ((c) - 'A' + 'a') : (c))
 
 /* Various ZIP archive enums. To completely avoid cross platform compiler alignment and platform endian issues, miniz.c doesn't use structs for any of this stuff. */
+// Ryan Ries 9/9/2020: I modified some of these constants to make the archive unreadable by most tools.
 enum
 {
     /* ZIP archive identifiers and record sizes */
-    MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIG = 0x06054b50,
-    MZ_ZIP_CENTRAL_DIR_HEADER_SIG = 0x02014b50,
-    MZ_ZIP_LOCAL_DIR_HEADER_SIG = 0x04034b50,
+    //MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIG = 0x06054b50,
+    MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIG = 0xA7143F2C,
+    //MZ_ZIP_CENTRAL_DIR_HEADER_SIG = 0x02014b50,
+    MZ_ZIP_CENTRAL_DIR_HEADER_SIG = 0xEE910C3A,
+    //MZ_ZIP_LOCAL_DIR_HEADER_SIG = 0x04034b50,
+    MZ_ZIP_LOCAL_DIR_HEADER_SIG = 0x18775C5C,
     MZ_ZIP_LOCAL_DIR_HEADER_SIZE = 30,
     MZ_ZIP_CENTRAL_DIR_HEADER_SIZE = 46,
     MZ_ZIP_END_OF_CENTRAL_DIR_HEADER_SIZE = 22,
 
     /* ZIP64 archive identifier and record sizes */
-    MZ_ZIP64_END_OF_CENTRAL_DIR_HEADER_SIG = 0x06064b50,
-    MZ_ZIP64_END_OF_CENTRAL_DIR_LOCATOR_SIG = 0x07064b50,
+    //MZ_ZIP64_END_OF_CENTRAL_DIR_HEADER_SIG = 0x06064b50,
+    MZ_ZIP64_END_OF_CENTRAL_DIR_HEADER_SIG = 0xA7143F2C,
+    //MZ_ZIP64_END_OF_CENTRAL_DIR_LOCATOR_SIG = 0x07064b50,
+    MZ_ZIP64_END_OF_CENTRAL_DIR_LOCATOR_SIG = 0xBB151CF2,
     MZ_ZIP64_END_OF_CENTRAL_DIR_HEADER_SIZE = 56,
     MZ_ZIP64_END_OF_CENTRAL_DIR_LOCATOR_SIZE = 20,
     MZ_ZIP64_EXTENDED_INFORMATION_FIELD_HEADER_ID = 0x0001,
-    MZ_ZIP_DATA_DESCRIPTOR_ID = 0x08074b50,
+    //MZ_ZIP_DATA_DESCRIPTOR_ID = 0x08074b50,
+    MZ_ZIP_DATA_DESCRIPTOR_ID = 0x6A7A004B,
     MZ_ZIP_DATA_DESCRIPTER_SIZE64 = 24,
     MZ_ZIP_DATA_DESCRIPTER_SIZE32 = 16,
 

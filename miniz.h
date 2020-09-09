@@ -163,6 +163,7 @@
 #define MINIZ_X86_OR_X64_CPU 0
 #endif
 
+#pragma warning(disable: 4668)
 #if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || MINIZ_X86_OR_X64_CPU
 /* Set MINIZ_LITTLE_ENDIAN to 1 if the processor is little endian. */
 #define MINIZ_LITTLE_ENDIAN 1

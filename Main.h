@@ -14,6 +14,7 @@
 // The media assets such as artwork, custom fonts, music and sound effects are licensed under a separate license.
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
+// miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 #pragma once
 
@@ -74,6 +75,8 @@
 #define GAME_NAME	"Game_B"
 
 #define GAME_VER	"0.9a"
+
+#define ASSET_FILE	"Assets.dat"
 
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
@@ -178,6 +181,18 @@ typedef enum GAMESTATE
 	GAMESTATE_GAMEPADUNPLUGGED
 
 } GAMESTATE;
+
+typedef enum RESOURCE_TYPE
+{
+	RESOURCE_TYPE_WAV,
+
+	RESOURCE_TYPE_OGG,
+
+	RESOURCE_TYPE_TILEMAP,
+
+	RESOURCE_TYPE_BMPX
+
+} RESOURCE_TYPE;
 
 /////////// END GLOBAL ENUMS /////////////
 
@@ -465,9 +480,13 @@ HRESULT InitializeSoundEngine(void);
 
 DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
 
+DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound);
+
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
 void PlayGameMusic(_In_ GAMESOUND* GameSound);
+
+DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource);
 
 #ifdef AVX
 
