@@ -1,12 +1,6 @@
 # GameB
 
  Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
- 
-![YouTube_Screenshot](YoutubeScreenshot.png "YouTube_Screenshot")
-
-![YouTube_Screenshot2](YoutubeScreenshot2.png "YouTube_Screenshot2")
-
-![YouTube_Screenshot2](YoutubeScreenshot3.png "YouTube_Screenshot3")
 
  We are going to make a retro-style video game from scratch, using the C programming language.
  
@@ -19,6 +13,12 @@
  Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
  
  Follow me on Twitter @JosephRyanRies
+ 
+ ![YouTube_Screenshot](YoutubeScreenshot.png "YouTube_Screenshot")
+
+ ![YouTube_Screenshot2](YoutubeScreenshot2.png "YouTube_Screenshot2")
+
+ ![YouTube_Screenshot2](YoutubeScreenshot3.png "YouTube_Screenshot3")
 
 # Build Instructions
 --------------------

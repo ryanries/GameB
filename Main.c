@@ -139,24 +139,37 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 	UNREFERENCED_PARAMETER(CmdShow);        
 
+    // Handles Windows' Window messages to our game's window.
     MSG Message = { 0 };
 
+    // The time in microseconds that each frame starts.
     int64_t FrameStart = 0;
 
+    // The time in microseconds that each frame ends. 
+    // This variable is reused to measure both "raw" and "cooked" frame times.
     int64_t FrameEnd = 0;
 
+    // The elapsed time in microseconds that each frame ends. 
+    // This variable is reused to measure both "raw" and "cooked" frame times. 
     int64_t ElapsedMicroseconds = 0;
 
+    // We accumulate the amount of time taken to render a "raw" frame and then
+    // calculate the average every x frames, i.e., we divide it by x number of frames rendered.
     int64_t ElapsedMicrosecondsAccumulatorRaw = 0;
 
+    // We accumulate the amount of time taken to render a "cooked" frame and then
+    // calculate the average every x frames, i.e., we divide it by x number of frames rendered.
+    // This should hopefully be a steady 60fps. A "cooked" frame is a frame after we have 
+    // waited/slept for a calculated amount of time before starting the next frame.
     int64_t ElapsedMicrosecondsAccumulatorCooked = 0;    
 
-    HMODULE NtDllModuleHandle = NULL;
-
+    // The time the game started. This is used to calculate CPU usage percentage.
     FILETIME ProcessCreationTime = { 0 };
 
+    // This is needed by the GetProcessTimes function, but we don't use it.
     FILETIME ProcessExitTime = { 0 };
 
+    // These four variables are used to calculate the average CPU usage.
     int64_t CurrentUserCPUTime = 0;
 
     int64_t CurrentKernelCPUTime = 0;
@@ -164,8 +177,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     int64_t PreviousUserCPUTime = 0;
 
     int64_t PreviousKernelCPUTime = 0;
-
-    HANDLE ProcessHandle = GetCurrentProcess();
+    
+    // --- TODO: 
+    // Wrap these things into some function like "InitializeGlobals()"
 
     //gCurrentGameState = GAMESTATE_OVERWORLD;
     
@@ -173,8 +187,12 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     gPassableTiles[0] = TILE_GRASS_01;
 
+    // --- END TODO
 
 
+    // LoadRegistryParameters should be the first thing that runs, and no logging
+    // should be attempted before this function runs, because the user-configurable
+    // logging verbosity level is defined in the registry and is thus retrieved by this function.
     if (LoadRegistryParameters() != ERROR_SUCCESS)
     {
         goto Exit;
@@ -182,6 +200,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
+    // This function uses a global mutex to determine whether another instance of the same
+    // process is already running. This is not hack-proof but it does prevent accidents.
     if (GameIsAlreadyRunning() == TRUE)
     {
         LogMessageA(LL_ERROR, "[%s] Another instance of this program is already running!", __FUNCTION__);
@@ -191,16 +211,10 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL)
-    {
-        LogMessageA(LL_ERROR, "[%s] Couldn't load ntdll.dll! Error 0x%08lx!", __FUNCTION__, GetLastError());
-
-        MessageBoxA(NULL, "Couldn't load ntdll.dll!", "Error!", MB_ICONERROR | MB_OK);
-
-        goto Exit;
-    }
-
-    if ((NtQueryTimerResolution = (_NtQueryTimerResolution)GetProcAddress(NtDllModuleHandle, "NtQueryTimerResolution")) == NULL)
+    // We need the undocumented Windows API function NtQueryTimerResolution to get the resolution of the global system timer.
+    // A higher resolution timer will show a lower number, because if your clock can tick every e.g. 0.5ms, that is a higher 
+    // resolution than a timer that can only tick every 1.0ms.
+    if ((NtQueryTimerResolution = (_NtQueryTimerResolution)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryTimerResolution")) == NULL)
     {
         LogMessageA(LL_ERROR, "[%s] Couldn't find the NtQueryTimerResolution function in ntdll.dll! GetProcAddress failed! Error 0x%08lx!", __FUNCTION__, GetLastError());
 
@@ -253,6 +267,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         }
     }
 
+    // Initialize the variable that is used to calculate average CPU usage of this process.
     GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.PreviousSystemTime);
 
     // The timeBeginPeriod function controls a global system-wide timer. So
@@ -263,7 +278,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // 1ms timer resolution, we simply cannot maintain a reliable 60 frames per second.
     // Also, we don't need to worry about calling timeEndPeriod, because Windows will
     // automatically cancel our requested timer resolution once this process exits.
-
     if (timeBeginPeriod(1) == TIMERR_NOCANDO)
     {
         LogMessageA(LL_ERROR, "[%s] Failed to set global timer resolution!", __FUNCTION__);
@@ -281,8 +295,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     // Increase process and thread priority to minimize the chances of another thread on the system
     // preempting us when we need to run and causing a stutter in our frame rate. (Though it can still happen.)
-
-    if (SetPriorityClass(ProcessHandle, HIGH_PRIORITY_CLASS) == 0)
+    if (SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS) == 0)
     {
         LogMessageA(LL_ERROR, "[%s] Failed to set process priority! Error 0x%08lx", __FUNCTION__, GetLastError());
 
@@ -488,7 +501,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         {
             GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.CurrentSystemTime);
 
-            GetProcessTimes(ProcessHandle,
+            GetProcessTimes(GetCurrentProcess(),
                 &ProcessCreationTime, 
                 &ProcessExitTime, 
                 (FILETIME*)&CurrentKernelCPUTime,
@@ -502,9 +515,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             gPerformanceData.CPUPercent *= 100;
 
-            GetProcessHandleCount(ProcessHandle, &gPerformanceData.HandleCount);
+            GetProcessHandleCount(GetCurrentProcess(), &gPerformanceData.HandleCount);
 
-            K32GetProcessMemoryInfo(ProcessHandle, (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));
+            K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));
 
             gPerformanceData.RawFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorRaw / CALCULATE_AVG_FPS_EVERY_X_FRAMES) * 0.000001f);
 
@@ -1989,11 +2002,12 @@ Exit:
     return(Error);
 }
 
+// A compressed *.wav file has been extracted from the assets file and now resides
+// in heap memory. This function parses that memory and populates a GAMESOUND data structure.
+// This function should probably only be called from LoadAssetFromArchive.
 DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
 {
-    DWORD Error = ERROR_SUCCESS;
-
-    //DWORD NumberOfBytesRead = 0;
+    DWORD Error = ERROR_SUCCESS;    
 
     DWORD RIFF = 0;
 
@@ -2005,30 +2019,7 @@ DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
 
     DWORD DataChunkSize = 0;
 
-    //HANDLE FileHandle = INVALID_HANDLE_VALUE;
-
-    //void* AudioData = NULL;
-
-
-    //if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
-
     memcpy(&RIFF, Buffer, sizeof(DWORD));
-
-    //if (ReadFile(FileHandle, &RIFF, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
 
     if (RIFF != 0x46464952) // "RIFF" backwards
     {
@@ -2039,25 +2030,8 @@ DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
         goto Exit;
     }
 
-    //if (SetFilePointer(FileHandle, 20, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
-
+    // 20 bytes into a wav file, there is a WAVEFORMATEX data structure.
     memcpy(&GameSound->WaveFormat, (BYTE*)Buffer + 20, sizeof(WAVEFORMATEX));
-
-    //if (ReadFile(FileHandle, &GameSound->WaveFormat, sizeof(WAVEFORMATEX), &NumberOfBytesRead, NULL) == 0)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
 
     if (GameSound->WaveFormat.nBlockAlign != ((GameSound->WaveFormat.nChannels * GameSound->WaveFormat.wBitsPerSample) / 8) ||
         (GameSound->WaveFormat.wFormatTag != WAVE_FORMAT_PCM) ||
@@ -2070,26 +2044,9 @@ DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
         goto Exit;
     }
 
+    // We search for the data chunk, which is an indeterminite number of bytes into the file/buffer.
     while (DataChunkFound == FALSE)
     {
-        //if (SetFilePointer(FileHandle, DataChunkOffset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
-        //{
-        //    Error = GetLastError();
-
-        //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
-
-        //    goto Exit;
-        //}
-
-        //if (ReadFile(FileHandle, &DataChunkSearcher, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
-        //{
-        //    Error = GetLastError();
-
-        //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
-
-        //    goto Exit;
-        //}
-
         memcpy(&DataChunkSearcher, (BYTE*)Buffer + DataChunkOffset, sizeof(DWORD));
 
         if (DataChunkSearcher == 0x61746164) // 'data', backwards
@@ -2113,58 +2070,11 @@ DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
         }
     }
 
-    //if (SetFilePointer(FileHandle, DataChunkOffset + 4, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
-
     memcpy(&DataChunkSize, (BYTE*)Buffer + DataChunkOffset + 4, sizeof(DWORD));
-
-    //if (ReadFile(FileHandle, &DataChunkSize, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
-
-    //AudioData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, DataChunkSize);
-
-    //if (AudioData == NULL)
-    //{
-    //    Error = ERROR_NOT_ENOUGH_MEMORY;
-
-    //    LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
 
     GameSound->Buffer.Flags = XAUDIO2_END_OF_STREAM;
 
     GameSound->Buffer.AudioBytes = DataChunkSize;
-
-    //if (SetFilePointer(FileHandle, DataChunkOffset + 8, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
-
-    //if (ReadFile(FileHandle, AudioData, DataChunkSize, &NumberOfBytesRead, NULL) == 0)
-    //{
-    //    Error = GetLastError();
-
-    //    LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
-
-    //    goto Exit;
-    //}
 
     GameSound->Buffer.pAudioData = (BYTE*)Buffer + DataChunkOffset + 8;
 
@@ -2178,11 +2088,6 @@ Exit:
     {
         LogMessageA(LL_ERROR, "[%s] Failed to load wav from memory! Error: 0x%08lx!", __FUNCTION__, Error);
     }
-
-    //if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
-    //{
-    //    CloseHandle(FileHandle);
-    //}
 
     return(Error);
 }
@@ -2642,6 +2547,10 @@ Exit:
     return(Error);
 }
 
+// Loads any defined asset type such as a *.wav, *.ogg, *.tmx, or *.bmpx from an asset file into heap memory.
+// The asset file is a compressed zip archive. The asset file is created with a customized version of miniz.
+// The only difference is that some of the constants were changed so that tools such as 7-zip, WinRAR, etc., 
+// will not be able to recognize the file. The asset file currently does not support any directory structure.
 DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource)
 {
     DWORD Error = ERROR_SUCCESS;
@@ -2663,9 +2572,11 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
         goto Exit;
     }
 
+    LogMessageA(LL_INFO, "[%s] Archive %s opened.", __FUNCTION__, ArchiveName);
+
     // Iterate through each file in the archive until we find the file we are looking for.
 
-    for (int FileIndex = 0; FileIndex < (int)mz_zip_reader_get_num_files(&Archive); FileIndex++)
+    for (uint32_t FileIndex = 0; FileIndex < mz_zip_reader_get_num_files(&Archive); FileIndex++)
     {
         mz_zip_archive_file_stat CompressedFileStatistics = { 0 };
 
@@ -2690,6 +2601,8 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 
                 goto Exit;
             }
+
+            LogMessageA(LL_INFO, "[%s] File %s found in asset file %s and extracted to heap.", __FUNCTION__, AssetFileName, ArchiveName);
 
             break;
         }
