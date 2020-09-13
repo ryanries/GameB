@@ -1,0 +1,736 @@
+This text file contains "scrap code" that we aren't using anymore, but don't want to delete forever just yet.
+============================
+============================
+
+// We no longer need these functions, because these functions load individual BMPX or WAV or OGG files from disk.
+// However we no longer do that. Now we are decompressing these files from a zip archive.
+
+DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitmap);
+DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);
+DWORD LoadOggFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
+
+DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitmap)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    WORD BitmapHeader = 0;
+
+    DWORD PixelDataOffset = 0;
+
+    DWORD NumberOfBytesRead = 2;
+
+    if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+    
+    if (ReadFile(FileHandle, &BitmapHeader, 2, &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if (BitmapHeader != 0x4d42) // "BM" backwards
+    {
+        Error = ERROR_FILE_INVALID;
+
+        goto Exit;
+    }
+
+    if (SetFilePointer(FileHandle, 0xA, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, &PixelDataOffset, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if (SetFilePointer(FileHandle, 0xE, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, &GameBitmap->BitmapInfo.bmiHeader, sizeof(BITMAPINFOHEADER), &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if ((GameBitmap->Memory = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, GameBitmap->BitmapInfo.bmiHeader.biSizeImage)) == NULL)
+    {
+        Error = ERROR_NOT_ENOUGH_MEMORY;
+
+        goto Exit;
+    }
+
+    if (SetFilePointer(FileHandle, PixelDataOffset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, GameBitmap->Memory, GameBitmap->BitmapInfo.bmiHeader.biSizeImage, &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        goto Exit;
+    }    
+
+Exit:
+
+    if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    {
+        CloseHandle(FileHandle);
+    }
+
+    if (Error == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Loading successful: %s", __FUNCTION__, FileName);
+    }
+    else
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading failed: %s! Error 0x%08lx!", __FUNCTION__, FileName, Error);
+    }
+
+    return(Error);
+}
+
+
+
+// Loads and decodes an Ogg Vorbis music file using Sean Barrett's stb_vorbis.c
+DWORD LoadOggFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    LARGE_INTEGER FileSize = { 0 };
+
+    DWORD BytesRead = 0;
+
+    void* FileBuffer = NULL;
+
+    int SamplesDecoded = 0;
+
+    int Channels = 0;
+
+    int SampleRate = 0;
+
+    short* DecodedAudio = NULL;
+
+    if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (GetFileSizeEx(FileHandle, &FileSize) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] GetFileSizeEx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] Size of file %s is %lu bytes.", __FUNCTION__, FileName, FileSize.QuadPart);
+
+    FileBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, FileSize.QuadPart);
+
+    if (FileBuffer == NULL)
+    {
+        Error = ERROR_OUTOFMEMORY;
+
+        LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, FileBuffer, (DWORD)FileSize.QuadPart, &BytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    SamplesDecoded = stb_vorbis_decode_memory(FileBuffer, (int)FileSize.QuadPart, &Channels, &SampleRate, &DecodedAudio);
+
+    if (SamplesDecoded < 1)
+    {
+        Error = ERROR_BAD_COMPRESSION_BUFFER;
+
+        LogMessageA(LL_ERROR, "[%s] stb_vorbis_decode_memory failed with 0x%08lx on %s!", __FUNCTION__, Error, FileName);
+
+        goto Exit;
+    }
+
+    GameSound->WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+
+    GameSound->WaveFormat.nChannels = (WORD)Channels;
+
+    GameSound->WaveFormat.nSamplesPerSec = SampleRate;
+
+    GameSound->WaveFormat.nAvgBytesPerSec = GameSound->WaveFormat.nSamplesPerSec * GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->WaveFormat.nBlockAlign = GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->WaveFormat.wBitsPerSample = 16;
+
+    GameSound->Buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    GameSound->Buffer.AudioBytes = SamplesDecoded * GameSound->WaveFormat.nChannels * 2;
+
+    GameSound->Buffer.pAudioData = (const BYTE*)DecodedAudio;
+
+Exit:
+
+    if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    {
+        CloseHandle(FileHandle);
+    }
+
+    if (FileBuffer)
+    {
+        HeapFree(GetProcessHeap(), 0, FileBuffer);
+    }
+
+    return(Error);
+}
+
+
+
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    LARGE_INTEGER FileSize = { 0 };  
+
+    DWORD BytesRead = 0;
+
+    void* FileBuffer = NULL;
+
+    char* Cursor = NULL;
+
+    char TempBuffer[16] = { 0 };
+
+    uint16_t Rows = 0;
+
+    uint16_t Columns = 0;
+
+    if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (GetFileSizeEx(FileHandle, &FileSize) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] GetFileSizeEx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] Size of file %s is %lu bytes.", __FUNCTION__, FileName, FileSize.QuadPart);
+
+    if (FileSize.QuadPart < 300)
+    {
+        Error = ERROR_FILE_INVALID;
+
+        LogMessageA(LL_ERROR, "[%s] File %s is too small to be a valid tile map! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+        goto Exit;
+    }
+
+    FileBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, FileSize.QuadPart);
+
+    if (FileBuffer == NULL)
+    {
+        Error = ERROR_OUTOFMEMORY;
+
+        LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, FileBuffer, (DWORD)FileSize.QuadPart, &BytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if ((Cursor = strstr(FileBuffer, "width=")) == NULL)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Could not locate the width attribute! 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    BytesRead = 0;
+
+    for (;;)
+    {
+        if (BytesRead > 8)
+        {
+            // We should have found the opening quotation mark by now.
+
+            Error = ERROR_INVALID_DATA;
+
+            LogMessageA(LL_ERROR, "[%s] Could not locate the opening quotation mark before the width attribute! 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+
+        if (*Cursor == '\"')
+        {
+            Cursor++;
+
+            break;
+        }
+        else
+        {
+            Cursor++;
+        }
+
+        BytesRead++;
+    }
+
+    BytesRead = 0;
+
+    for (uint8_t Counter = 0; Counter < 6; Counter++)
+    {
+        if (*Cursor == '\"')
+        {
+            Cursor++;
+
+            break;
+        }
+        else
+        {
+            TempBuffer[Counter] = *Cursor;
+
+            Cursor++;
+        }
+    }
+
+    TileMap->Width = (uint16_t)atoi(TempBuffer);
+
+    if (TileMap->Width == 0)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Width attribute was 0! 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    memset(TempBuffer, 0, sizeof(TempBuffer));
+
+    if ((Cursor = strstr(FileBuffer, "height=")) == NULL)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Could not locate the height attribute! 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    BytesRead = 0;
+
+    for (;;)
+    {
+        if (BytesRead > 8)
+        {
+            // We should have found the opening quotation mark by now.
+
+            Error = ERROR_INVALID_DATA;
+
+            LogMessageA(LL_ERROR, "[%s] Could not locate the opening quotation mark before the height attribute! 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+
+        if (*Cursor == '\"')
+        {
+            Cursor++;
+
+            break;
+        }
+        else
+        {
+            Cursor++;
+        }
+
+        BytesRead++;
+    }
+
+    BytesRead = 0;
+
+    for (uint8_t Counter = 0; Counter < 6; Counter++)
+    {
+        if (*Cursor == '\"')
+        {
+            Cursor++;
+
+            break;
+        }
+        else
+        {
+            TempBuffer[Counter] = *Cursor;
+
+            Cursor++;
+        }
+    }
+
+    TileMap->Height = (uint16_t)atoi(TempBuffer);
+
+    if (TileMap->Height == 0)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Height attribute was 0! 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    LogMessageA(LL_INFO, "[%s] %s TileMap dimensions: %dx%d.", __FUNCTION__, FileName, TileMap->Width, TileMap->Height);
+
+    Rows = TileMap->Height;
+
+    Columns = TileMap->Width;
+
+    TileMap->Map = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Rows * sizeof(void*));
+
+    if (TileMap->Map == NULL)
+    {
+        Error = ERROR_OUTOFMEMORY;
+
+        LogMessageA(LL_ERROR, "[%s] HeapAlloc failed! 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    for (uint16_t Counter = 0; Counter < TileMap->Height; Counter++)
+    {
+        TileMap->Map[Counter] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Columns * sizeof(void*));
+
+        if (TileMap->Map[Counter] == NULL)
+        {
+            Error = ERROR_OUTOFMEMORY;
+
+            LogMessageA(LL_ERROR, "[%s] HeapAlloc failed! 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+    }
+
+    BytesRead = 0;
+
+    memset(TempBuffer, 0, sizeof(TempBuffer));
+
+    if ((Cursor = strstr(FileBuffer, ",")) == NULL)
+    {
+        Error = ERROR_INVALID_DATA;
+
+        LogMessageA(LL_ERROR, "[%s] Could not find a comma character in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+        goto Exit;
+    }
+
+    while (*Cursor != '\r' && *Cursor != '\n')
+    {
+        if (BytesRead > 4)
+        {
+            Error = ERROR_INVALID_DATA;
+
+            LogMessageA(LL_ERROR, "[%s] Could not find a new line character at the beginning of the tile map data in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+            goto Exit;
+        }
+
+        BytesRead++;
+
+        Cursor--;
+    }
+
+    Cursor++;
+
+    for (uint16_t Row = 0; Row < Rows; Row++)
+    {
+        for (uint16_t Column = 0; Column < Columns; Column++)
+        {
+            memset(TempBuffer, 0, sizeof(TempBuffer));
+
+            Skip:
+
+            if (*Cursor == '\r' || *Cursor == '\n')
+            {
+                Cursor++;
+
+                goto Skip;
+            }
+
+            for (uint8_t Counter = 0; Counter < 8; Counter++)
+            {
+                if (*Cursor == ',' || *Cursor == '<')
+                {
+                    if (((TileMap->Map[Row][Column]) = (uint8_t)atoi(TempBuffer)) == 0)
+                    {
+                        Error = ERROR_INVALID_DATA;
+
+                        LogMessageA(LL_ERROR, "[%s] atoi failed while converting tile map data in the file %s! 0x%08lx!", __FUNCTION__, FileName, Error);
+
+                        goto Exit;
+                    }
+
+                    Cursor++;
+
+                    break;
+                }
+
+                TempBuffer[Counter] = *Cursor;
+
+                Cursor++;
+            }
+        }
+    }
+
+
+Exit:
+
+    if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    {
+        CloseHandle(FileHandle);
+    }
+
+    if (FileBuffer)
+    {
+        HeapFree(GetProcessHeap(), 0, FileBuffer);
+    }
+
+    return(Error);
+}
+
+
+
+DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound)
+{
+    DWORD Error = ERROR_SUCCESS;
+
+    DWORD NumberOfBytesRead = 0;
+
+    DWORD RIFF = 0;
+
+    uint16_t DataChunkOffset = 0;
+
+    DWORD DataChunkSearcher = 0;
+
+    BOOL DataChunkFound = FALSE;
+
+    DWORD DataChunkSize = 0;
+
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;    
+
+    void* AudioData = NULL;
+
+
+    if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] CreateFileA failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, &RIFF, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (RIFF != 0x46464952) // "RIFF" backwards
+    {
+        Error = ERROR_FILE_INVALID;
+
+        LogMessageA(LL_ERROR, "[%s] First four bytes of this file are not 'RIFF'!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (SetFilePointer(FileHandle, 20, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, &GameSound->WaveFormat, sizeof(WAVEFORMATEX), &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (GameSound->WaveFormat.nBlockAlign != ((GameSound->WaveFormat.nChannels * GameSound->WaveFormat.wBitsPerSample) / 8) ||
+        (GameSound->WaveFormat.wFormatTag != WAVE_FORMAT_PCM) ||
+        (GameSound->WaveFormat.wBitsPerSample != 16))
+    {
+        Error = ERROR_DATATYPE_MISMATCH;
+
+        LogMessageA(LL_ERROR, "[%s] This wav file did not meet the format requirements! Only PCM format, 44.1KHz, 16 bits per sample wav files are supported. 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    while (DataChunkFound == FALSE)
+    {
+        if (SetFilePointer(FileHandle, DataChunkOffset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+        {
+            Error = GetLastError();
+
+            LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+
+        if (ReadFile(FileHandle, &DataChunkSearcher, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+        {
+            Error = GetLastError();
+
+            LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+
+        if (DataChunkSearcher == 0x61746164) // 'data', backwards
+        {
+            DataChunkFound = TRUE;
+
+            break;
+        }
+        else
+        {
+            DataChunkOffset += 4;
+        }
+
+        if (DataChunkOffset > 256)
+        {
+            Error = ERROR_DATATYPE_MISMATCH;
+
+            LogMessageA(LL_ERROR, "[%s] Data chunk not found within first 256 bytes of this file! 0x%08lx!", __FUNCTION__, Error);
+
+            goto Exit;
+        }
+    }
+
+    if (SetFilePointer(FileHandle, DataChunkOffset + 4, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, &DataChunkSize, sizeof(DWORD), &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    AudioData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, DataChunkSize);
+
+    if (AudioData == NULL)
+    {
+        Error = ERROR_NOT_ENOUGH_MEMORY;
+
+        LogMessageA(LL_ERROR, "[%s] HeapAlloc failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    GameSound->Buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+    GameSound->Buffer.AudioBytes = DataChunkSize;
+
+    if (SetFilePointer(FileHandle, DataChunkOffset + 8, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] SetFilePointer failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if (ReadFile(FileHandle, AudioData, DataChunkSize, &NumberOfBytesRead, NULL) == 0)
+    {
+        Error = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] ReadFile failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    GameSound->Buffer.pAudioData = AudioData;
+
+Exit:
+
+    if (Error == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Successfully loaded %s.", __FUNCTION__, FileName);
+    }
+    else
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to load %s! Error: 0x%08lx!", __FUNCTION__, FileName, Error);
+    }
+
+    if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE))
+    {
+        CloseHandle(FileHandle);
+    }
+
+    return(Error);
+}

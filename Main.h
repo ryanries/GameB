@@ -444,6 +444,8 @@ uint8_t gPassableTiles[1];
 
 UPOINT gCamera;
 
+HANDLE gAssetLoadingThreadHandle;
+
 /////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
@@ -453,8 +455,6 @@ DWORD CreateMainGameWindow(void);
 BOOL GameIsAlreadyRunning(void);
 
 void ProcessPlayerInput(void);
-
-DWORD Load32BppBitmapFromFile(_In_ char* FileName, _Inout_ GAMEBITMAP* GameBitmap);
 
 DWORD InitializeHero(void);
 
@@ -478,9 +478,13 @@ void FindFirstConnectedGamepad(void);
 
 HRESULT InitializeSoundEngine(void);
 
-DWORD LoadWavFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
-
 DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound);
+
+DWORD LoadOggFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ GAMESOUND* GameSound);
+
+DWORD LoadTilemapFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ TILEMAP* TileMap);
+
+DWORD Load32BppBitmapFromMemory(_In_ void* Buffer, _Inout_ GAMEBITMAP* GameBitmap);
 
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
@@ -502,6 +506,4 @@ void ClearScreen(_In_ PIXEL32* Color);
 
 #endif
 
-DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);
-
-DWORD LoadOggFromFile(_In_ char* FileName, _Inout_ GAMESOUND* GameSound);
+DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);

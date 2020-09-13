@@ -42,18 +42,18 @@ void DrawOverworld(void)
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap);
 
     // TODO: if debug turned on, draw only the tile numbers adjacent to the player
-    //for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
-    //{
-    //    for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
-    //    {
-    //        char Buffer[8] = { 0 };
+    for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
+    {
+        for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
+        {
+            char Buffer[8] = { 0 };
 
-    //        _itoa_s(gOverworld01.TileMap.Map[Row][Column], Buffer, sizeof(Buffer), 10);
+            _itoa_s(gOverworld01.TileMap.Map[Row][Column], Buffer, sizeof(Buffer), 10);
 
-    //        BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (Column * 16) + 5, (Row * 16) + 4);
-    //        
-    //    }
-    //}
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (Column * 16) + 5, (Row * 16) + 4);
+            
+        }
+    }
 
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
         gPlayer.ScreenPos.x,
