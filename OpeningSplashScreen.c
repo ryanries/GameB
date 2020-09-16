@@ -127,7 +127,7 @@ void DrawOpeningSplashScreen(void)
             TextColor.Blue  = 0;
         }
 
-        // Splash screen is done, but we will linger here until the asset loading
+        // Splash screen animation is done, but we will linger here until the asset loading
         // background thread is finished.
         if (LocalFrameCounter >= 240)
         {
