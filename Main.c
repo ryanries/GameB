@@ -18,9 +18,6 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
-// ... I moved the loading of the hero sprite bitmaps from InitializeHero into AssetLoadingThread.
-// EnterCriticalSection for logging
-// Check the return code of AssetLoadingThread
 // Draw tile numbers for debugging on only tiles adjacent to player
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
@@ -78,10 +75,10 @@
 // Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
 // the constants so that the exact file format is only readable by our game and not common
 // tools such as 7zip, WinRAR, etc.
-#include "miniz.h"  
+#include "miniz.h"      
 
-// Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
-BOOL gGameIsRunning;    
+// This critical section is used to synchronize LogMessageA between multiple threads.
+CRITICAL_SECTION gLogCritSec;
 
 // Map any char value to an offset dictated by the g6x7Font ordering.
 int32_t gFontCharacterPixelOffset[] = {
@@ -143,8 +140,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 	UNREFERENCED_PARAMETER(CommandLine);
 
-	UNREFERENCED_PARAMETER(CmdShow);        
-
+	UNREFERENCED_PARAMETER(CmdShow);
+    
     // Handles Windows' Window messages to our game's window.
     MSG Message = { 0 };
 
@@ -184,6 +181,18 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     int64_t PreviousKernelCPUTime = 0;
     
+
+    // This critical section is used to synchronize access to the log file vis a vis
+    // LogMessageA when used by multiple threads simultaneously. Documentation says
+    // this function never fails, therefore checking its return code is not important.
+#pragma warning(suppress: 6031)
+    InitializeCriticalSectionAndSpinCount(&gLogCritSec, 0x400);
+
+    // This event gets signalled/set after the most essential assets have been loaded.
+    // "Essential" means the assets required to render the splash screen.
+    gEssentialAssetsLoadedEvent = CreateEventA(NULL, TRUE, FALSE, "gEssentialAssetsLoadedEvent");
+
+
     // --- TODO: 
     // Wrap these things into some function like "InitializeGlobals()"
 
@@ -322,28 +331,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     if (CreateMainGameWindow() != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] CreateMainGameWindow failed!", __FUNCTION__);
-
-        goto Exit;
-    }
-
-
-    // Load 6x7Font.bmpx and SplashScreen.wav before proceeding.
-    // Then we can load all of the other assets on a separate "asset loading thread,"
-    // and then we can display a "Loading..." message until that thread is finished loading assets.
-    // But we couldn't even draw the text to say "Loading..." without having 6x7Font.bmpx already loaded,
-    // so make sure that it's loaded first.
-    if ((LoadAssetFromArchive(ASSET_FILE, "6x7Font.bmpx", RESOURCE_TYPE_BMPX, &g6x7Font)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed!", __FUNCTION__);
-
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
-
-        goto Exit;
-    }
-
-    if (LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen) != ERROR_SUCCESS)
-    {
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
     }
@@ -858,8 +845,6 @@ DWORD InitializeHero(void)
     gPlayer.CurrentArmor = SUIT_0;
 
     gPlayer.Direction = DOWN;
-
-Exit:
 
     return(Error);
 }
@@ -1414,6 +1399,8 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
 
     _snprintf_s(DateTimeString, sizeof(DateTimeString), _TRUNCATE, "\r\n[%02u/%02u/%u %02u:%02u:%02u.%03u]", Time.wMonth, Time.wDay, Time.wYear, Time.wHour, Time.wMinute, Time.wSecond, Time.wMilliseconds);
 
+    EnterCriticalSection(&gLogCritSec);
+
     if ((LogFileHandle = CreateFileA(LOG_FILE_NAME, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
     {
         ASSERT(FALSE, "Failed to access log file!");        
@@ -1430,7 +1417,9 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
     if (LogFileHandle != INVALID_HANDLE_VALUE)
     {
         CloseHandle(LogFileHandle);
-    }
+    }   
+    
+    LeaveCriticalSection(&gLogCritSec);
 }
 
 __forceinline void DrawDebugInfo(void)
@@ -2096,11 +2085,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 
     if ((mz_zip_reader_init_file(&Archive, ArchiveName, 0)) == FALSE)
     {
-        Error = mz_zip_get_last_error(&Archive);
+        Error = mz_zip_get_last_error(&Archive);        
 
-        char* ErrorMessage = mz_zip_get_error_string(Error);
-
-        LogMessageA(LL_ERROR, "[%s] mz_zip_reader_init_file failed with 0x%08lx on archive file %s! Error: %s", __FUNCTION__, Error, ArchiveName, ErrorMessage);
+        LogMessageA(LL_ERROR, "[%s] mz_zip_reader_init_file failed with 0x%08lx on archive file %s! Error: %s", __FUNCTION__, Error, ArchiveName, mz_zip_get_error_string(Error));
 
         goto Exit;
     }
@@ -2115,11 +2102,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 
         if (mz_zip_reader_file_stat(&Archive, FileIndex, &CompressedFileStatistics) == MZ_FALSE)
         {
-            Error = mz_zip_get_last_error(&Archive);
+            Error = mz_zip_get_last_error(&Archive);            
 
-            char* ErrorMessage = mz_zip_get_error_string(Error);
-
-            LogMessageA(LL_ERROR, "[%s] mz_zip_reader_file_stat failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, ErrorMessage);
+            LogMessageA(LL_ERROR, "[%s] mz_zip_reader_file_stat failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, mz_zip_get_error_string(Error));
 
             goto Exit;
         }
@@ -2130,11 +2115,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 
             if ((DecompressedBuffer = mz_zip_reader_extract_to_heap(&Archive, FileIndex, &DecompressedSize, 0)) == NULL)
             {
-                Error = mz_zip_get_last_error(&Archive);
+                Error = mz_zip_get_last_error(&Archive);                
 
-                char* ErrorMessage = mz_zip_get_error_string(Error);
-
-                LogMessageA(LL_ERROR, "[%s] mz_zip_reader_extract_to_heap failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, ErrorMessage);
+                LogMessageA(LL_ERROR, "[%s] mz_zip_reader_extract_to_heap failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, mz_zip_get_error_string(Error));
 
                 goto Exit;
             }
@@ -2195,127 +2178,143 @@ Exit:
 
 DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
 {
+    UNREFERENCED_PARAMETER(lpParam);
+
     DWORD Error = ERROR_SUCCESS;
+
+    if ((LoadAssetFromArchive(ASSET_FILE, "6x7Font.bmpx", RESOURCE_TYPE_BMPX, &g6x7Font)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed!", __FUNCTION__);
+
+        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    if (LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen) != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    SetEvent(gEssentialAssetsLoadedEvent);
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.bmpx", RESOURCE_TYPE_BMPX, &gOverworld01.GameBitmap)) != ERROR_SUCCESS)
     {
-        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.bmpx failed!", __FUNCTION__);
-
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);        
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.tmx", RESOURCE_TYPE_TILEMAP, &gOverworld01.TileMap)) != ERROR_SUCCESS)
     {
-        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.tmx failed!", __FUNCTION__);
-
-        MessageBoxA(NULL, "LoadTilemapFromFile failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.tmx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "MenuNavigate.wav", RESOURCE_TYPE_WAV, &gSoundMenuNavigate)) != ERROR_SUCCESS)
-    {
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+    {       
+        LogMessageA(LL_ERROR, "[%s] Loading MenuNavigate.wav failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "MenuChoose.wav", RESOURCE_TYPE_WAV, &gSoundMenuChoose)) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading MenuChoose.wav failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.ogg", RESOURCE_TYPE_OGG, &gMusicOverworld01)) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_0])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_1])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_2])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_0])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_1])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_2])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_0])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_1])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_2])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_0])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_1])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_2])) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "Load32BppBitmapFromFile failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }    

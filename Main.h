@@ -446,6 +446,13 @@ UPOINT gCamera;
 
 HANDLE gAssetLoadingThreadHandle;
 
+// This event gets signalled/set after the most essential assets have been loaded.
+// "Essential" means the assets required to render the splash screen.
+HANDLE gEssentialAssetsLoadedEvent;
+
+// Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
+BOOL gGameIsRunning;
+
 /////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);

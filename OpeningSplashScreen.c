@@ -21,19 +21,66 @@
 
 void DrawOpeningSplashScreen(void)
 {
+    // The following static variables maintain their value across invocations of this function.
+    // In other words, static variables persist like global variables except they can only be accessed
+    // within the scope of this function.
+
+    // The number of frames we have spent in this instance of this game state.
+    // This counter resets to 0 if we leave this game state and come back to it later.
+    // This is primarily used to control when things happen such as animations and text fade effects.
     static uint64_t LocalFrameCounter;
 
+    // The last frame we observed in this game state. This is equal to the global frame counter
+    // as long as we are in this game state. If we leave this game state and come 
+    // back to it later, we will know that because LastFrameSeen will be less than the 
+    // global total number of frames rendered. We can use that fact to then reset any
+    // local state for this gamestate so we can replay animations, reset text color, etc.
     static uint64_t LastFrameSeen;
 
+    // TextColor is used to create the fade in and fade out effect for the text.
     static PIXEL32 TextColor = { 0xFF, 0xFF, 0xFF, 0xFF };
 
+    // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
+    // corner of the splash screen which lets us know that the assets are still loading in the
+    // background.
+    static BOOL Blink;
+
+    // If we are not finished loading "essential" assets such as basic font and splash
+    // screen noise, then exit immediately, because splash screen cannot be drawn yet.
+    if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    // Reset any state specific to this game state if this game state has been re-entered.
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
+
+        memset(&TextColor, 0, sizeof(PIXEL32));
     }
 
+    // Clear the screen to black on each frame.
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
+    // If assets are still being loaded in the background, then draw
+    // a blinking cursor thingy at the bottom right of the screen to signify
+    // that we are still busy loading assets in the background.
+    if (Blink && (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0))
+    {
+        BlitStringToBuffer("\xf2", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 }, 
+            (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
+    }
+
+    // Alternate the "loading blinky cursor" every 0.5 seconds or 30 frames.
+    if (gPerformanceData.TotalFramesRendered % 30 == 0)
+    {
+        Blink = !Blink;
+    }
+
+    // LocalFrameCounter is only incremented once the "essential" assets are loaded, i.e. after
+    // the gEssentialAssetsLoadedEvent event is set. So none of the follwing will happen until
+    // 120 frames after gEssentialAssetsLoadedEvent is set.
     if (LocalFrameCounter >= 120)
     {
         if (LocalFrameCounter == 120)
@@ -63,13 +110,24 @@ void DrawOpeningSplashScreen(void)
         {
             if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
             {
+                DWORD ThreadExitCode = ERROR_SUCCESS;
+                
+                GetExitCodeThread(gAssetLoadingThreadHandle, &ThreadExitCode);
+
+                if (ThreadExitCode != ERROR_SUCCESS)
+                {
+                    LogMessageA(LL_ERROR, "[%s] Asset Loading Thread failed with 0x%08lx!", __FUNCTION__, ThreadExitCode);
+
+                    gGameIsRunning = FALSE;
+
+                    MessageBoxA(gGameWindow, "Asset loading failed! Check log file for more details.", "Error", MB_OK | MB_ICONERROR);
+
+                    return;
+                }
+
                 gPreviousGameState = gCurrentGameState;
 
                 gCurrentGameState = GAMESTATE_TITLESCREEN;
-            }
-            else
-            {
-                // TODO: Draw "Loading..." text
             }
         }
 
