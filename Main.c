@@ -2098,7 +2098,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
     {
         Error = mz_zip_get_last_error(&Archive);
 
-        LogMessageA(LL_ERROR, "[%s] mz_zip_reader_init_file failed with 0x%08lx on archive file %s!", __FUNCTION__, Error, ArchiveName);
+        char* ErrorMessage = mz_zip_get_error_string(Error);
+
+        LogMessageA(LL_ERROR, "[%s] mz_zip_reader_init_file failed with 0x%08lx on archive file %s! Error: %s", __FUNCTION__, Error, ArchiveName, ErrorMessage);
 
         goto Exit;
     }
@@ -2115,7 +2117,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
         {
             Error = mz_zip_get_last_error(&Archive);
 
-            LogMessageA(LL_ERROR, "[%s] mz_zip_reader_file_stat failed with 0x%08lx! Archive: %s File: %s", __FUNCTION__, Error, ArchiveName, AssetFileName);
+            char* ErrorMessage = mz_zip_get_error_string(Error);
+
+            LogMessageA(LL_ERROR, "[%s] mz_zip_reader_file_stat failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, ErrorMessage);
 
             goto Exit;
         }
@@ -2128,7 +2132,9 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
             {
                 Error = mz_zip_get_last_error(&Archive);
 
-                LogMessageA(LL_ERROR, "[%s] mz_zip_reader_extract_to_heap failed with 0x%08lx! Archive: %s File: %s", __FUNCTION__, Error, ArchiveName, AssetFileName);
+                char* ErrorMessage = mz_zip_get_error_string(Error);
+
+                LogMessageA(LL_ERROR, "[%s] mz_zip_reader_extract_to_heap failed with 0x%08lx! Archive: %s File: %s Error: %s", __FUNCTION__, Error, ArchiveName, AssetFileName, ErrorMessage);
 
                 goto Exit;
             }
