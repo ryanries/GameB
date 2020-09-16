@@ -50,8 +50,20 @@ void DrawOpeningSplashScreen(void)
     // LocalFrameCounter doesn't start counting until after this event is set.
     if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
     {
+        // It's been over 5 seconds and the essential assets have not finished
+        // loading yet. Something is wrong.
+        if (gPerformanceData.TotalFramesRendered > 300)
+        {
+            LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 5 seconds. Unable to continue!", __FUNCTION__);
+
+            gGameIsRunning = FALSE;
+
+            MessageBoxA(gGameWindow, "Essential assets not loaded yet after 5 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
+        }
+
         return;
     }
+
 
     // Reset any state specific to this game state if this game state has been re-entered.
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))

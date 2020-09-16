@@ -224,6 +224,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     //gCurrentGameState = GAMESTATE_OVERWORLD;
 
+    gGameIsRunning = TRUE;
+
     gGamepadID = -1;
 
     gPassableTiles[0] = TILE_GRASS_01;
@@ -413,9 +415,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // and RenderFrameGraphics. The loop will execute these two duties as quickly as possible,
     // but will then sleep for a few milliseconds using a precise timing mechanism in order 
     // to achieve a smooth 60 frames per second. We also calculate some performance statistics
-    // every 2 seconds or 120 frames.
-
-    gGameIsRunning = TRUE;
+    // every 2 seconds or 120 frames.    
 
     while (gGameIsRunning == TRUE)
     {
@@ -2187,22 +2187,25 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
     DWORD Error = ERROR_SUCCESS;
 
-    if ((LoadAssetFromArchive(ASSET_FILE, "6x7Font.bmpx", RESOURCE_TYPE_BMPX, &g6x7Font)) != ERROR_SUCCESS)
+    // The following resources are considered "essential" assets. They need to be loaded
+    // first, as quickly as possible. Once the essential assets are loaded, set the event
+    // to let the main thread know that at least the essential assets have been loaded,
+    // even if we are not completely done loading all of the assets yet.
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "6x7Font.bmpx", RESOURCE_TYPE_BMPX, &g6x7Font)) != ERROR_SUCCESS)
     {
-        LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed!", __FUNCTION__);
-
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed with 0x%08lx!", __FUNCTION__, Error);        
 
         goto Exit;
     }
 
-    if (LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen) != ERROR_SUCCESS)
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen)) != ERROR_SUCCESS)
     {
-        MessageBoxA(NULL, "LoadAssetFromArchive failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] Loading SplashScreen.wav failed with 0x%08lx!", __FUNCTION__, Error);        
 
         goto Exit;
     }
 
+    // End of "essential" assets.
     SetEvent(gEssentialAssetsLoadedEvent);
 
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.bmpx", RESOURCE_TYPE_BMPX, &gOverworld01.GameBitmap)) != ERROR_SUCCESS)
@@ -2325,5 +2328,6 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
     }    
 
 Exit:
+
     return(Error);
 }

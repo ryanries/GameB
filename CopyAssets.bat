@@ -1,7 +1,3 @@
-REM TODO: DELETE THESE TWO LINES AFTER WE NO LONGER NEED THEM
-del %GAMEBDIR%\x64\Debug\Assets\ /Q
-xcopy %GAMEBDIR%\Assets %GAMEBDIR%\x64\Debug\Assets /i
-
 del Assets.dat
 del CopyAssets.log
 
@@ -35,3 +31,6 @@ REM --- TILEMAPS ---
 MyMiniz.exe Assets.dat + .\Assets\Maps\Overworld01.tmx >> CopyAssets.log
 
 REM copy Assets.dat into whatever directory or directories it needs to be in
+
+copy Assets.dat .\x64\Debug\Assets.dat
+copy Assets.dat .\x64\Release\Assets.dat
