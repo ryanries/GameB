@@ -47,6 +47,7 @@ void DrawOpeningSplashScreen(void)
 
     // If we are not finished loading "essential" assets such as basic font and splash
     // screen noise, then exit immediately, because splash screen cannot be drawn yet.
+    // LocalFrameCounter doesn't start counting until after this event is set.
     if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
     {
         return;
@@ -66,10 +67,16 @@ void DrawOpeningSplashScreen(void)
     // If assets are still being loaded in the background, then draw
     // a blinking cursor thingy at the bottom right of the screen to signify
     // that we are still busy loading assets in the background.
-    if (Blink && (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0))
+    if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
     {
-        BlitStringToBuffer("\xf2", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 }, 
-            (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
+        BlitStringToBuffer("Loading...", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 }, 
+            (GAME_RES_WIDTH - (6 * 11)), (GAME_RES_HEIGHT - 7));
+
+        if (Blink)
+        {
+            BlitStringToBuffer("\xf2", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 },
+                (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
+        }
     }
 
     // Alternate the "loading blinky cursor" every 0.5 seconds or 30 frames.
@@ -78,34 +85,38 @@ void DrawOpeningSplashScreen(void)
         Blink = !Blink;
     }
 
-    // LocalFrameCounter is only incremented once the "essential" assets are loaded, i.e. after
-    // the gEssentialAssetsLoadedEvent event is set. So none of the follwing will happen until
+    // LocalFrameCounter is only incremented after the "essential" assets are loaded, i.e. after
+    // the gEssentialAssetsLoadedEvent event is set. So none of the following will happen until
     // 120 frames after gEssentialAssetsLoadedEvent is set.
     if (LocalFrameCounter >= 120)
     {
+        // Play the opening splash screen sound exactly once.
         if (LocalFrameCounter == 120)
         {
             PlayGameSound(&gSoundSplashScreen);
         }
 
+        // Text pops in full white, then gradually fades to black.
         if ((LocalFrameCounter >= 180 && LocalFrameCounter <= 210) && (LocalFrameCounter % 15 == 0))
         {
-            TextColor.Red -= 64;
+            TextColor.Red   -= 64;
 
             TextColor.Green -= 64;
 
-            TextColor.Blue -= 64;
+            TextColor.Blue  -= 64;
         }
 
         if (LocalFrameCounter == 225)
         {
-            TextColor.Red = 0;
+            TextColor.Red   = 0;
 
             TextColor.Green = 0;
 
-            TextColor.Blue = 0;
+            TextColor.Blue  = 0;
         }
 
+        // Splash screen is done, but we will linger here until the asset loading
+        // background thread is finished.
         if (LocalFrameCounter >= 240)
         {
             if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)

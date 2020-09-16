@@ -18,6 +18,8 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
+// Can't hit Escape at the opening splash screen until asset loading thread is finished
+// Can't hit F1 for debug statistics until essential assets event is set
 // Draw tile numbers for debugging on only tiles adjacent to player
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
@@ -185,25 +187,16 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // This critical section is used to synchronize access to the log file vis a vis
     // LogMessageA when used by multiple threads simultaneously. Documentation says
     // this function never fails, therefore checking its return code is not important.
+    // But the critical section does need to be initialized before attempting to log anything.
 #pragma warning(suppress: 6031)
     InitializeCriticalSectionAndSpinCount(&gLogCritSec, 0x400);
 
     // This event gets signalled/set after the most essential assets have been loaded.
     // "Essential" means the assets required to render the splash screen.
-    gEssentialAssetsLoadedEvent = CreateEventA(NULL, TRUE, FALSE, "gEssentialAssetsLoadedEvent");
-
-
-    // --- TODO: 
-    // Wrap these things into some function like "InitializeGlobals()"
-
-    //gCurrentGameState = GAMESTATE_OVERWORLD;
-    
-    gGamepadID = -1;
-
-    gPassableTiles[0] = TILE_GRASS_01;
-
-    // --- END TODO
-
+    if ((gEssentialAssetsLoadedEvent = CreateEventA(NULL, TRUE, FALSE, "gEssentialAssetsLoadedEvent")) == NULL)
+    {
+        goto Exit;
+    }
 
     // LoadRegistryParameters should be the first thing that runs, and no logging
     // should be attempted before this function runs, because the user-configurable
@@ -225,6 +218,18 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         goto Exit;
     }
+
+    // --- TODO: 
+    // Wrap these things into some function like "InitializeGlobals()"
+
+    //gCurrentGameState = GAMESTATE_OVERWORLD;
+
+    gGamepadID = -1;
+
+    gPassableTiles[0] = TILE_GRASS_01;
+
+    // --- END TODO
+
 
     // We need the undocumented Windows API function NtQueryTimerResolution to get the resolution of the global system timer.
     // A higher resolution timer will show a lower number, because if your clock can tick every e.g. 0.5ms, that is a higher 
