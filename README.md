@@ -1,29 +1,32 @@
 # GameB
 
- Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
+Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
 
- We are going to make a retro-style video game from scratch, using the C programming language.
+We are going to make a retro-style video game from scratch, using the C programming language.
  
- This source code repository is companion material to go along with my video series on YouTube.
+This source code repository is companion material to go along with my video series on YouTube.
 
- Updated Wednesdays and Saturdays.
+Updated Wednesdays and Saturdays.
 
- If you've ever wanted to get into programming, even if you have no coding experience, well... you could start here.
+If you've ever wanted to get into programming, even if you have no coding experience, well... you could start here.
 
- Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
+Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
  
- Follow me on Twitter @JosephRyanRies
+Follow me on Twitter @JosephRyanRies
  
- ![YouTube_Screenshot](YoutubeScreenshot.png "YouTube_Screenshot")
+![YouTube_Screenshot](YoutubeScreenshot.png "YouTube_Screenshot")
 
- ![YouTube_Screenshot2](YoutubeScreenshot2.png "YouTube_Screenshot2")
+![YouTube_Screenshot2](YoutubeScreenshot2.png "YouTube_Screenshot2")
 
- ![YouTube_Screenshot2](YoutubeScreenshot3.png "YouTube_Screenshot3")
+![YouTube_Screenshot2](YoutubeScreenshot3.png "YouTube_Screenshot3")
 
 # Build Instructions
 --------------------
 The batch file named CopyAssets.bat creates a compressed archive of assets named Assets.dat using the assets
 stored in the .\Assets directory. The Assets.dat file needs to reside in the same directory as the game executable.
+If you run the game from the Visual Studio debugger, the working directory of the game will be the same directory
+as the Visual Studio solution. But if you run the game normally, outside of the debugger, the working directory
+will be the same directory as the game's executable.
 
  
 # License

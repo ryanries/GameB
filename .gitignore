@@ -3,9 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-# Assets files for our game. Build your own using the batch file.
-*.dat
-
 # User-specific files
 *.rsuser
 *.suo

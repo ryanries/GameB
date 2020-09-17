@@ -18,50 +18,73 @@
 
 #pragma once
 
-#pragma warning(disable: 4820)		// Disable warning about structure padding.
+// Disable warning about structure padding.
+#pragma warning(disable: 4820)
 
-#pragma warning(disable: 5045)		// Disable warning about Spectre/Meltdown CPU vulnerability.
+// Disable warning about Spectre/Meltdown CPU vulnerability.
+#pragma warning(disable: 5045)
 
-#pragma warning(disable: 4710)		// Disable warning about function not inlined.
+// Disable warning about function not inlined.
+#pragma warning(disable: 4710)
 
-#pragma warning(push, 3)			// Temporarily reduce warning level while including header files over which we have no control.
+// Temporarily reduce warning level while including header files over which we have no control.
+#pragma warning(push, 3)	
 
-#include <Windows.h>				// The Windows API.
+// The Windows API.
+#include <Windows.h>
 
-#include <xaudio2.h>                // Audio library.
+// Audio library.
+#include <xaudio2.h>
 
-#pragma comment(lib, "XAudio2.lib") // Audio library.
+// Audio library.
+#pragma comment(lib, "XAudio2.lib")
 
-#include "stb_vorbis.h"				// stb_vorbis by Sean T. Barrett - http://nothings.org/
+// stb_vorbis by Sean T. Barrett - http://nothings.org/
+#include "stb_vorbis.h"
 
-#include <stdio.h>                  // String manipulation functions such as sprintf, etc.
+// String functions such as sprintf, etc.
+#include <stdio.h>
 
-#include <psapi.h>                  // Process Status API, e.g. GetProcessMemoryInfo
+// Process Status API, e.g. GetProcessMemoryInfo
+#include <psapi.h>
 
-#include <Xinput.h>                 // Xbox 360 gamepad input
+// Xbox 360 gamepad input
+#include <Xinput.h>
 
-#pragma comment(lib, "XInput.lib")  // Xbox 360 gamepad input.
+// Xbox 360 gamepad input.
+#pragma comment(lib, "XInput.lib")
 
-#include <stdint.h>                 // Nicer data types, e.g., uint8_t, int32_t, etc.
+// Nicer data types, e.g., uint8_t, int32_t, etc.
+#include <stdint.h>
 
-#pragma comment(lib, "Winmm.lib")   // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+// Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+#pragma comment(lib, "Winmm.lib")
 
-#define AVX                         // Valid options are SSE2, AVX, or nothing.
+// Valid options are SSE2, AVX, or nothing.
+#define AVX
 
 #ifdef AVX
 
-#include <immintrin.h>              // AVX (Advanced Vector Extensions)
+// AVX (Advanced Vector Extensions)
+#include <immintrin.h>
 
 #elif defined SSE2
 
-#include <emmintrin.h>              // SSE2 (Streaming SIMD Extensions)
+// SSE2 (Streaming SIMD Extensions)
+#include <emmintrin.h>
 
 #endif
 
-#pragma warning(pop)				// Restore warning level to /Wall.
+// Restore warning level to /Wall.
+#pragma warning(pop)
 
+// Maps the tiles in our overworld map to their numerical equivalents
+// so we can decide which tiles we're allowed to walk on and which
+// tiles block our player's movement, etc.
 #include "Tiles.h"
 
+// In debug builds, a failed assertion crashes the entire program.
+// In release builds, a failed assertion has no effect.
 #ifdef _DEBUG
 
 #define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
@@ -78,9 +101,10 @@
 
 #define ASSET_FILE	"Assets.dat"
 
+#define LOG_FILE_NAME GAME_NAME ".log"
+
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
-
 #define GAME_RES_WIDTH	384
 
 #define GAME_RES_HEIGHT	240
@@ -93,8 +117,15 @@
 
 #define TARGET_MICROSECONDS_PER_FRAME		16667ULL
 
+// This allows us to play up to 4 sound effects simultaneously
+// using the XAudio2 library. 
 #define NUMBER_OF_SFX_SOURCE_VOICES			4
 
+// The player will have different sets of armor, so he needs
+// sprites for each direction and animation for each suit.
+// So for example, gPlayer.Sprite[0][0] would represent the sprite
+// for when the player is standing still facing downwards wearing armor #0.
+// gPlayer.Sprite[1][0] is player standing still facing downwards in armor #1.
 #define SUIT_0	0
 
 #define SUIT_1	1
@@ -125,8 +156,8 @@
 
 #define FACING_UPWARD_2	11
 
-#define LOG_FILE_NAME GAME_NAME ".log"
-
+// Every font sheet we use in this game must have the same format,
+// which currently is just all 98 ASCII characters in a single row.
 #define FONT_SHEET_CHARACTERS_PER_ROW 98
 
 // This is for using the undocumented Windows API function NtQueryTimerResolution.
@@ -148,6 +179,7 @@ typedef enum DIRECTION
 
 } DIRECTION;
 
+// Used exclusively by LogMessageA
 typedef enum LOGLEVEL
 {
 	LL_NONE    = 0,
@@ -162,6 +194,13 @@ typedef enum LOGLEVEL
 
 } LOGLEVEL;
 
+// The game must always be in 1 and only 1 state at a time.
+// The game starts in the "opening splash screen" state, then
+// transitions to the title screen state, etc. Some 
+// transitions are valid and others are not. E.g., we should not
+// be able to transition from the battle gamestate directly to the
+// splash screen gamestate or vice versa. We track this with the 
+// gCurrentGameState and gPreviousGameState variables.
 typedef enum GAMESTATE
 {
 	GAMESTATE_OPENINGSPLASHSCREEN,
@@ -182,6 +221,8 @@ typedef enum GAMESTATE
 
 } GAMESTATE;
 
+// These are the only supported types of assets that we can 
+// extract from the compressed assets archive file.
 typedef enum RESOURCE_TYPE
 {
 	RESOURCE_TYPE_WAV,
@@ -198,6 +239,7 @@ typedef enum RESOURCE_TYPE
 
 /////////// BEGIN GLOBAL STRUCTS /////////////
 
+// Just like a POINT data structure, but unsigned.
 typedef struct UPOINT
 {
 	uint16_t x;
@@ -206,6 +248,9 @@ typedef struct UPOINT
 
 } UPOINT;
 
+// Stores the current state of all player keyboard+gamepad input,
+// as well as the input state of the previous state, so we can tell
+// whether a button is being held down or not.
 typedef struct GAMEINPUT
 {
 	int16_t EscapeKeyIsDown;
@@ -238,7 +283,8 @@ typedef struct GAMEINPUT
 
 } GAMEINPUT;
 
-// GAMEBITMAP is any sort of bitmap, which might be a sprite, or a background, even the back buffer itself is a GAMEBITMAP.
+// GAMEBITMAP is any sort of bitmap, which might be a sprite, or a background, 
+// even the back buffer itself is a GAMEBITMAP.
 typedef struct GAMEBITMAP
 {
 	BITMAPINFO BitmapInfo;
@@ -247,6 +293,8 @@ typedef struct GAMEBITMAP
 
 } GAMEBITMAP;
 
+// Both sound effects and background music are GAMESOUNDs,
+// we play them with the XAudio2 library.
 typedef struct GAMESOUND
 {
 	WAVEFORMATEX WaveFormat;
@@ -255,6 +303,7 @@ typedef struct GAMESOUND
 
 } GAMESOUND;
 
+// A 32-bit, 4-byte pixel. Each color goes 0-255.
 typedef struct PIXEL32
 {
 	uint8_t Blue;
@@ -267,6 +316,7 @@ typedef struct PIXEL32
 
 } PIXEL32;
 
+// Miscellaneous statistics regarding hardware specs, program performance, etc.
 typedef struct GAMEPERFDATA
 {
 	uint64_t TotalFramesRendered;	
@@ -305,6 +355,11 @@ typedef struct GAMEPERFDATA
 
 } GAMEPERFDATA;
 
+// A two-dimensional array consisting of integers which represent tiles that the 
+// player may step on or move around in the overworld. Some of the tiles the 
+// player pass through, some the player cannot. This tilemap is a *.tmx file that 
+// is generated by the 3rd-party app named "Tiled." The file is an XML document
+// that we parse with the LoadTileMap* function.
 typedef struct TILEMAP
 {
 	uint16_t Width;
@@ -315,6 +370,8 @@ typedef struct TILEMAP
 
 } TILEMAP;
 
+// A map, for example the overworld. It consists of a graphical component i.e. the GAMEBITMAP,
+// and a TILEMAP component that contains the data for which tiles may be stepped on and which may not.
 typedef struct GAMEMAP
 {
 	TILEMAP TileMap;
@@ -406,7 +463,8 @@ typedef struct MENU
 
 GAMEPERFDATA gPerformanceData;
 
-GAMEBITMAP gBackBuffer;             // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
+// The "drawing surface" which we blit to the screen once per frame, 60 times per second.
+GAMEBITMAP gBackBuffer;
 
 GAMEBITMAP g6x7Font;
 
