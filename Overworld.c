@@ -41,24 +41,51 @@ void DrawOverworld(void)
 
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap);
 
-    // TODO: if debug turned on, draw only the tile numbers adjacent to the player
-    for (uint16_t Row = 0; Row < GAME_RES_HEIGHT / 16; Row++)
-    {
-        for (uint16_t Column = 0; Column < GAME_RES_WIDTH / 16; Column++)
-        {
-            char Buffer[8] = { 0 };
-
-            _itoa_s(gOverworld01.TileMap.Map[Row][Column], Buffer, sizeof(Buffer), 10);
-
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (Column * 16) + 5, (Row * 16) + 4);
-            
-        }
-    }
-
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y);
 
+    if (gPerformanceData.DisplayDebugInfo)
+    {
+        char Buffer[4] = { 0 };
+
+        // What is the value of the tile that the player is currently standing on?
+        _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
+
+        BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
+
+        if (gPlayer.ScreenPos.y >= 16)
+        {
+            // What is the value of the tile above the player?
+            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
+
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
+        }
+
+        if (gPlayer.ScreenPos.x < (GAME_RES_WIDTH - 16))
+        {
+            // What is the value of the tile to the right of the player?
+            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], Buffer, sizeof(Buffer), 10);
+
+                BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
+        }
+
+        if (gPlayer.ScreenPos.x >= 16)
+        {
+            // What is the value of the tile to left of the player?
+            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1], Buffer, sizeof(Buffer), 10);
+
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
+        }
+
+        if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 16)
+        {
+            // What is the value of the tile below the player?
+            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
+
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
+        }
+    }
 
     LocalFrameCounter++;
 
@@ -75,6 +102,10 @@ void PPI_Overworld(void)
     {
         SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
     }
+
+    ASSERT((gCamera.x <= gOverworldArea.right - GAME_RES_WIDTH), "Camera is out of bounds!");
+
+    ASSERT((gCamera.y <= gOverworldArea.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
 
     // If the player has no movement remaining, it means the player is standing still.    
 
@@ -206,7 +237,14 @@ void PPI_Overworld(void)
             }
             else
             {
-                gCamera.y++;
+                if (gCamera.y < gOverworldArea.bottom - GAME_RES_HEIGHT)
+                {
+                    gCamera.y++;
+                }
+                else
+                {
+                    gPlayer.ScreenPos.y++;
+                }
             }
 
             gPlayer.WorldPos.y++;
@@ -239,7 +277,14 @@ void PPI_Overworld(void)
             }
             else
             {
-                gCamera.x++;
+                if (gCamera.x < (gOverworldArea.right - GAME_RES_WIDTH))
+                {
+                    gCamera.x++;
+                }
+                else
+                {
+                    gPlayer.ScreenPos.x++;
+                }
             }
 
             gPlayer.WorldPos.x++;

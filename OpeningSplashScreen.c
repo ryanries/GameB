@@ -174,8 +174,11 @@ void PPI_OpeningSplashScreen(void)
 {
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
     {
-        gPreviousGameState = gCurrentGameState;
+        if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
+        {
+            gPreviousGameState = gCurrentGameState;
 
-        gCurrentGameState = GAMESTATE_TITLESCREEN;
+            gCurrentGameState = GAMESTATE_TITLESCREEN;
+        }
     }
 }

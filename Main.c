@@ -18,9 +18,7 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
-// Can't hit Escape at the opening splash screen until asset loading thread is finished
 // Can't hit F1 for debug statistics until essential assets event is set
-// Draw tile numbers for debugging on only tiles adjacent to player
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
@@ -195,6 +193,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // "Essential" means the assets required to render the splash screen.
     if ((gEssentialAssetsLoadedEvent = CreateEventA(NULL, TRUE, FALSE, "gEssentialAssetsLoadedEvent")) == NULL)
     {
+        MessageBoxA(NULL, "CreateEvent failed!", "Error!", MB_ICONERROR | MB_OK);
+
         goto Exit;
     }
 
@@ -203,6 +203,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // logging verbosity level is defined in the registry and is thus retrieved by this function.
     if (LoadRegistryParameters() != ERROR_SUCCESS)
     {
+        MessageBoxA(NULL, "LoadRegistryParameters failed!", "Error!", MB_ICONERROR | MB_OK);
+
         goto Exit;
     }
 
@@ -229,6 +231,11 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     gGamepadID = -1;
 
     gPassableTiles[0] = TILE_GRASS_01;
+
+
+
+    // C99 syntax?
+    gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };
 
     // --- END TODO
 
@@ -339,6 +346,18 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     {
         LogMessageA(LL_ERROR, "[%s] CreateMainGameWindow failed!", __FUNCTION__);
 
+        MessageBoxA(NULL, "Failed to create game window!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    if ((GetFileAttributesA(ASSET_FILE) == INVALID_FILE_ATTRIBUTES) || 
+        (GetFileAttributesA(ASSET_FILE) & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        LogMessageA(LL_ERROR, "[%s] The asset file %s was not found! It must reside in the same directory as the game executable.", __FUNCTION__, ASSET_FILE);
+
+        MessageBoxA(NULL, "The asset file was not found! It must reside in the same directory as the game executable.", "Error!", MB_ICONERROR | MB_OK);
+
         goto Exit;
     }
 
@@ -366,7 +385,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // We don't have to worry about freeing the memory allocated for this buffer
     // because it is intended to last throughout the entire lifetime of the process.
     // Windows will automatically deallocate this memory when the game exits.
-
     gBackBuffer.BitmapInfo.bmiHeader.biSize = sizeof(gBackBuffer.BitmapInfo.bmiHeader);
 
     gBackBuffer.BitmapInfo.bmiHeader.biWidth = GAME_RES_WIDTH;
@@ -589,28 +607,36 @@ DWORD CreateMainGameWindow(void)
     WindowClass.lpszClassName = GAME_NAME "_WINDOWCLASS";   
 
     // This is set in the application manifest, as recommended by MSDN.
+    // Not recommended to set this via code so that is why this line is commented out.
     // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     if (RegisterClassExA(&WindowClass) == 0)
     {
         Result = GetLastError();
 
-        LogMessageA(LL_ERROR, "[%s] RegisterClassExA failed! Error 0x%08lx!", __FUNCTION__, Result);
-
-        MessageBoxA(NULL, "Window Registration Failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] RegisterClassExA failed! Error 0x%08lx!", __FUNCTION__, Result);        
 
         goto Exit;
     }
 
-    gGameWindow = CreateWindowExA(0, WindowClass.lpszClassName, GAME_NAME, WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, NULL, NULL, GetModuleHandleA(NULL), NULL);
+    gGameWindow = CreateWindowExA(0, 
+        WindowClass.lpszClassName, 
+        GAME_NAME, 
+        WS_VISIBLE, 
+        CW_USEDEFAULT, 
+        CW_USEDEFAULT, 
+        640, 
+        480, 
+        NULL, 
+        NULL, 
+        GetModuleHandleA(NULL), 
+        NULL);
 
     if (gGameWindow == NULL)
     {
         Result = GetLastError();
 
-        LogMessageA(LL_ERROR, "[%s] CreateWindowExA failed! Error 0x%08lx!", __FUNCTION__, Result);
-
-        MessageBox(NULL, "Window Creation Failed!", "Error!", MB_ICONERROR | MB_OK);
+        LogMessageA(LL_ERROR, "[%s] CreateWindowExA failed! Error 0x%08lx!", __FUNCTION__, Result);        
 
         goto Exit;
     }
@@ -837,8 +863,6 @@ void ProcessPlayerInput(void)
 
 DWORD InitializeHero(void)
 {
-    DWORD Error = ERROR_SUCCESS;
-
     gPlayer.ScreenPos.x = 192;
 
     gPlayer.ScreenPos.y = 64;
@@ -851,7 +875,11 @@ DWORD InitializeHero(void)
 
     gPlayer.Direction = DOWN;
 
-    return(Error);
+    //gCamera.x = 3456;
+
+    //gCamera.y = 0;
+
+    return(0);    
 }
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y)
@@ -2187,6 +2215,8 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
     DWORD Error = ERROR_SUCCESS;
 
+    LogMessageA(LL_INFO, "[%s] Asset loading has begun.", __FUNCTION__);
+
     // The following resources are considered "essential" assets. They need to be loaded
     // first, as quickly as possible. Once the essential assets are loaded, set the event
     // to let the main thread know that at least the essential assets have been loaded,
@@ -2328,6 +2358,15 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
     }    
 
 Exit:
+
+    if (Error == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Asset loading has ended successfully.", __FUNCTION__);
+    }
+    else
+    {
+        LogMessageA(LL_INFO, "[%s] Asset loading has failed with result 0x%08lx!", __FUNCTION__, Error);
+    }
 
     return(Error);
 }
