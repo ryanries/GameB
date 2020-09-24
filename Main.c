@@ -1063,7 +1063,7 @@ __forceinline void ClearScreen(_In_ PIXEL32* Pixel)
 
 #endif
 
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y)
+void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
@@ -1074,13 +1074,52 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
 
     int32_t BitmapOffset = 0;
 
-    PIXEL32 BitmapPixel = { 0 };    
+    PIXEL32 BitmapPixel = { 0 };
 
     for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
     {
         for (int16_t XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
         {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+            // Do not attempt to draw pixels that are outside of the viewable screen.
+            // You will crash if you attempt to draw a pixel that is outside of the bounds of
+            // gBackBuffer.Memory. Or you will cause a "wrap-around" effect if you try to draw
+            // beyond GAME_RES_WIDTH.
+            // TODO: OPTIMIZE THIS???
+            if ((x < 1) || (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth) || 
+                (y < 1) || (y > GAME_RES_HEIGHT - GameBitmap->BitmapInfo.bmiHeader.biHeight))
+            {
+                if (x < 1)
+                {
+                    if (XPixel < -x)
+                    {
+                        break;
+                    }
+                }
+                else if (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth)
+                {
+                    if (XPixel > GAME_RES_WIDTH - x - 1)
+                    {
+                        break;
+                    }
+                }
+
+                if (y < 1)
+                {
+                    if (YPixel < -y)
+                    {
+                        break;
+                    }
+                }
+                else if (y > GAME_RES_HEIGHT - GameBitmap->BitmapInfo.bmiHeader.biHeight)
+                {
+                    if (YPixel > GAME_RES_HEIGHT - y - 1)
+                    {
+                        break;
+                    }
+                }
+            }            
+
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);            
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
@@ -1088,7 +1127,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ 
 
             if (BitmapPixel.Alpha == 255)
             {
-                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
+                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));                
             }
         }
     }    
@@ -2005,7 +2044,7 @@ DWORD LoadTilemapFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_
                     {
                         Error = ERROR_INVALID_DATA;
 
-                        LogMessageA(LL_ERROR, "[%s] atoi failed while converting tile map data! 0x%08lx!", __FUNCTION__, Error);
+                        LogMessageA(LL_ERROR, "[%s] atoi failed while converting tile map data! (The tilemap cannot contain any tiles with the value 0, because atoi cannot differentiate between 0 and failure.) 0x%08lx!", __FUNCTION__, Error);
 
                         goto Exit;
                     }

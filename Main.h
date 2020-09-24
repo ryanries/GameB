@@ -523,7 +523,7 @@ void ProcessPlayerInput(void);
 
 DWORD InitializeHero(void);
 
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y);
+void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y);
 
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap);
 

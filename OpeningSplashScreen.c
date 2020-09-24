@@ -176,9 +176,16 @@ void PPI_OpeningSplashScreen(void)
     {
         if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
         {
-            gPreviousGameState = gCurrentGameState;
+            DWORD ThreadExitCode = ERROR_SUCCESS;
 
-            gCurrentGameState = GAMESTATE_TITLESCREEN;
+            GetExitCodeThread(gAssetLoadingThreadHandle, &ThreadExitCode);
+
+            if (ThreadExitCode == ERROR_SUCCESS)
+            {
+                gPreviousGameState = gCurrentGameState;
+
+                gCurrentGameState = GAMESTATE_TITLESCREEN;
+            }
         }
     }
 }

@@ -45,6 +45,8 @@ void DrawOverworld(void)
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y);
 
+    // If the debugging HUD is enabled, draw the tile values around the player so we can verify
+    // which tiles we should be and should not be allowed to walk on.
     if (gPerformanceData.DisplayDebugInfo)
     {
         char Buffer[4] = { 0 };
@@ -123,6 +125,11 @@ void PPI_Overworld(void)
 
             for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
             {
+                if ((gPlayer.WorldPos.y / 16) + 1 > (gOverworld01.TileMap.Height - 1))                                    
+                {
+                    break;
+                }
+
                 if (gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16] == gPassableTiles[Counter])
                 {
                     CanMoveToDesiredTile = TRUE;
