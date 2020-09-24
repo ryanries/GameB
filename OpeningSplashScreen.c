@@ -170,6 +170,9 @@ void DrawOpeningSplashScreen(void)
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
 }
 
+// While the splash screen is playing, we allow the player to hit the Escape key
+// to skip the opening splash screen and proceed directly to the title screen,
+// BUT ONLY IF the background asset loading has completed and was successful.
 void PPI_OpeningSplashScreen(void)
 {
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
