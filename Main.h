@@ -401,6 +401,8 @@ typedef struct HERO
 
 	uint8_t SpriteIndex;	
 
+	uint64_t StepsTaken;
+
 	// TODO: Figure out how the stats are going to work.
 	int16_t HP;
 
@@ -498,7 +500,7 @@ IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 
 IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
-uint8_t gPassableTiles[1];
+uint8_t gPassableTiles[3];
 
 UPOINT gCamera;
 
@@ -572,3 +574,5 @@ void ClearScreen(_In_ PIXEL32* Color);
 #endif
 
 DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);
+
+void InitializeGlobals(void);

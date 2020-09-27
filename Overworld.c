@@ -105,9 +105,9 @@ void PPI_Overworld(void)
         SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
     }
 
-    ASSERT((gCamera.x <= gOverworldArea.right - GAME_RES_WIDTH), "Camera is out of bounds!");
+    ASSERT((gCamera.x <= gCurrentArea.right - GAME_RES_WIDTH), "Camera is out of bounds!");
 
-    ASSERT((gCamera.y <= gOverworldArea.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
+    ASSERT((gCamera.y <= gCurrentArea.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
 
     // If the player has no movement remaining, it means the player is standing still.    
 
@@ -244,7 +244,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.y < gOverworldArea.bottom - GAME_RES_HEIGHT)
+                if (gCamera.y < gCurrentArea.bottom - GAME_RES_HEIGHT)
                 {
                     gCamera.y++;
                 }
@@ -264,7 +264,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.x > 0)
+                if (gCamera.x > gCurrentArea.left)
                 {
                     gCamera.x--;
                 }
@@ -284,7 +284,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.x < (gOverworldArea.right - GAME_RES_WIDTH))
+                if (gCamera.x < (gCurrentArea.right - GAME_RES_WIDTH))
                 {
                     gCamera.x++;
                 }
@@ -304,7 +304,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.y > 0)
+                if (gCamera.y > gCurrentArea.top)
                 {
                     gCamera.y--;
                 }
@@ -349,7 +349,21 @@ void PPI_Overworld(void)
             }
             case 0:
             {
+                // The player must always land on a position that is a multiple of 16.
+                ASSERT(gPlayer.ScreenPos.x % 16 == 0, "Player did not land on a position that is a multiple of 16!");
+                
+                ASSERT(gPlayer.ScreenPos.y % 16 == 0, "Player did not land on a position that is a multiple of 16!");
+
                 gPlayer.SpriteIndex = 0;
+
+                // Is the player standing on a portal? (or door, or staircase, etc.?)
+
+                if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16] == TILE_PORTAL_01)
+                {
+                    PortalHandler();
+                }
+
+                // TODO: gPlayer.StepsTaken++;
 
                 break;
             }
@@ -358,5 +372,45 @@ void PPI_Overworld(void)
 
             }
         }
+    }
+}
+
+void PortalHandler(void)
+{
+    if (gPlayer.WorldPos.x == 272 && gPlayer.WorldPos.y == 80)
+    {
+        gPlayer.WorldPos.x = 3936;
+
+        gPlayer.WorldPos.y = 32;
+
+        gPlayer.ScreenPos.x = 80;
+
+        gPlayer.ScreenPos.y = 32;
+
+        gCamera.x = 3856;
+
+        gCamera.y = 0;
+
+        gCurrentArea = gDungeon01Area;
+    }
+    else if (gPlayer.WorldPos.x == 3920 && gPlayer.WorldPos.y == 32)
+    {
+        gPlayer.WorldPos.x = 288;
+
+        gPlayer.WorldPos.y = 80;
+
+        gPlayer.ScreenPos.x = 288;
+
+        gPlayer.ScreenPos.y = 80;
+
+        gCamera.x = 0;
+
+        gCamera.y = 0;
+
+        gCurrentArea = gOverworldArea;
+    }
+    else
+    {
+        ASSERT(FALSE, "Player is standing on a portal but we do not have a portal handler for it!");
     }
 }

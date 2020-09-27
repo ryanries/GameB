@@ -17,8 +17,14 @@
 
 #pragma once
 
+RECT gCurrentArea;
+
 RECT gOverworldArea;
+
+RECT gDungeon01Area;
 
 void PPI_Overworld(void);
 
 void DrawOverworld(void);
+
+void PortalHandler(void);

@@ -18,6 +18,7 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
+// Maybe add a gPlayer.HasMovedSincePortal?
 // Can't hit F1 for debug statistics until essential assets event is set
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
@@ -180,6 +181,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     int64_t PreviousUserCPUTime = 0;
 
     int64_t PreviousKernelCPUTime = 0;
+
+    // Used to ensure that the assets file both exists and is not a directory.    
+    DWORD AssetFileAttributes = 0;
     
 
     // This critical section is used to synchronize access to the log file vis a vis
@@ -221,23 +225,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    // --- TODO: 
-    // Wrap these things into some function like "InitializeGlobals()"
-
-    //gCurrentGameState = GAMESTATE_OVERWORLD;
-
-    gGameIsRunning = TRUE;
-
-    gGamepadID = -1;
-
-    gPassableTiles[0] = TILE_GRASS_01;
-
-
-
-    // C99 syntax?
-    gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };
-
-    // --- END TODO
+    // TODO: Rename this to something like ResetGlobalStateForNewGame?
+    InitializeGlobals();
 
 
     // We need the undocumented Windows API function NtQueryTimerResolution to get the resolution of the global system timer.
@@ -351,8 +340,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    if ((GetFileAttributesA(ASSET_FILE) == INVALID_FILE_ATTRIBUTES) || 
-        (GetFileAttributesA(ASSET_FILE) & FILE_ATTRIBUTE_DIRECTORY))
+    AssetFileAttributes = GetFileAttributesA(ASSET_FILE);
+
+    if ((AssetFileAttributes == INVALID_FILE_ATTRIBUTES) || (AssetFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
     {
         LogMessageA(LL_ERROR, "[%s] The asset file %s was not found! It must reside in the same directory as the game executable.", __FUNCTION__, ASSET_FILE);
 
@@ -776,8 +766,10 @@ void ProcessPlayerInput(void)
             gGameInput.ChooseKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_A;
         }
         else
-        {
+        {            
             // Gamepad unplugged?
+
+            // TODO: If music is playing we should pause the music right now.
 
             gGamepadID = -1;
 
@@ -2408,4 +2400,31 @@ Exit:
     }
 
     return(Error);
+}
+
+void InitializeGlobals(void)
+{
+    gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+
+    gGameIsRunning = TRUE;
+
+    gGamepadID = -1;
+
+    // Make sure the gPassableTiles array is large enough to fit 
+    // all of the values you are about to assign here!
+
+    ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");
+
+    gPassableTiles[0] = TILE_GRASS_01;
+    
+    gPassableTiles[1] = TILE_PORTAL_01;
+
+    gPassableTiles[2] = TILE_BRICK_01;
+
+    // C99 syntax?
+    gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };
+
+    gDungeon01Area = (RECT){ .left = 3856, .top = 0, .right = 4240, .bottom = 240 };    
+
+    gCurrentArea = gOverworldArea;
 }
