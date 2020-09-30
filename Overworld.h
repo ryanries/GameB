@@ -17,6 +17,32 @@
 
 #pragma once
 
+// Could be a door, or a gateway, or a staircase, or a cave entrace, etc...
+typedef struct PORTAL
+{
+	// Where is this portal located, in world coordinates?
+	UPOINT WorldPos;
+
+	// Where should the portal take the player, in world coordinates?
+	UPOINT WorldDestination;
+
+	// Where should the player be located, in screen coordinates?
+	UPOINT ScreenDestination;
+
+	// Where should the camera be located, in world coordinates?
+	UPOINT CameraPos;
+
+	// Which area does the portal take you to?
+	RECT DestinationArea;
+
+} PORTAL;
+
+PORTAL gPortal001;
+
+PORTAL gPortal002;
+
+PORTAL gPortals[2];
+
 RECT gCurrentArea;
 
 RECT gOverworldArea;

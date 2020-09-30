@@ -323,8 +323,10 @@ void PPI_Overworld(void)
 
         switch (gPlayer.MovementRemaining)
         {
-            case 16:
+            case 15:
             {
+                gPlayer.HasPlayerMovedSincePortal = TRUE;
+
                 gPlayer.SpriteIndex = 0;
 
                 break;
@@ -354,13 +356,20 @@ void PPI_Overworld(void)
                 
                 ASSERT(gPlayer.ScreenPos.y % 16 == 0, "Player did not land on a position that is a multiple of 16!");
 
+                ASSERT(gPlayer.WorldPos.x % 16 == 0, "Player did not land on a position that is a multiple of 16!");
+
+                ASSERT(gPlayer.WorldPos.y % 16 == 0, "Player did not land on a position that is a multiple of 16!");
+
                 gPlayer.SpriteIndex = 0;
 
                 // Is the player standing on a portal? (or door, or staircase, etc.?)
 
                 if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16] == TILE_PORTAL_01)
                 {
-                    PortalHandler();
+                    if (gPlayer.HasPlayerMovedSincePortal == TRUE)
+                    {
+                        PortalHandler();
+                    }
                 }
 
                 // TODO: gPlayer.StepsTaken++;
@@ -377,39 +386,36 @@ void PPI_Overworld(void)
 
 void PortalHandler(void)
 {
-    if (gPlayer.WorldPos.x == 272 && gPlayer.WorldPos.y == 80)
+    gPlayer.HasPlayerMovedSincePortal = FALSE;
+
+    BOOL PortalFound = FALSE;
+
+    for (uint16_t Counter = 0; Counter < _countof(gPortals); Counter++)
     {
-        gPlayer.WorldPos.x = 3936;
+        if ((gPlayer.WorldPos.x == gPortals[Counter].WorldPos.x) && 
+            (gPlayer.WorldPos.y == gPortals[Counter].WorldPos.y))
+        {
+            PortalFound = TRUE;
 
-        gPlayer.WorldPos.y = 32;
+            gPlayer.WorldPos.x = gPortals[Counter].WorldDestination.x;
 
-        gPlayer.ScreenPos.x = 80;
+            gPlayer.WorldPos.y = gPortals[Counter].WorldDestination.y;
 
-        gPlayer.ScreenPos.y = 32;
+            gPlayer.ScreenPos.x = gPortals[Counter].ScreenDestination.x;
 
-        gCamera.x = 3856;
+            gPlayer.ScreenPos.y = gPortals[Counter].ScreenDestination.y;
 
-        gCamera.y = 0;
+            gCamera.x = gPortals[Counter].CameraPos.x;
 
-        gCurrentArea = gDungeon01Area;
+            gCamera.y = gPortals[Counter].CameraPos.y;
+
+            gCurrentArea = gPortals[Counter].DestinationArea;
+
+            break;
+        }
     }
-    else if (gPlayer.WorldPos.x == 3920 && gPlayer.WorldPos.y == 32)
-    {
-        gPlayer.WorldPos.x = 288;
 
-        gPlayer.WorldPos.y = 80;
-
-        gPlayer.ScreenPos.x = 288;
-
-        gPlayer.ScreenPos.y = 80;
-
-        gCamera.x = 0;
-
-        gCamera.y = 0;
-
-        gCurrentArea = gOverworldArea;
-    }
-    else
+    if (PortalFound == FALSE)
     {
         ASSERT(FALSE, "Player is standing on a portal but we do not have a portal handler for it!");
     }

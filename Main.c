@@ -18,7 +18,8 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
-// Maybe add a gPlayer.HasMovedSincePortal?
+// 
+// Add a picture of an xbox gamepad to the "gamepadunplugged" screen
 // Can't hit F1 for debug statistics until essential assets event is set
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
@@ -28,7 +29,6 @@
 // shadow effect for text?
 // gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
-// overworld... tile maps...
 // Optimization: String caching?
 // Optimization: Should we defer the loading of some assets or just load them all as soon as the game is launched?
 // Add logging to InitializeHero
@@ -46,8 +46,6 @@
 // Menus
 // 
 // Game states (Maybe each state should be a struct that includes an array of valid gamestates that it may transition to?)
-//
-// Tile maps
 
 // Contains global declarations shared among multiple files.
 #include "Main.h"
@@ -110,7 +108,7 @@ REGISTRYPARAMS gRegistryParams;
 // Holds the state of the Xbox360 gamepad, e.g., is the X button currently pushed or not?
 XINPUT_STATE gGamepadState;
 
-// The COM interface for XAudio2, which is a Microsoft audio library that we 
+// The COM interfaces for XAudio2, which is a Microsoft audio library that we 
 // use for playing sounds and music. XAudio2 uses the concept of source voices and
 // mastering voices. We submit audio data to the source voice, and the source
 // voice sends that to the mastering voice, which mixes everything together and sends the final audio 
@@ -127,9 +125,6 @@ IXAudio2MasteringVoice* gXAudioMasteringVoice;
 // This is an iterator used to rapidly cycle through source voices 0-3 so we can play
 // up to 4 sound effects simultaneously.
 uint8_t gSFXSourceVoiceSelector;
-
-
-
 
 
 // The game's entry point.
@@ -281,7 +276,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         }
         default:
         {
-            LogMessageA(LL_INFO, "[%s] CPU Architecture: Unknown", __FUNCTION__);
+            LogMessageA(LL_WARNING, "[%s] CPU Architecture: Unknown", __FUNCTION__);
         }
     }
 
@@ -313,6 +308,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     // Increase process and thread priority to minimize the chances of another thread on the system
     // preempting us when we need to run and causing a stutter in our frame rate. (Though it can still happen.)
+    // Windows is not a real-time OS and you cannot guarantee timings or deadlines, but you can get close.    
     if (SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS) == 0)
     {
         LogMessageA(LL_ERROR, "[%s] Failed to set process priority! Error 0x%08lx", __FUNCTION__, GetLastError());
@@ -364,8 +360,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         goto Exit;
     }
-
-
     
     QueryPerformanceFrequency((LARGE_INTEGER*)&gPerformanceData.PerfFrequency);
 
@@ -520,12 +514,16 @@ Exit:
 	return(0);
 }
 
+// This callback procedure handles window messages that are sent to our game's window.
+// Most of the messages are not important to us because we are not a conventional Win32 desktop app.
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam)
 {
     LRESULT Result = 0;
 
     switch (Message)
     {
+        // This happens when the user clicks the "X" button to close the window, or selects
+        // "Close Window" by right-clicking the game's icon in the taskbar.
         case WM_CLOSE:
         {
             gGameIsRunning = FALSE;
@@ -562,7 +560,8 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
     return(Result);
 }
 
-// TODO: Consider non-16:9 displays. E.g., ultra-wide monitors will have to have black bars on the sides, with the game center screen.
+// TODO: Consider non-16:9 displays. E.g., ultra-wide monitors will have to have black bars on the sides, 
+// with the game center screen.
 DWORD CreateMainGameWindow(void)
 {
     DWORD Result = ERROR_SUCCESS;
@@ -866,10 +865,6 @@ DWORD InitializeHero(void)
     gPlayer.CurrentArmor = SUIT_0;
 
     gPlayer.Direction = DOWN;
-
-    //gCamera.x = 3456;
-
-    //gCamera.y = 0;
 
     return(0);    
 }
@@ -1541,6 +1536,10 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CameraXY:%hu,%hu", gCamera.x, gCamera.y);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 88);
+
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Movement:%u", gPlayer.MovementRemaining);
+
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 96);
 }
 
 void FindFirstConnectedGamepad(void)
@@ -2416,7 +2415,7 @@ void InitializeGlobals(void)
     ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");
 
     gPassableTiles[0] = TILE_GRASS_01;
-    
+
     gPassableTiles[1] = TILE_PORTAL_01;
 
     gPassableTiles[2] = TILE_BRICK_01;
@@ -2424,7 +2423,27 @@ void InitializeGlobals(void)
     // C99 syntax?
     gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };
 
-    gDungeon01Area = (RECT){ .left = 3856, .top = 0, .right = 4240, .bottom = 240 };    
+    gDungeon01Area = (RECT){ .left = 3856, .top = 0, .right = 4240, .bottom = 240 };
 
     gCurrentArea = gOverworldArea;
+
+    ASSERT(_countof(gPortals) == 2, "The gPortals array is the wrong size!");
+
+    gPortal001 = (PORTAL){
+        .DestinationArea = gDungeon01Area,
+        .CameraPos = (UPOINT){ .x = 3856, .y = 0 },
+        .ScreenDestination = (UPOINT){ .x = 64, .y = 32 },
+        .WorldDestination = (UPOINT){ .x = 3920, .y = 32},
+        .WorldPos = (UPOINT){ .x = 272, .y = 80 } };
+
+    gPortal002 = (PORTAL){
+        .DestinationArea = gOverworldArea,
+        .CameraPos = (UPOINT){ .x = 0, .y = 0 },
+        .ScreenDestination = (UPOINT){ .x = 272, .y = 80 },
+        .WorldDestination = (UPOINT){ .x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y},
+        .WorldPos = (UPOINT){ .x = 3920, .y = 32 } };
+
+    gPortals[0] = gPortal001;
+
+    gPortals[1] = gPortal002;
 }

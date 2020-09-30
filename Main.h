@@ -401,7 +401,9 @@ typedef struct HERO
 
 	uint8_t SpriteIndex;	
 
-	uint64_t StepsTaken;
+	uint64_t StepsTaken; // TODO: Do we increment this?
+
+	BOOL HasPlayerMovedSincePortal;
 
 	// TODO: Figure out how the stats are going to work.
 	int16_t HP;
