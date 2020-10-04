@@ -53,6 +53,8 @@ void DrawTitleScreen(void)
         {
             gMenu_TitleScreen.SelectedItem = 1;
         }
+
+        gInputEnabled = FALSE;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -91,6 +93,8 @@ void DrawTitleScreen(void)
         TextColor.Green = 255;
 
         TextColor.Blue = 255;
+
+        gInputEnabled = TRUE;
     }
 
 

@@ -99,6 +99,8 @@
 
 #pragma warning(disable: 4245)
 
+#pragma warning(disable: 4711)
+
 
 
 #ifndef STB_VORBIS_HEADER_ONLY

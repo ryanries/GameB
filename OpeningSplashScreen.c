@@ -71,6 +71,8 @@ void DrawOpeningSplashScreen(void)
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
+
+        gInputEnabled = FALSE;
     }
 
     // Clear the screen to black on each frame.
@@ -89,6 +91,10 @@ void DrawOpeningSplashScreen(void)
             BlitStringToBuffer("\xf2", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 },
                 (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
         }
+    }
+    else
+    {
+        gInputEnabled = TRUE;
     }
 
     // Alternate the "loading blinky cursor" every 0.5 seconds or 30 frames.

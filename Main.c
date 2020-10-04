@@ -18,14 +18,15 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
-// 
+// TODO: SIMD-ify the BrightnessAdjustment in the bitmap and background blitting functions.
+// Hitting the Escape key while in the overworld should take us back to the main menu.
+// (Holding the Escape key down for several seconds should fast-quit the game?)
+// Make gPortalTiles an array like gPassableTiles
 // Add a picture of an xbox gamepad to the "gamepadunplugged" screen
-// Can't hit F1 for debug statistics until essential assets event is set
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
 // talk about the scope of #define precompiler directives
-// disable keyboard input during gamestate fade-in
 // shadow effect for text?
 // gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
@@ -220,9 +221,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         goto Exit;
     }
 
-    // TODO: Rename this to something like ResetGlobalStateForNewGame?
     InitializeGlobals();
-
 
     // We need the undocumented Windows API function NtQueryTimerResolution to get the resolution of the global system timer.
     // A higher resolution timer will show a lower number, because if your clock can tick every e.g. 0.5ms, that is a higher 
@@ -537,13 +536,11 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
             if (WParam == 0)
             {
                 // Our window has lost focus
-
                 gWindowHasFocus = FALSE;
             }
             else
             {
                 // Our window has gained focus
-
                 ShowCursor(FALSE);
 
                 gWindowHasFocus = TRUE;
@@ -561,7 +558,7 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
 }
 
 // TODO: Consider non-16:9 displays. E.g., ultra-wide monitors will have to have black bars on the sides, 
-// with the game center screen.
+// with the game center screen. The game itself has a 16:10 aspect ratio (resolution 384x240.)
 DWORD CreateMainGameWindow(void)
 {
     DWORD Result = ERROR_SUCCESS;
@@ -729,7 +726,7 @@ BOOL GameIsAlreadyRunning(void)
 
 void ProcessPlayerInput(void)
 {
-    if (gWindowHasFocus == FALSE)
+    if ((gInputEnabled == FALSE) || (gWindowHasFocus == FALSE))
     {
         return;
     }
@@ -929,7 +926,7 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
         }
     }
 
-    Blit32BppBitmapToBuffer(&StringBitmap, x, y);
+    Blit32BppBitmapToBuffer(&StringBitmap, x, y, 0); // TODO: Make BrightnessAdjustment useful here?
 
     if (StringBitmap.Memory)
     {
@@ -1050,7 +1047,7 @@ __forceinline void ClearScreen(_In_ PIXEL32* Pixel)
 
 #endif
 
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y)
+void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
@@ -1114,6 +1111,14 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
             if (BitmapPixel.Alpha == 255)
             {
+                // Clamp between 0 and 255
+                // min(upper, max(x, lower))
+                BitmapPixel.Red   = (uint8_t) min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+
+                BitmapPixel.Green = (uint8_t) min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+
+                BitmapPixel.Blue  = (uint8_t) min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+
                 memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));                
             }
         }
@@ -1125,7 +1130,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 // Uses gCamera to control which part of the background gets drawn to the screen.
 // The camera is panned around based on the character's movement. E.g., when the player
 // walks toward the edge of the screen, the camera gets pushed in that direction.
-void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
+void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
 
@@ -1147,6 +1152,49 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
             BitmapOctoPixel = _mm256_loadu_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+            
+            // TODO: SIMD-ify this
+            // Clamp between 0 and 255
+            // min(upper, max(x, lower))
+            BitmapOctoPixel.m256i_u8[0] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[0] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[1] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[1] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[2] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[2] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[3] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[3] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[4] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[4] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[5] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[5] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[6] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[6] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[7] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[7] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[8] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[8] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[9] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[9] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[10] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[10] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[11] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[11] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[12] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[12] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[13] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[13] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[14] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[14] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[15] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[15] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[16] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[16] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[17] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[17] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[18] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[18] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[19] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[19] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[20] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[20] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[21] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[21] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[22] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[22] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[23] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[23] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[24] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[24] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[25] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[25] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[26] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[26] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[27] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[27] + BrightnessAdjustment), 0));
+
+            BitmapOctoPixel.m256i_u8[28] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[28] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[29] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[29] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[30] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[30] + BrightnessAdjustment), 0));
+            BitmapOctoPixel.m256i_u8[31] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[31] + BrightnessAdjustment), 0));
 
             _mm256_store_si256((__m256i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapOctoPixel);
         }
@@ -1163,6 +1211,29 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
             BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+
+            // TODO: SIMD-ify this
+            // Clamp between 0 and 255
+            // min(upper, max(x, lower))            
+            BitmapQuadPixel.m128i_u8[0] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[0] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[1] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[1] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[2] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[2] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[3] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[3] + BrightnessAdjustment), 0));
+
+            BitmapQuadPixel.m128i_u8[4] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[4] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[5] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[5] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[6] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[6] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[7] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[7] + BrightnessAdjustment), 0));
+
+            BitmapQuadPixel.m128i_u8[8] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[8] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[9] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[9] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[10] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[10] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[11] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[11] + BrightnessAdjustment), 0));
+
+            BitmapQuadPixel.m128i_u8[12] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[12] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[13] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[13] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[14] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[14] + BrightnessAdjustment), 0));
+            BitmapQuadPixel.m128i_u8[15] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[15] + BrightnessAdjustment), 0));
 
             _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
         }
@@ -1181,6 +1252,14 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap)
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
             memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
+
+            // Clamp between 0 and 255
+            // min(upper, max(x, lower))
+            BitmapPixel.Red   = (uint8_t) min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+
+            BitmapPixel.Green = (uint8_t) min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+
+            BitmapPixel.Blue  = (uint8_t) min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
 
             memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
         }
@@ -1557,6 +1636,7 @@ void FindFirstConnectedGamepad(void)
     }
 }
 
+// Initialize the Microsoft XAudio2 sound library once at the very beginning of the game.
 HRESULT InitializeSoundEngine(void)
 {
     HRESULT Result = S_OK;
@@ -1656,7 +1736,7 @@ Exit:
 
 // A compressed *.wav file has been extracted from the assets file and now resides
 // in heap memory. This function parses that memory and populates a GAMESOUND data structure.
-// This function should probably only be called from LoadAssetFromArchive.
+// This function should only be called from LoadAssetFromArchive.
 DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
 {
     DWORD Error = ERROR_SUCCESS;    
@@ -1744,6 +1824,9 @@ Exit:
     return(Error);
 }
 
+// This function should only be called from the LoadAssetFromArchive function.
+// It takes raw OGG Vorbis data that has been extracted to the heap and turns it into
+// a usable GAMESOUND structure.
 DWORD LoadOggFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ GAMESOUND* GameSound)
 {
     DWORD Error = ERROR_SUCCESS;    
@@ -1790,6 +1873,10 @@ Exit:
     return(Error);
 }
 
+// This function should only be called from the LoadAssetFromArchive function.
+// It takes raw tilemap data that has been extracted to the heap and turns it into
+// a usable TILEMAP structure. This tilemap data is an XML document that was generated
+// by the map editing application "Tiled."
 DWORD LoadTilemapFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ TILEMAP* TileMap)
 {
     DWORD Error = ERROR_SUCCESS;
@@ -2064,15 +2151,16 @@ Exit:
     return(Error);
 }
 
+// This function should only be called from the LoadAssetFromArchive function.
+// It takes raw bitmap data that has been extracted to the heap and turns it into
+// a usable GAMEBITMAP structure.
 DWORD Load32BppBitmapFromMemory(_In_ void* Buffer, _Inout_ GAMEBITMAP* GameBitmap)
 {
     DWORD Error = ERROR_SUCCESS;    
 
     WORD BitmapHeader = 0;
 
-    DWORD PixelDataOffset = 0;
-
-    //DWORD NumberOfBytesRead = 2;
+    DWORD PixelDataOffset = 0;    
 
     memcpy(&BitmapHeader, Buffer, sizeof(WORD));
 
@@ -2239,6 +2327,10 @@ Exit:
     return(Error);
 }
 
+// This code runs as a separate background thread at the very beginning of the game.
+// This background thread loads all of the game's assets such as fonts, music,
+// maps and sprites. Loading the assets on a separate thread improves the startup time
+// of the game assuming the user has more than one CPU core.
 DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
 {
     UNREFERENCED_PARAMETER(lpParam);
@@ -2396,7 +2488,7 @@ Exit:
     else
     {
         LogMessageA(LL_INFO, "[%s] Asset loading has failed with result 0x%08lx!", __FUNCTION__, Error);
-    }
+    }    
 
     return(Error);
 }
@@ -2411,7 +2503,11 @@ void InitializeGlobals(void)
 
     // Make sure the gPassableTiles array is large enough to fit 
     // all of the values you are about to assign here!
-
+    // I only made this assert because the compiler decided not to warn me
+    // if I try to assign more values to this array than it can hold.
+    // Which baffles me, because I can't think of any reason why neither the compiler
+    // nor the static analyzer could not or should not warn me of such a seemingly simple thing.
+#pragma warning(suppress: 4127)
     ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");
 
     gPassableTiles[0] = TILE_GRASS_01;
@@ -2427,6 +2523,7 @@ void InitializeGlobals(void)
 
     gCurrentArea = gOverworldArea;
 
+#pragma warning(suppress: 4127)
     ASSERT(_countof(gPortals) == 2, "The gPortals array is the wrong size!");
 
     gPortal001 = (PORTAL){

@@ -40,6 +40,8 @@ void DrawExitYesNoScreen(void)
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
+
+        gInputEnabled = FALSE;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -78,6 +80,8 @@ void DrawExitYesNoScreen(void)
         TextColor.Green = 255;
 
         TextColor.Blue = 255;
+
+        gInputEnabled = TRUE;
     }
 
     BlitStringToBuffer(gMenu_ExitYesNo.Name,

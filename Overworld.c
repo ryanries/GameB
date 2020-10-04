@@ -27,11 +27,39 @@ void DrawOverworld(void)
 
     static PIXEL32 TextColor;
 
+    static int16_t BrightnessAdjustment = -255;
+
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
+
+        BrightnessAdjustment = -255;
+
+        gInputEnabled = FALSE;
+    }
+
+    if (LocalFrameCounter == 10)
+    {
+        BrightnessAdjustment = -128;
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        BrightnessAdjustment = -64;
+    }
+
+    if (LocalFrameCounter == 30)
+    {
+        BrightnessAdjustment = -32;
+    }
+
+    if (LocalFrameCounter == 40)
+    {
+        BrightnessAdjustment = 0;
+
+        gInputEnabled = TRUE;
     }
 
     if (LocalFrameCounter == 60)
@@ -39,11 +67,12 @@ void DrawOverworld(void)
         PlayGameMusic(&gMusicOverworld01);
     }
 
-    BlitBackgroundToBuffer(&gOverworld01.GameBitmap);
+    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 
     Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
         gPlayer.ScreenPos.x,
-        gPlayer.ScreenPos.y);
+        gPlayer.ScreenPos.y,
+        BrightnessAdjustment);
 
     // If the debugging HUD is enabled, draw the tile values around the player so we can verify
     // which tiles we should be and should not be allowed to walk on.
@@ -372,7 +401,7 @@ void PPI_Overworld(void)
                     }
                 }
 
-                // TODO: gPlayer.StepsTaken++;
+                gPlayer.StepsTaken++;
 
                 break;
             }
@@ -384,6 +413,10 @@ void PPI_Overworld(void)
     }
 }
 
+// If the player lands on one of the "portal" tiles, this procedure is called.
+// A "portal" may be a doorway, or a staircase, or a cave entrance, or whatever.
+// Loop through the array of all portals until we find which one the player is standing
+// on. Then teleport the player to whatever location that portal dictates.
 void PortalHandler(void)
 {
     gPlayer.HasPlayerMovedSincePortal = FALSE;

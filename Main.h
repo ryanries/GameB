@@ -27,6 +27,9 @@
 // Disable warning about function not inlined.
 #pragma warning(disable: 4710)
 
+// Disable warning about function being inlined.
+#pragma warning(disable: 4711)
+
 // Temporarily reduce warning level while including header files over which we have no control.
 #pragma warning(push, 3)	
 
@@ -393,17 +396,25 @@ typedef struct HERO
 
 	UPOINT WorldPos;
 
-	uint8_t MovementRemaining;	// This will be non-zero when the player is in motion. If 0, player is standing still.
+	// This will be non-zero when the player is in motion. If 0, player is standing still.
+	uint8_t MovementRemaining;	
 
+	// Is the player facing left, right, up or down?
 	DIRECTION Direction;
 
-	uint8_t CurrentArmor;		// SUIT_0, SUIT_1, or SUIT_2
+	// This is used to allow the player to stand on a portal (or doorway, or stairs, etc.,) 
+	// and teleport to the other end of the portal and stand on the portal without 
+	// instantly being teleported back because they're currently standing on a portal.
+	BOOL HasPlayerMovedSincePortal;
+
+	// SUIT_0, SUIT_1, or SUIT_2
+	uint8_t CurrentArmor;		
 
 	uint8_t SpriteIndex;	
 
-	uint64_t StepsTaken; // TODO: Do we increment this?
+	uint64_t StepsTaken;
 
-	BOOL HasPlayerMovedSincePortal;
+
 
 	// TODO: Figure out how the stats are going to work.
 	int16_t HP;
@@ -508,6 +519,8 @@ UPOINT gCamera;
 
 HANDLE gAssetLoadingThreadHandle;
 
+BOOL gInputEnabled;
+
 // This event gets signalled/set after the most essential assets have been loaded.
 // "Essential" means the assets required to render the splash screen.
 HANDLE gEssentialAssetsLoadedEvent;
@@ -527,9 +540,9 @@ void ProcessPlayerInput(void);
 
 DWORD InitializeHero(void);
 
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y);
+void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment);
 
-void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap);
+void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment);
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 

@@ -50,6 +50,8 @@ void DrawOptionsScreen(void)
         memset(&TextColor, 0, sizeof(PIXEL32));
 
         gMenu_OptionsScreen.SelectedItem = 0;
+
+        gInputEnabled = FALSE;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -88,6 +90,8 @@ void DrawOptionsScreen(void)
         TextColor.Green = 255;
 
         TextColor.Blue = 255;
+
+        gInputEnabled = TRUE;
     }
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)

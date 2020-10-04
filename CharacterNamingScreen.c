@@ -163,13 +163,19 @@ void DrawCharacterNaming(void)
 
     static PIXEL32 TextColor;
 
+    static int16_t BrightnessAdjustment = -255;
+
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
 
         memset(&TextColor, 0, sizeof(PIXEL32));
 
+        BrightnessAdjustment = -255;
+
         gMenu_CharacterNaming.SelectedItem = 0;
+
+        gInputEnabled = FALSE;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -181,6 +187,8 @@ void DrawCharacterNaming(void)
         TextColor.Green = 64;
 
         TextColor.Blue = 64;
+
+        BrightnessAdjustment = -128;
     }
 
     if (LocalFrameCounter == 20)
@@ -190,6 +198,8 @@ void DrawCharacterNaming(void)
         TextColor.Green = 128;
 
         TextColor.Blue = 128;
+
+        BrightnessAdjustment = -64;
     }
 
     if (LocalFrameCounter == 30)
@@ -199,6 +209,8 @@ void DrawCharacterNaming(void)
         TextColor.Green = 192;
 
         TextColor.Blue = 192;
+
+        BrightnessAdjustment = -32;
     }
 
     if (LocalFrameCounter == 40)
@@ -208,11 +220,15 @@ void DrawCharacterNaming(void)
         TextColor.Green = 255;
 
         TextColor.Blue = 255;
+
+        BrightnessAdjustment = 0;
+
+        gInputEnabled = TRUE;
     }
 
     BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 16);
 
-    Blit32BppBitmapToBuffer(&gPlayer.Sprite[SUIT_0][FACING_DOWN_0], 153, 85);
+    Blit32BppBitmapToBuffer(&gPlayer.Sprite[SUIT_0][FACING_DOWN_0], 153, 85, BrightnessAdjustment);
 
     for (uint8_t Letter = 0; Letter < _countof(gPlayer.Name) - 1; Letter++)
     {
