@@ -63,7 +63,7 @@
 // Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
 #pragma comment(lib, "Winmm.lib")
 
-// Valid options are SSE2, AVX, or nothing.
+// Valid options are AVX, SSE2, or nothing.
 #define AVX
 
 #ifdef AVX

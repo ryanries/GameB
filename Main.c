@@ -19,6 +19,7 @@
 
 // --- TODO ---
 // TODO: SIMD-ify the BrightnessAdjustment in the bitmap and background blitting functions.
+// Make the fade-in happen again when we go through a portal.
 // Hitting the Escape key while in the overworld should take us back to the main menu.
 // (Holding the Escape key down for several seconds should fast-quit the game?)
 // Make gPortalTiles an array like gPassableTiles
@@ -138,7 +139,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	UNREFERENCED_PARAMETER(CommandLine);
 
 	UNREFERENCED_PARAMETER(CmdShow);
-    
+
     // Handles Windows' Window messages to our game's window.
     MSG Message = { 0 };
 
@@ -278,6 +279,14 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
             LogMessageA(LL_WARNING, "[%s] CPU Architecture: Unknown", __FUNCTION__);
         }
     }
+
+#ifdef AVX
+    LogMessageA(LL_INFO, "[%s] SIMD Level: AVX", __FUNCTION__);
+#elif defined SSE2
+    LogMessageA(LL_INFO, "[%s] SIMD Level: SSE2", __FUNCTION__);
+#else
+    LogMessageA(LL_WARNING, "[%s] SIMD Level: None", __FUNCTION__);
+#endif
 
     // Initialize the variable that is used to calculate average CPU usage of this process.
     GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.PreviousSystemTime);
@@ -1130,6 +1139,8 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 // Uses gCamera to control which part of the background gets drawn to the screen.
 // The camera is panned around based on the character's movement. E.g., when the player
 // walks toward the edge of the screen, the camera gets pushed in that direction.
+// Because of the use of SIMD in this function, it's important that the background and thus
+// the game's resolution be a multiple of 4 (SSE) or 8 (AVX).
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
@@ -1140,7 +1151,10 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
     int32_t MemoryOffset = 0;
 
     int32_t BitmapOffset = 0;
+
 #ifdef AVX
+    // We go 8 pixels at a time, SIMD-style.    
+
     __m256i BitmapOctoPixel;
 
     for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
@@ -1151,55 +1165,44 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
-            BitmapOctoPixel = _mm256_loadu_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
-            
-            // TODO: SIMD-ify this
-            // Clamp between 0 and 255
-            // min(upper, max(x, lower))
-            BitmapOctoPixel.m256i_u8[0] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[0] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[1] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[1] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[2] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[2] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[3] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[3] + BrightnessAdjustment), 0));
+            // Load 256 bits (8 pixels) from memory into register YMMx
+            BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
+            // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
 
-            BitmapOctoPixel.m256i_u8[4] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[4] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[5] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[5] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[6] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[6] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[7] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[7] + BrightnessAdjustment), 0));
+            // Blow the 256-bit vector apart into two separate 256-bit vectors Half1 and Half2, 
+            // each containing 4 pixels, where each pixel is now 16 bits instead of 8.            
 
-            BitmapOctoPixel.m256i_u8[8] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[8] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[9] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[9] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[10] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[10] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[11] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[11] + BrightnessAdjustment), 0));
+            __m256i Half1 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 0));
+            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
+            // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
 
-            BitmapOctoPixel.m256i_u8[12] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[12] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[13] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[13] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[14] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[14] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[15] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[15] + BrightnessAdjustment), 0));
+            // Add the brightness adjustment to each 16-bit element
+            Half1 = _mm256_add_epi16(Half1, _mm256_set1_epi16(BrightnessAdjustment));
+            // YMM0 = 0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2
 
-            BitmapOctoPixel.m256i_u8[16] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[16] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[17] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[17] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[18] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[18] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[19] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[19] + BrightnessAdjustment), 0));
+            // Do the same for Half2 that we just did for Half1.
+            __m256i Half2 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 1));
 
-            BitmapOctoPixel.m256i_u8[20] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[20] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[21] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[21] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[22] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[22] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[23] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[23] + BrightnessAdjustment), 0));
+            Half2 = _mm256_add_epi16(Half2, _mm256_set1_epi16(BrightnessAdjustment));            
 
-            BitmapOctoPixel.m256i_u8[24] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[24] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[25] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[25] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[26] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[26] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[27] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[27] + BrightnessAdjustment), 0));
+            // Now we need to reassemble the two halves back into a single 256-bit group of 8 pixels.
+            // _mm256_packus_epi16(a,b) takes the 16-bit signed integers in the 256-bit vectors a and b
+            // and converts them to a 256-bit vector of 8-bit unsigned integers. The result contains the
+            // first 8 integers from a, followed by the first 8 integers from b, followed by the last 8
+            // integers from a, followed by the last 8 integers from b.
+            // Values that are out of range are set to 0 or 255.
+            __m256i Recombined = _mm256_packus_epi16(Half1, Half2);
 
-            BitmapOctoPixel.m256i_u8[28] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[28] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[29] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[29] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[30] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[30] + BrightnessAdjustment), 0));
-            BitmapOctoPixel.m256i_u8[31] = (uint8_t) min(255, max((BitmapOctoPixel.m256i_u8[31] + BrightnessAdjustment), 0));
+            BitmapOctoPixel = _mm256_permute4x64_epi64(Recombined, _MM_SHUFFLE(3, 1, 2, 0));
 
+            // Store the result to the global back buffer.
             _mm256_store_si256((__m256i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapOctoPixel);
         }
     }
 #elif defined SSE2    
+    // We go 4 pixels at a time, SIMD-style.
+
     __m128i BitmapQuadPixel;
 
     for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
@@ -1211,29 +1214,25 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
             BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB      
+            // XMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1 
 
-            // TODO: SIMD-ify this
-            // Clamp between 0 and 255
-            // min(upper, max(x, lower))            
-            BitmapQuadPixel.m128i_u8[0] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[0] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[1] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[1] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[2] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[2] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[3] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[3] + BrightnessAdjustment), 0));
+            // Zero-extend each element of the low half of BitmapQuadPixel so that
+            // each color channel is now 16 bits.
+            __m128i Half1 = _mm_unpacklo_epi8(BitmapQuadPixel, _mm_setzero_si128());
+            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
+            // XMM0 = 00FF005B006E00E1-00FF005B006E00E1            
 
-            BitmapQuadPixel.m128i_u8[4] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[4] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[5] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[5] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[6] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[6] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[7] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[7] + BrightnessAdjustment), 0));
+            // Add the brightness adjustment to each 16-bit element            
+            Half1 = _mm_add_epi16(Half1, _mm_set1_epi16(BrightnessAdjustment));
 
-            BitmapQuadPixel.m128i_u8[8] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[8] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[9] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[9] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[10] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[10] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[11] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[11] + BrightnessAdjustment), 0));
+            // Do the same to Half2 as we just did to Half1.
+            __m128i Half2 = _mm_unpackhi_epi8(BitmapQuadPixel, _mm_setzero_si128());
 
-            BitmapQuadPixel.m128i_u8[12] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[12] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[13] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[13] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[14] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[14] + BrightnessAdjustment), 0));
-            BitmapQuadPixel.m128i_u8[15] = (uint8_t) min(255, max((BitmapQuadPixel.m128i_u8[15] + BrightnessAdjustment), 0));
+            Half2 = _mm_add_epi16(Half2, _mm_set1_epi16(BrightnessAdjustment));
+
+            // Pack the two halves back into a single 128-bit 4-pixel result.
+            BitmapQuadPixel = _mm_packus_epi16(Half1, Half2);            
 
             _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
         }
@@ -1241,6 +1240,8 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
 
 
 #else
+    // We go 1 pixel at a time, no SIMD.
+
     PIXEL32 BitmapPixel = { 0 };
 
     for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)

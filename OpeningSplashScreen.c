@@ -152,11 +152,13 @@ void DrawOpeningSplashScreen(void)
                     MessageBoxA(gGameWindow, "Asset loading failed! Check log file for more details.", "Error", MB_OK | MB_ICONERROR);
 
                     return;
-                }
+                }               
 
                 gPreviousGameState = gCurrentGameState;
 
-                gCurrentGameState = GAMESTATE_TITLESCREEN;
+                //gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+                gCurrentGameState = GAMESTATE_OVERWORLD;
             }
         }
 
