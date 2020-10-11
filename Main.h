@@ -572,21 +572,9 @@ void PlayGameSound(_In_ GAMESOUND* GameSound);
 
 void PlayGameMusic(_In_ GAMESOUND* GameSound);
 
+BOOL MusicIsPlaying(void);
+
 DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource);
-
-#ifdef AVX
-
-void ClearScreen(_In_ __m256i* Color);
-
-#elif defined SSE2
-
-void ClearScreen(_In_ __m128i* Color);
-
-#else
-
-void ClearScreen(_In_ PIXEL32* Color);
-
-#endif
 
 DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);
 

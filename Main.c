@@ -920,17 +920,19 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
 
                 StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.BitmapInfo.bmiHeader.biWidth * StringBitmap.BitmapInfo.bmiHeader.biHeight) - \
                     StringBitmap.BitmapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.BitmapInfo.bmiHeader.biWidth) * YPixel;
-
+                
                 memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
 
-                FontSheetPixel.Red   = Color->Red;
+                if (FontSheetPixel.Alpha == 255)
+                {
+                    FontSheetPixel.Red   = Color->Red;
 
-                FontSheetPixel.Green = Color->Green;
+                    FontSheetPixel.Green = Color->Green;
 
-                FontSheetPixel.Blue  = Color->Blue;
+                    FontSheetPixel.Blue  = Color->Blue;
 
-                memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));
-
+                    memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));
+                }                
             }
         }
     }
@@ -1023,39 +1025,7 @@ void RenderFrameGraphics(void)
     ReleaseDC(gGameWindow, DeviceContext);
 }
 
-
-#ifdef AVX
-
-__forceinline void ClearScreen(_In_ __m256i* Color)
-{
-    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m256i) / sizeof(PIXEL32)); Index++)
-    {
-        _mm256_store_si256((__m256i*)gBackBuffer.Memory + Index, *Color);
-    }
-}
-
-#elif defined SSE2
-
-__forceinline void ClearScreen(_In_ __m128i* Color)
-{
-    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m128i) / sizeof(PIXEL32)); Index++)
-    {
-        _mm_store_si128((__m128i*)gBackBuffer.Memory + Index, *Color);
-    }
-}
-
-#else
-
-__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
-{
-    for (int Index = 0; Index < GAME_RES_WIDTH * GAME_RES_HEIGHT; Index++)
-    {
-        memcpy((PIXEL32*)gBackBuffer.Memory + Index, Pixel, sizeof(PIXEL32));
-    }
-}
-
-#endif
-
+// TODO: VECTORIZE THIS
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
@@ -1078,7 +1048,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
             // gBackBuffer.Memory. Or you will cause a "wrap-around" effect if you try to draw
             // beyond GAME_RES_WIDTH.
             // TODO: OPTIMIZE THIS???
-            if ((x < 1) || (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth) || 
+            if ((x < 1) || (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth) ||
                 (y < 1) || (y > GAME_RES_HEIGHT - GameBitmap->BitmapInfo.bmiHeader.biHeight))
             {
                 if (x < 1)
@@ -1110,9 +1080,9 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
                         break;
                     }
                 }
-            }            
+            }
 
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);            
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
@@ -1122,16 +1092,16 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
             {
                 // Clamp between 0 and 255
                 // min(upper, max(x, lower))
-                BitmapPixel.Red   = (uint8_t) min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+                BitmapPixel.Red   = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
 
-                BitmapPixel.Green = (uint8_t) min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
 
-                BitmapPixel.Blue  = (uint8_t) min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+                BitmapPixel.Blue  = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
 
-                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));                
+                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
             }
         }
-    }    
+    }   
 }
 
 // Draws a subsection of a background across the entire screen.
@@ -2219,6 +2189,22 @@ void PlayGameMusic(_In_ GAMESOUND* GameSound)
     gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
 }
 
+BOOL MusicIsPlaying(void)
+{
+    XAUDIO2_VOICE_STATE State = { 0 };
+
+    gXAudioMusicSourceVoice->lpVtbl->GetState(gXAudioMusicSourceVoice, &State, 0);
+
+    if (State.BuffersQueued > 0)
+    {
+        return(TRUE);
+    }
+    else
+    {
+        return(FALSE);
+    }
+}
+
 // Loads any defined asset type such as a *.wav, *.ogg, *.tmx, or *.bmpx from an asset file into heap memory.
 // The asset file is a compressed zip archive. The asset file is created with a customized version of miniz.
 // The only difference is that some of the zip file metadata constants were changed so that tools such as 7-zip, WinRAR, etc., 
@@ -2516,6 +2502,8 @@ void InitializeGlobals(void)
     gPassableTiles[1] = TILE_PORTAL_01;
 
     gPassableTiles[2] = TILE_BRICK_01;
+
+
 
     // C99 syntax?
     gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };

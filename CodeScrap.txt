@@ -734,3 +734,42 @@ Exit:
 
     return(Error);
 }
+
+
+
+///
+///
+/// No longer need these functions because they are the same as rep stosd, etc.
+///
+///
+#ifdef AVX
+
+__forceinline void ClearScreen(_In_ __m256i* Color)
+{    
+    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m256i) / sizeof(PIXEL32)); Index++)
+    {
+        _mm256_store_si256((__m256i*)gBackBuffer.Memory + Index, *Color);
+    }
+}
+
+#elif defined SSE2
+
+__forceinline void ClearScreen(_In_ __m128i* Color)
+{
+    for (int Index = 0; Index < (GAME_RES_WIDTH * GAME_RES_HEIGHT) / (sizeof(__m128i) / sizeof(PIXEL32)); Index++)
+    {
+        _mm_store_si128((__m128i*)gBackBuffer.Memory + Index, *Color);
+    }
+}
+
+#else
+
+__forceinline void ClearScreen(_In_ PIXEL32* Pixel)
+{
+    for (int Index = 0; Index < GAME_RES_WIDTH * GAME_RES_HEIGHT; Index++)
+    {
+        memcpy((PIXEL32*)gBackBuffer.Memory + Index, Pixel, sizeof(PIXEL32));
+    }
+}
+
+#endif

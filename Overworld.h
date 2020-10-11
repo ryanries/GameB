@@ -17,6 +17,15 @@
 
 #pragma once
 
+typedef struct GAMEAREA
+{
+	char* Name;
+
+	RECT Area;
+
+	GAMESOUND Music;
+} GAMEAREA;
+
 // Could be a door, or a gateway, or a staircase, or a cave entrace, etc...
 typedef struct PORTAL
 {
@@ -36,6 +45,8 @@ typedef struct PORTAL
 	RECT DestinationArea;
 
 } PORTAL;
+
+
 
 PORTAL gPortal001;
 
