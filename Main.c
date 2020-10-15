@@ -18,14 +18,13 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
-// TODO: SIMD-ify the BrightnessAdjustment in the bitmap and background blitting functions.
-// Make the fade-in happen again when we go through a portal.
+// Make the fade in and fade out on the overworld better.
 // Hitting the Escape key while in the overworld should take us back to the main menu.
 // (Holding the Escape key down for several seconds should fast-quit the game?)
 // Make gPortalTiles an array like gPassableTiles
 // Add a picture of an xbox gamepad to the "gamepadunplugged" screen
 // Create a windowing system
-// enhance Blit32BppBitmap function so that it can alter the color and brightness of bitmaps at run time
+// enhance Blit32BppBitmap function so that it can alter the color of bitmaps at run time?
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
 // talk about the scope of #define precompiler directives
 // shadow effect for text?
@@ -1025,7 +1024,10 @@ void RenderFrameGraphics(void)
     ReleaseDC(gGameWindow, DeviceContext);
 }
 
-// TODO: VECTORIZE THIS
+// This function draws any sized bitmap onto the global backbuffer. Sprites, text strings, etc.
+// WARNING: Currently there is no safeguard preventing you from trying to draw pixels outside
+// of the screen area, and attempting to do so will crash the game if the area to be
+// drawn to falls outside of valid gBackBuffer memory!
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
@@ -1039,49 +1041,110 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
     PIXEL32 BitmapPixel = { 0 };
 
+#ifdef AVX
+    // We go 8 pixels at a time SIMD-style, until there are fewer than 8 pixels left 
+    // on the current row, then finish the remainder of the row one pixel at a time.
+
+    __m256i BitmapOctoPixel;
+
+    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
+    {
+        int16_t PixelsRemainingOnThisRow = (int16_t)GameBitmap->BitmapInfo.bmiHeader.biWidth;
+
+        int16_t XPixel = 0;
+
+        while (PixelsRemainingOnThisRow >= 8)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            // Load 256 bits (8 pixels) from memory into register YMMx
+            BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
+            // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
+
+            // Blow the 256-bit vector apart into two separate 256-bit vectors Half1 and Half2, 
+            // each containing 4 pixels, where each pixel is now 16 bits instead of 8.            
+
+            __m256i Half1 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 0));
+            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
+            // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
+
+            // Add the brightness adjustment to each 16-bit element, except alpha.
+            Half1 = _mm256_add_epi16(Half1, _mm256_set_epi16(
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));            
+
+            // Do the same for Half2 that we just did for Half1.
+            __m256i Half2 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 1));
+
+            Half2 = _mm256_add_epi16(Half2, _mm256_set_epi16(
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
+
+            // Now we need to reassemble the two halves back into a single 256-bit group of 8 pixels.
+            // _mm256_packus_epi16(a,b) takes the 16-bit signed integers in the 256-bit vectors a and b
+            // and converts them to a 256-bit vector of 8-bit unsigned integers. The result contains the
+            // first 8 integers from a, followed by the first 8 integers from b, followed by the last 8
+            // integers from a, followed by the last 8 integers from b.
+            // Values that are out of range are set to 0 or 255.
+            __m256i Recombined = _mm256_packus_epi16(Half1, Half2);
+
+            BitmapOctoPixel = _mm256_permute4x64_epi64(Recombined, _MM_SHUFFLE(3, 1, 2, 0));
+
+            // Create a mask that selects only the pixels that have an Alpha == 255.
+            __m256i Mask = _mm256_cmpeq_epi8(BitmapOctoPixel, _mm256_set1_epi8(-1));
+            
+            // Conditionally store the result to the global back buffer, based on the mask
+            // we just created that selects only the pixels where Alpha == 255.
+            _mm256_maskstore_epi32((int*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), Mask, BitmapOctoPixel);            
+
+            PixelsRemainingOnThisRow -= 8;
+
+            XPixel += 8;
+        }
+
+        while (PixelsRemainingOnThisRow > 0)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
+
+            if (BitmapPixel.Alpha == 255)
+            {
+                // Clamp between 0 and 255
+                // min(upper, max(x, lower))
+                BitmapPixel.Red   = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+
+                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+
+                BitmapPixel.Blue  = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+
+                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
+            }
+
+            PixelsRemainingOnThisRow--;
+
+            XPixel++;
+        }
+    }
+
+#elif defined SSE2
+
+    // TODO
+
+#else
     for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
     {
         for (int16_t XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
         {
-            // Do not attempt to draw pixels that are outside of the viewable screen.
-            // You will crash if you attempt to draw a pixel that is outside of the bounds of
-            // gBackBuffer.Memory. Or you will cause a "wrap-around" effect if you try to draw
-            // beyond GAME_RES_WIDTH.
-            // TODO: OPTIMIZE THIS???
-            if ((x < 1) || (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth) ||
-                (y < 1) || (y > GAME_RES_HEIGHT - GameBitmap->BitmapInfo.bmiHeader.biHeight))
-            {
-                if (x < 1)
-                {
-                    if (XPixel < -x)
-                    {
-                        break;
-                    }
-                }
-                else if (x > GAME_RES_WIDTH - GameBitmap->BitmapInfo.bmiHeader.biWidth)
-                {
-                    if (XPixel > GAME_RES_WIDTH - x - 1)
-                    {
-                        break;
-                    }
-                }
-
-                if (y < 1)
-                {
-                    if (YPixel < -y)
-                    {
-                        break;
-                    }
-                }
-                else if (y > GAME_RES_HEIGHT - GameBitmap->BitmapInfo.bmiHeader.biHeight)
-                {
-                    if (YPixel > GAME_RES_HEIGHT - y - 1)
-                    {
-                        break;
-                    }
-                }
-            }
-
             MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
 
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
@@ -1101,7 +1164,8 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
                 memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
             }
         }
-    }   
+    }
+#endif
 }
 
 // Draws a subsection of a background across the entire screen.

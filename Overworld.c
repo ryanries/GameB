@@ -104,8 +104,8 @@ void DrawOverworld(void)
         {
             // What is the value of the tile to the right of the player?
             _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], Buffer, sizeof(Buffer), 10);
-
-                BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
+                
+            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
         }
 
         if (gPlayer.ScreenPos.x >= 16)
@@ -116,7 +116,7 @@ void DrawOverworld(void)
             BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
         }
 
-        if (gPlayer.ScreenPos.y < GAME_RES_HEIGHT - 16)
+        if (gPlayer.ScreenPos.y <= GAME_RES_HEIGHT - 32)
         {
             // What is the value of the tile below the player?
             _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
