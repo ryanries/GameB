@@ -18,6 +18,10 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
+// Movement code is weird when you enter a portal - sometimes you jump out of the portal
+// even though your hand is not on the keyboard as if you had some movement queued up.
+// Show the effect of Power Options on FPS
+// ... moved the tile value debug display to the DrawDebugInfo function.
 // Make the fade in and fade out on the overworld better.
 // Hitting the Escape key while in the overworld should take us back to the main menu.
 // (Holding the Escape key down for several seconds should fast-quit the game?)
@@ -71,6 +75,9 @@
 
 // Contains declarations that are specific to the Overworld game state.
 #include "Overworld.h"
+
+// Contains declarations that are specific to the Battle game state.
+#include "Battle.h"
 
 // Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
 // the constants so that the exact file format is only readable by our game and not common
@@ -816,6 +823,8 @@ void ProcessPlayerInput(void)
         }
         case GAMESTATE_BATTLE:
         {
+            PPI_Battle();
+
             break;
         }
         case GAMESTATE_CHARACTERNAMING:
@@ -980,6 +989,8 @@ void RenderFrameGraphics(void)
         }
         case GAMESTATE_BATTLE:
         {
+            DrawBattle();
+
             break;
         }
         case GAMESTATE_EXITYESNOSCREEN:
@@ -1029,7 +1040,7 @@ void RenderFrameGraphics(void)
 // of the screen area, and attempting to do so will crash the game if the area to be
 // drawn to falls outside of valid gBackBuffer memory!
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment)
-{
+{    
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
     int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
@@ -1271,7 +1282,6 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
             _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
         }
     }
-
 
 #else
     // We go 1 pixel at a time, no SIMD.
@@ -1654,6 +1664,48 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Movement:%u", gPlayer.MovementRemaining);
 
     BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 96);
+
+    // Draw the tile values around the player so we can verify which tiles we should be and should not be allowed to walk on.
+ 
+    if (gCurrentGameState == GAMESTATE_OVERWORLD)
+    {
+        // What is the value of the tile that the player is currently standing on?
+        _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
+
+        BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
+
+        if (gPlayer.ScreenPos.y >= 16)
+        {
+            // What is the value of the tile above the player?
+            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
+
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
+        }
+
+        if (gPlayer.ScreenPos.x < (GAME_RES_WIDTH - 16))
+        {
+            // What is the value of the tile to the right of the player?
+            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
+
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
+        }
+
+        if (gPlayer.ScreenPos.x >= 16)
+        {
+            // What is the value of the tile to left of the player?
+            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
+
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
+        }
+
+        if (gPlayer.ScreenPos.y <= GAME_RES_HEIGHT - 32)
+        {
+            // What is the value of the tile below the player?
+            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
+
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
+        }
+    }
 }
 
 void FindFirstConnectedGamepad(void)

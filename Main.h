@@ -18,6 +18,9 @@
 
 #pragma once
 
+// For rand_s().
+#define _CRT_RAND_S
+
 // Disable warning about structure padding.
 #pragma warning(disable: 4820)
 
@@ -118,6 +121,7 @@
 
 #define CALCULATE_AVG_FPS_EVERY_X_FRAMES	120
 
+// 16.67 milliseconds is 60 frames per second.
 #define TARGET_MICROSECONDS_PER_FRAME		16667ULL
 
 // This allows us to play up to 4 sound effects simultaneously
@@ -579,3 +583,5 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
 void InitializeGlobals(void);
+
+void RandomMonsterEncounter(void);

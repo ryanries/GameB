@@ -61,13 +61,13 @@ void DrawOverworld(void)
 
     if (LocalFrameCounter == 40)
     {
-        BrightnessAdjustment = 0;
-
-        gInputEnabled = TRUE;
+        BrightnessAdjustment = 0;     
     }
 
     if (LocalFrameCounter == 60)
     {
+        gInputEnabled = TRUE;
+
         if (MusicIsPlaying() == FALSE)
         {
             PlayGameMusic(&gMusicOverworld01);
@@ -81,49 +81,7 @@ void DrawOverworld(void)
         gPlayer.ScreenPos.y,
         BrightnessAdjustment);
 
-    // If the debugging HUD is enabled, draw the tile values around the player so we can verify
-    // which tiles we should be and should not be allowed to walk on.
-    if (gPerformanceData.DisplayDebugInfo)
-    {
-        char Buffer[4] = { 0 };
 
-        // What is the value of the tile that the player is currently standing on?
-        _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
-
-        BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
-
-        if (gPlayer.ScreenPos.y >= 16)
-        {
-            // What is the value of the tile above the player?
-            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
-
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
-        }
-
-        if (gPlayer.ScreenPos.x < (GAME_RES_WIDTH - 16))
-        {
-            // What is the value of the tile to the right of the player?
-            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], Buffer, sizeof(Buffer), 10);
-                
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
-        }
-
-        if (gPlayer.ScreenPos.x >= 16)
-        {
-            // What is the value of the tile to left of the player?
-            _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1], Buffer, sizeof(Buffer), 10);
-
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
-        }
-
-        if (gPlayer.ScreenPos.y <= GAME_RES_HEIGHT - 32)
-        {
-            // What is the value of the tile below the player?
-            _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], Buffer, sizeof(Buffer), 10);
-
-            BlitStringToBuffer(Buffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
-        }
-    }
 
     LocalFrameCounter++;
 
@@ -407,6 +365,21 @@ void PPI_Overworld(void)
                         PortalHandler();
                     }
                 }
+                else
+                {
+                    // Should we run into a random monster encounter?
+
+                    DWORD Random = 0;
+
+                    rand_s((unsigned int*)&Random);
+
+                    Random = Random % 100;
+
+                    if (Random >= 90)
+                    {
+                        RandomMonsterEncounter();
+                    }
+                }
 
                 gPlayer.StepsTaken++;
 
@@ -451,7 +424,7 @@ void PortalHandler(void)
 
             gCamera.y = gPortals[Counter].CameraPos.y;
 
-            gCurrentArea = gPortals[Counter].DestinationArea;
+            gCurrentArea = gPortals[Counter].DestinationArea;            
 
             break;
         }
@@ -461,4 +434,11 @@ void PortalHandler(void)
     {
         ASSERT(FALSE, "Player is standing on a portal but we do not have a portal handler for it!");
     }
+}
+
+void RandomMonsterEncounter(void)
+{
+    gPreviousGameState = gCurrentGameState;
+    
+    gCurrentGameState = GAMESTATE_BATTLE;
 }
