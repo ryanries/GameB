@@ -224,7 +224,9 @@ typedef enum GAMESTATE
 
 	GAMESTATE_EXITYESNOSCREEN,
 
-	GAMESTATE_GAMEPADUNPLUGGED
+	GAMESTATE_GAMEPADUNPLUGGED,
+
+	GAMESTATE_NEWGAMEAREYOUSURE
 
 } GAMESTATE;
 
@@ -575,6 +577,10 @@ DWORD Load32BppBitmapFromMemory(_In_ void* Buffer, _Inout_ GAMEBITMAP* GameBitma
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
 void PlayGameMusic(_In_ GAMESOUND* GameSound);
+
+void PauseMusic(void);
+
+void StopMusic(void);
 
 BOOL MusicIsPlaying(void);
 

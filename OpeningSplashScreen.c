@@ -156,9 +156,10 @@ void DrawOpeningSplashScreen(void)
 
                 gPreviousGameState = gCurrentGameState;
 
-                //gCurrentGameState = GAMESTATE_TITLESCREEN;
-
-                gCurrentGameState = GAMESTATE_OVERWORLD;
+                gCurrentGameState = GAMESTATE_TITLESCREEN;
+                
+                // In case we want to skip the title screen, for debugging purposes:
+                //gCurrentGameState = GAMESTATE_OVERWORLD;
             }
         }
 

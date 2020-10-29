@@ -401,7 +401,7 @@ void MenuItem_CharacterNaming_OK(void)
 
         gCurrentGameState = GAMESTATE_OVERWORLD;
 
-        gPlayer.Active = TRUE;
+        gPlayer.Active = TRUE;        
 
         PlayGameSound(&gSoundMenuChoose);
     }

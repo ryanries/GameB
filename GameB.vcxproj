@@ -202,6 +202,7 @@
     <ClCompile Include="GamepadUnplugged.c" />
     <ClCompile Include="Main.c" />
     <ClCompile Include="miniz.c" />
+    <ClCompile Include="NewGameAreYouSure.c" />
     <ClCompile Include="OpeningSplashScreen.c" />
     <ClCompile Include="OptionsScreen.c" />
     <ClCompile Include="Overworld.c" />
@@ -215,6 +216,7 @@
     <ClInclude Include="GamepadUnplugged.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="miniz.h" />
+    <ClInclude Include="NewGameAreYouSure.h" />
     <ClInclude Include="OpeningSplashScreen.h" />
     <ClInclude Include="OptionsScreen.h" />
     <ClInclude Include="Overworld.h" />

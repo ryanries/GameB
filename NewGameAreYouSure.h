@@ -1,5 +1,5 @@
-// Filename: TitleScreen.h
-// Declarations specific to the title screen should go here.
+// Filename: NewGameAreYouSure.h
+// Declarations specific to the "Are you sure you want to start a new game?" screen should go here.
 //
 // Project Codename: GameB
 // TODO: Come up with a better name later.
@@ -17,16 +17,10 @@
 
 #pragma once
 
-void DrawTitleScreen(void);
+void DrawNewGameAreYouSure(void);
 
-void PPI_TitleScreen(void);
+void PPI_NewGameAreYouSure(void);
 
-void MenuItem_TitleScreen_Resume(void);
+void MenuItem_NewGameAreYouSure_Yes(void);
 
-void MenuItem_TitleScreen_StartNew(void);
-
-void MenuItem_TitleScreen_LoadSavedGame(void);
-
-void MenuItem_TitleScreen_Options(void);
-
-void MenuItem_TitleScreen_Exit(void);
+void MenuItem_NewGameAreYouSure_No(void);

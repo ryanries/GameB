@@ -23,11 +23,13 @@ MENUITEM gMI_ResumeGame = { "Resume", (GAME_RES_WIDTH / 2) - ((6 * 6) / 2), 100,
 
 MENUITEM gMI_StartNewGame = { "Start New Game", (GAME_RES_WIDTH / 2) - ((14 * 6) / 2), 115, TRUE, MenuItem_TitleScreen_StartNew };
 
-MENUITEM gMI_Options = { "Options", (GAME_RES_WIDTH / 2) - ((7 * 6) / 2), 130, TRUE, MenuItem_TitleScreen_Options };
+MENUITEM gMI_LoadSavedGame = { "Load Saved Game", (GAME_RES_WIDTH / 2) - ((15 * 6) / 2), 130, TRUE, MenuItem_TitleScreen_LoadSavedGame };
 
-MENUITEM gMI_Exit = { "Exit", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2), 145, TRUE, MenuItem_TitleScreen_Exit };
+MENUITEM gMI_Options = { "Options", (GAME_RES_WIDTH / 2) - ((7 * 6) / 2), 145, TRUE, MenuItem_TitleScreen_Options };
 
-MENUITEM* gMI_TitleScreenItems[] = { &gMI_ResumeGame, &gMI_StartNewGame, &gMI_Options, &gMI_Exit };
+MENUITEM gMI_Exit = { "Exit", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2), 160, TRUE, MenuItem_TitleScreen_Exit };
+
+MENUITEM* gMI_TitleScreenItems[] = { &gMI_ResumeGame, &gMI_StartNewGame, &gMI_LoadSavedGame, &gMI_Options, &gMI_Exit };
 
 MENU gMenu_TitleScreen = { "Title Screen Menu", 1, _countof(gMI_TitleScreenItems), gMI_TitleScreenItems };
 
@@ -48,6 +50,8 @@ void DrawTitleScreen(void)
         if (gPlayer.Active == TRUE)
         {
             gMenu_TitleScreen.SelectedItem = 0;
+
+            gMI_ResumeGame.Enabled = TRUE;
         }
         else
         {
@@ -171,18 +175,34 @@ void PPI_TitleScreen(void)
 
 void MenuItem_TitleScreen_Resume(void)
 {
+    gPreviousGameState = gCurrentGameState;
 
+    gCurrentGameState = GAMESTATE_OVERWORLD;
 }
 
 void MenuItem_TitleScreen_StartNew(void)
 {
-    // If a game is already in progress, this should prompt the user if they are sure that they want to start a new game first,
+    // TODO: If a game is already in progress, this should prompt the user if they are sure that they want to start a new game first,
     // and lose any unsaved progress.
     // Otherwise, just go to the character naming screen.
 
-    gPreviousGameState = gCurrentGameState;
+    if (gPlayer.Active == TRUE)
+    {
+        gPreviousGameState = gCurrentGameState;
 
-    gCurrentGameState = GAMESTATE_CHARACTERNAMING;
+        gCurrentGameState = GAMESTATE_NEWGAMEAREYOUSURE;
+    }
+    else
+    {
+        gPreviousGameState = gCurrentGameState;
+
+        gCurrentGameState = GAMESTATE_CHARACTERNAMING;
+    }
+}
+
+void MenuItem_TitleScreen_LoadSavedGame(void)
+{
+
 }
 
 void MenuItem_TitleScreen_Options(void)

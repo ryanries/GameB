@@ -20,7 +20,7 @@
 // --- TODO ---
 // Movement code is weird when you enter a portal - sometimes you jump out of the portal
 // even though your hand is not on the keyboard as if you had some movement queued up.
-// Show the effect of Power Options on FPS
+// Transparency is broken in the SSE2 version of Blit32BppBitmapToBuffer. (AVX version works fine.)
 // ... moved the tile value debug display to the DrawDebugInfo function.
 // Make the fade in and fade out on the overworld better.
 // Hitting the Escape key while in the overworld should take us back to the main menu.
@@ -78,6 +78,10 @@
 
 // Contains declarations that are specific to the Battle game state.
 #include "Battle.h"
+
+// Contains declarations that are specific to the "Are you sure you want to start a new game?" screen.
+#include "NewGameAreYouSure.h"
+
 
 // Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
 // the constants so that the exact file format is only readable by our game and not common
@@ -845,6 +849,12 @@ void ProcessPlayerInput(void)
 
             break;
         }
+        case GAMESTATE_NEWGAMEAREYOUSURE:
+        {
+            PPI_NewGameAreYouSure();
+
+            break;
+        }
         default:
         {
             ASSERT(FALSE, "Unknown game state!");
@@ -868,6 +878,10 @@ void ProcessPlayerInput(void)
 
 DWORD InitializeHero(void)
 {
+    gPlayer.HP = 20;
+    
+    gPlayer.Money = 0;
+
     gPlayer.ScreenPos.x = 192;
 
     gPlayer.ScreenPos.y = 64;
@@ -1002,6 +1016,12 @@ void RenderFrameGraphics(void)
         case GAMESTATE_OPTIONSSCREEN:
         {
             DrawOptionsScreen();
+
+            break;
+        }
+        case GAMESTATE_NEWGAMEAREYOUSURE:
+        {
+            DrawNewGameAreYouSure();
 
             break;
         }
@@ -1147,9 +1167,92 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
         }
     }
 
-#elif defined SSE2
+#elif defined SSE2     
+    // We go 4 pixels at a time SIMD-style, until there are fewer than 4 pixels left 
+    // on the current row, then finish the remainder of the row one pixel at a time.
 
-    // TODO
+    __m128i BitmapQuadPixel;
+
+    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
+    {
+        int16_t PixelsRemainingOnThisRow = (int16_t)GameBitmap->BitmapInfo.bmiHeader.biWidth;
+
+        int16_t XPixel = 0;        
+
+        while (PixelsRemainingOnThisRow >= 4)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
+            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB      
+            // XMM0 = 00FFFFFF00FFFFFF-00FFFFFF00FFFFFF            
+            
+            // Zero-extend each element of the low half of BitmapQuadPixel so that
+            // each color channel is now 16 bits.
+            __m128i Half1 = _mm_unpacklo_epi8(BitmapQuadPixel, _mm_setzero_si128());
+            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
+            // XMM0 = 000000FF00FF00FF-000000FF00FF00FF
+
+            // Add the brightness adjustment to each 16-bit element, except the alpha channel.            
+            Half1 = _mm_add_epi16(Half1, _mm_set_epi16(
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
+
+            // Do the same to Half2 as we just did to Half1.
+            __m128i Half2 = _mm_unpackhi_epi8(BitmapQuadPixel, _mm_setzero_si128());
+
+            Half2 = _mm_add_epi16(Half2, _mm_set_epi16(
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
+                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
+
+            // Pack the two halves back into a single 128-bit 4-pixel result.
+            BitmapQuadPixel = _mm_packus_epi16(Half1, Half2);
+
+            // TODO: TRANSPARENCY IS CURRENTLY BROKEN IN THE SSE2 VERSION
+            // I HAVE NOT YET BEEN ABLE TO GET THE MASK WORKING LIKE IT DOES IN THE AVX2 VERSION
+
+            // Create a mask that selects only the pixels that have an Alpha == 255.
+            //__m128i Mask = _mm_cmpeq_epi8(BitmapQuadPixel, _mm_set1_epi8(-1));           
+
+            // Conditionally store the result to the global back buffer, based on the mask
+            // we just created that selects only the pixels where Alpha == 255.            
+            //_mm_maskmoveu_si128(BitmapQuadPixel, Mask, ((PIXEL32*)gBackBuffer.Memory + MemoryOffset));
+            
+            _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
+
+            PixelsRemainingOnThisRow -= 4;
+
+            XPixel += 4;
+        }
+
+        while (PixelsRemainingOnThisRow > 0)
+        {
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
+
+            if (BitmapPixel.Alpha == 255)
+            {
+                // Clamp between 0 and 255
+                // min(upper, max(x, lower))
+                BitmapPixel.Red = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+
+                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+
+                BitmapPixel.Blue = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+
+                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
+            }
+
+            PixelsRemainingOnThisRow--;
+
+            XPixel++;
+        }
+    }
 
 #else
     for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
@@ -2292,6 +2395,18 @@ void PlayGameSound(_In_ GAMESOUND* GameSound)
     }
 }
 
+void PauseMusic(void)
+{
+    gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+}
+
+void StopMusic(void)
+{
+    gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+
+    gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+}
+
 void PlayGameMusic(_In_ GAMESOUND* GameSound)
 {
     gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
@@ -2305,11 +2420,14 @@ void PlayGameMusic(_In_ GAMESOUND* GameSound)
     gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
 }
 
+// TODO: This function currently returns true even if there is music that is paused.
+// because even when the music is paused, there is still a buffer in the queue.
+// Need to differentiate between when music is paused vs when there is really no music queued.
 BOOL MusicIsPlaying(void)
 {
     XAUDIO2_VOICE_STATE State = { 0 };
 
-    gXAudioMusicSourceVoice->lpVtbl->GetState(gXAudioMusicSourceVoice, &State, 0);
+    gXAudioMusicSourceVoice->lpVtbl->GetState(gXAudioMusicSourceVoice, &State, 0);    
 
     if (State.BuffersQueued > 0)
     {

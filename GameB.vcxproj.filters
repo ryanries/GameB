@@ -48,6 +48,9 @@
     <ClCompile Include="Battle.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="NewGameAreYouSure.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Main.h">
@@ -84,6 +87,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Battle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NewGameAreYouSure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

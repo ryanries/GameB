@@ -92,11 +92,16 @@ void DrawOverworld(void)
 // This typically involves the player moving around on the screen.
 // TODO: Make a gCurrentMap so that this works for any map we if choose to swap maps.
 void PPI_Overworld(void)
-{
-    // TODO remove this - it is just for debugging
+{    
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
     {
-        SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
+        gPreviousGameState = gCurrentGameState;
+
+        gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+        PauseMusic();
+
+        return;
     }
 
     ASSERT((gCamera.x <= gCurrentArea.right - GAME_RES_WIDTH), "Camera is out of bounds!");
