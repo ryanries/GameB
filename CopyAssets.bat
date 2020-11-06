@@ -25,6 +25,7 @@ MyMiniz.exe Assets.dat + .\Assets\SplashScreen.wav >> CopyAssets.log
 REM --- MUSIC ---
 
 MyMiniz.exe Assets.dat + .\Assets\Overworld01.ogg >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\Dungeon01.ogg >> CopyAssets.log
 
 REM --- TILEMAPS ---
 

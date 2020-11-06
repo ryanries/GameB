@@ -312,6 +312,17 @@ typedef struct GAMESOUND
 
 } GAMESOUND;
 
+// A rectangular subsection of our entire overworld.
+// Might be a town, or a dungeon, or a cave, or whatever.
+typedef struct GAMEAREA
+{
+	char* Name;
+
+	RECT Area;
+
+	GAMESOUND* Music;
+} GAMEAREA;
+
 // A 32-bit, 4-byte pixel. Each color goes 0-255.
 typedef struct PIXEL32
 {
@@ -420,6 +431,9 @@ typedef struct HERO
 
 	uint64_t StepsTaken;
 
+	// 90 = 10% chance, 80 = 20% chance, etc.
+	uint8_t RandomEncounterPercentage;
+
 
 
 	// TODO: Figure out how the stats are going to work.
@@ -474,7 +488,7 @@ typedef struct MENU
 
 	uint8_t ItemCount;
 
-	MENUITEM** Items;
+	MENUITEM** Items;	
 
 } MENU;
 
@@ -505,11 +519,15 @@ GAMESOUND gSoundMenuChoose;
 
 GAMESOUND gMusicOverworld01;
 
+GAMESOUND gMusicDungeon01;
+
 HERO gPlayer;
 
 float gSFXVolume;
 
 float gMusicVolume;
+
+BOOL gMusicIsPaused;
 
 int8_t gGamepadID;
 

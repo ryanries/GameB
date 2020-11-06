@@ -31,6 +31,13 @@ void DrawOverworld(void)
 
     static int16_t BrightnessAdjustment = -255;
 
+    // If global TotalFramesRendered is greater than LastFrameSeen,
+    // that means we have either just entered this gamestate for the first time,
+    // or we have left this gamestate previously and have just come back to it.
+    // For example we may have gone from the title screen, to the options screen,
+    // and then back to the title screen again. In that case, we want to reset all
+    // of the "local state," i.e., things that are local to this game state. Such
+    // as text animation, selected menu item, etc.
     if (gFade == TRUE || gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         gFade = FALSE; 
@@ -70,7 +77,8 @@ void DrawOverworld(void)
 
         if (MusicIsPlaying() == FALSE)
         {
-            PlayGameMusic(&gMusicOverworld01);
+            //PlayGameMusic(&gMusicOverworld01);
+            PlayGameMusic(gCurrentArea.Music);
         }
     }
 
@@ -104,9 +112,9 @@ void PPI_Overworld(void)
         return;
     }
 
-    ASSERT((gCamera.x <= gCurrentArea.right - GAME_RES_WIDTH), "Camera is out of bounds!");
+    ASSERT((gCamera.x <= gCurrentArea.Area.right - GAME_RES_WIDTH), "Camera is out of bounds!");
 
-    ASSERT((gCamera.y <= gCurrentArea.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
+    ASSERT((gCamera.y <= gCurrentArea.Area.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
 
     // If the player has no movement remaining, it means the player is standing still.    
 
@@ -243,7 +251,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.y < gCurrentArea.bottom - GAME_RES_HEIGHT)
+                if (gCamera.y < gCurrentArea.Area.bottom - GAME_RES_HEIGHT)
                 {
                     gCamera.y++;
                 }
@@ -263,7 +271,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.x > gCurrentArea.left)
+                if (gCamera.x > gCurrentArea.Area.left)
                 {
                     gCamera.x--;
                 }
@@ -283,7 +291,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.x < (gCurrentArea.right - GAME_RES_WIDTH))
+                if (gCamera.x < (gCurrentArea.Area.right - GAME_RES_WIDTH))
                 {
                     gCamera.x++;
                 }
@@ -303,7 +311,7 @@ void PPI_Overworld(void)
             }
             else
             {
-                if (gCamera.y > gCurrentArea.top)
+                if (gCamera.y > gCurrentArea.Area.top)
                 {
                     gCamera.y--;
                 }
@@ -380,7 +388,7 @@ void PPI_Overworld(void)
 
                     Random = Random % 100;
 
-                    if (Random >= 90)
+                    if (Random >= gPlayer.RandomEncounterPercentage)
                     {
                         RandomMonsterEncounter();
                     }
@@ -415,6 +423,8 @@ void PortalHandler(void)
         {
             PortalFound = TRUE;
 
+            StopMusic();
+
             gFade = TRUE;
 
             gPlayer.WorldPos.x = gPortals[Counter].WorldDestination.x;
@@ -429,7 +439,7 @@ void PortalHandler(void)
 
             gCamera.y = gPortals[Counter].CameraPos.y;
 
-            gCurrentArea = gPortals[Counter].DestinationArea;            
+            gCurrentArea = gPortals[Counter].DestinationArea;
 
             break;
         }

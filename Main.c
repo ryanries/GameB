@@ -894,6 +894,9 @@ DWORD InitializeHero(void)
 
     gPlayer.Direction = DOWN;
 
+    // 90 = 10% chance, 80 = 20% chance, etc.
+    gPlayer.RandomEncounterPercentage = 90;
+
     return(0);    
 }
 
@@ -1998,7 +2001,7 @@ DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAMESOUND* GameSound)
 
     GameSound->Buffer.AudioBytes = DataChunkSize;
 
-    GameSound->Buffer.pAudioData = (BYTE*)Buffer + DataChunkOffset + 8;
+    GameSound->Buffer.pAudioData = (BYTE*)Buffer + DataChunkOffset + 8;    
 
 Exit:
 
@@ -2398,6 +2401,8 @@ void PlayGameSound(_In_ GAMESOUND* GameSound)
 void PauseMusic(void)
 {
     gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+
+    gMusicIsPaused = TRUE;
 }
 
 void StopMusic(void)
@@ -2405,31 +2410,39 @@ void StopMusic(void)
     gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
 
     gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+
+    gMusicIsPaused = FALSE;
 }
 
 void PlayGameMusic(_In_ GAMESOUND* GameSound)
 {
-    gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+    if (gMusicIsPaused == FALSE)
+    {
+        gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
 
-    gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+        gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
 
-    GameSound->Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+        GameSound->Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 
-    gXAudioMusicSourceVoice->lpVtbl->SubmitSourceBuffer(gXAudioMusicSourceVoice, &GameSound->Buffer, NULL);
+        gXAudioMusicSourceVoice->lpVtbl->SubmitSourceBuffer(gXAudioMusicSourceVoice, &GameSound->Buffer, NULL);
 
-    gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
+        gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
+    }
+    else
+    {
+        gXAudioMusicSourceVoice->lpVtbl->Start(gXAudioMusicSourceVoice, 0, XAUDIO2_COMMIT_NOW);
+    }
+
+    gMusicIsPaused = FALSE;
 }
 
-// TODO: This function currently returns true even if there is music that is paused.
-// because even when the music is paused, there is still a buffer in the queue.
-// Need to differentiate between when music is paused vs when there is really no music queued.
 BOOL MusicIsPlaying(void)
 {
     XAUDIO2_VOICE_STATE State = { 0 };
 
     gXAudioMusicSourceVoice->lpVtbl->GetState(gXAudioMusicSourceVoice, &State, 0);    
-
-    if (State.BuffersQueued > 0)
+    
+    if (State.BuffersQueued > 0 && (gMusicIsPaused == FALSE))
     {
         return(TRUE);
     }
@@ -2616,6 +2629,13 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
         goto Exit;
     }
 
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Dungeon01.ogg", RESOURCE_TYPE_OGG, &gMusicDungeon01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Dungeon01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_0])) != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
@@ -2737,12 +2757,20 @@ void InitializeGlobals(void)
 
     gPassableTiles[2] = TILE_BRICK_01;
 
-
-
     // C99 syntax?
-    gOverworldArea = (RECT){ .left = 0, .top = 0, .right = 3840, .bottom = 2400 };
+    gOverworldArea = (GAMEAREA)
+    {
+        .Name = "The World",
+        .Area = (RECT){.left = 0, .top = 0, .right = 3840, .bottom = 2400 },
+        .Music = &gMusicOverworld01
+    };
 
-    gDungeon01Area = (RECT){ .left = 3856, .top = 0, .right = 4240, .bottom = 240 };
+    gDungeon01Area = (GAMEAREA)
+    {
+        .Name = "Dungeon 01",
+        .Area = (RECT){.left = 3856, .top = 0, .right = 4240, .bottom = 240 },    
+        .Music = &gMusicDungeon01 
+    };
 
     gCurrentArea = gOverworldArea;
 

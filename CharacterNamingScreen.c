@@ -165,6 +165,13 @@ void DrawCharacterNaming(void)
 
     static int16_t BrightnessAdjustment = -255;
 
+    // If global TotalFramesRendered is greater than LastFrameSeen,
+    // that means we have either just entered this gamestate for the first time,
+    // or we have left this gamestate previously and have just come back to it.
+    // For example we may have gone from the title screen, to the options screen,
+    // and then back to the title screen again. In that case, we want to reset all
+    // of the "local state," i.e., things that are local to this game state. Such
+    // as text animation, selected menu item, etc.
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
