@@ -123,20 +123,20 @@ void DrawOpeningSplashScreen(void)
         // Text pops in full white, then gradually fades to black.
         if ((LocalFrameCounter >= 180 && LocalFrameCounter <= 210) && (LocalFrameCounter % 15 == 0))
         {
-            TextColor.Red   -= 64;
+            TextColor.Colors.Red   -= 64;
 
-            TextColor.Green -= 64;
+            TextColor.Colors.Green -= 64;
 
-            TextColor.Blue  -= 64;
+            TextColor.Colors.Blue  -= 64;
         }
 
         if (LocalFrameCounter == 225)
         {
-            TextColor.Red   = 0;
+            TextColor.Colors.Red   = 0;
 
-            TextColor.Green = 0;
+            TextColor.Colors.Green = 0;
 
-            TextColor.Blue  = 0;
+            TextColor.Colors.Blue  = 0;
         }
 
         // Splash screen animation is done, but we will linger here until the asset loading

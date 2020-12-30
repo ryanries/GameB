@@ -73,11 +73,10 @@ void DrawOverworld(void)
 
     if (LocalFrameCounter == 60)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = TRUE;        
 
         if (MusicIsPlaying() == FALSE)
-        {
-            //PlayGameMusic(&gMusicOverworld01);
+        {            
             PlayGameMusic(gCurrentArea.Music);
         }
     }
@@ -88,8 +87,8 @@ void DrawOverworld(void)
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y,
         BrightnessAdjustment);
-
-
+                                     //  AA    RR    GG    BB
+    DrawWindow(380, 239, 4, 2, (PIXEL32) { 0xFF, 0x00, 0x00, 0xFF }, FALSE);
 
     LocalFrameCounter++;
 
@@ -412,7 +411,7 @@ void PPI_Overworld(void)
 // on. Then teleport the player to whatever location that portal dictates.
 void PortalHandler(void)
 {
-    gPlayer.HasPlayerMovedSincePortal = FALSE;
+    gPlayer.HasPlayerMovedSincePortal = FALSE;    
 
     BOOL PortalFound = FALSE;    
 
@@ -423,7 +422,7 @@ void PortalHandler(void)
         {
             PortalFound = TRUE;
 
-            StopMusic();
+            StopMusic();            
 
             gFade = TRUE;
 

@@ -323,18 +323,36 @@ typedef struct GAMEAREA
 	GAMESOUND* Music;
 } GAMEAREA;
 
-// A 32-bit, 4-byte pixel. Each color goes 0-255.
-typedef struct PIXEL32
-{
-	uint8_t Blue;
 
-	uint8_t Green;
+typedef union PIXEL32 {
+	struct Colors {
+			
+		uint8_t Blue;
 
-	uint8_t Red;
+		uint8_t Green;
 
-	uint8_t Alpha;
+		uint8_t Red;
 
+		uint8_t Alpha;
+
+	} Colors;
+
+	DWORD Bytes;
 } PIXEL32;
+
+
+// A 32-bit, 4-byte pixel. Each color goes 0-255.
+//typedef struct PIXEL32
+//{
+//	uint8_t Blue;
+//
+//	uint8_t Green;
+//
+//	uint8_t Red;
+//
+//	uint8_t Alpha;
+//
+//} PIXEL32;
 
 // Miscellaneous statistics regarding hardware specs, program performance, etc.
 typedef struct GAMEPERFDATA
@@ -431,7 +449,7 @@ typedef struct HERO
 
 	uint64_t StepsTaken;
 
-	// 90 = 10% chance, 80 = 20% chance, etc.
+	// 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
 	uint8_t RandomEncounterPercentage;
 
 
@@ -609,3 +627,11 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);
 void InitializeGlobals(void);
 
 void RandomMonsterEncounter(void);
+
+void DrawWindow(
+	_In_ uint16_t x, 
+	_In_ uint16_t y, 
+	_In_ int16_t Width, 
+	_In_ int16_t Height, 
+	_In_ PIXEL32 BackgroundColor, 
+	_In_ BOOL Bordered);

@@ -24,6 +24,8 @@
  *
  **************************************************************************/
 
+#pragma warning(disable: 26051)
+
 #pragma warning(disable: 4548)
 
 #pragma warning(disable: 5045)

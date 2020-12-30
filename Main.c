@@ -18,8 +18,10 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 // --- TODO ---
+// "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
 // Movement code is weird when you enter a portal - sometimes you jump out of the portal
 // even though your hand is not on the keyboard as if you had some movement queued up.
+// Does setting gPlayer.RandomEncounterPercentage to 90 really *feel* like 10%? (Does 80 really *feel* like 20%, etc.?)
 // Transparency is broken in the SSE2 version of Blit32BppBitmapToBuffer. (AVX version works fine.)
 // ... moved the tile value debug display to the DrawDebugInfo function.
 // Make the fade in and fade out on the overworld better.
@@ -148,7 +150,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 	UNREFERENCED_PARAMETER(CommandLine);
 
-	UNREFERENCED_PARAMETER(CmdShow);
+	UNREFERENCED_PARAMETER(CmdShow);    
 
     // Handles Windows' Window messages to our game's window.
     MSG Message = { 0 };
@@ -894,8 +896,8 @@ DWORD InitializeHero(void)
 
     gPlayer.Direction = DOWN;
 
-    // 90 = 10% chance, 80 = 20% chance, etc.
-    gPlayer.RandomEncounterPercentage = 90;
+    // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
+    gPlayer.RandomEncounterPercentage = 100;
 
     return(0);    
 }
@@ -948,13 +950,13 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
                 
                 memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
 
-                if (FontSheetPixel.Alpha == 255)
+                if (FontSheetPixel.Colors.Alpha == 255)
                 {
-                    FontSheetPixel.Red   = Color->Red;
+                    FontSheetPixel.Colors.Red   = Color->Colors.Red;
 
-                    FontSheetPixel.Green = Color->Green;
+                    FontSheetPixel.Colors.Green = Color->Colors.Green;
 
-                    FontSheetPixel.Blue  = Color->Blue;
+                    FontSheetPixel.Colors.Blue  = Color->Colors.Blue;
 
                     memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));
                 }                
@@ -1151,15 +1153,15 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
             memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
 
-            if (BitmapPixel.Alpha == 255)
+            if (BitmapPixel.Colors.Alpha == 255)
             {
                 // Clamp between 0 and 255
                 // min(upper, max(x, lower))
-                BitmapPixel.Red   = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Red   = (uint8_t)min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
 
-                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
 
-                BitmapPixel.Blue  = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Blue  = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
 
                 memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
             }
@@ -2794,4 +2796,33 @@ void InitializeGlobals(void)
     gPortals[0] = gPortal001;
 
     gPortals[1] = gPortal002;
+}
+
+void DrawWindow(
+    _In_ uint16_t x,
+    _In_ uint16_t y,
+    _In_ int16_t Width,
+    _In_ int16_t Height,
+    _In_ PIXEL32 BackgroundColor,
+    _In_ BOOL Bordered)
+{
+    ASSERT(Width % sizeof(PIXEL32) == 0, "Window width must be a multiple of 4!");
+
+    ASSERT(x + Width <= GAME_RES_WIDTH, "Window is off the screen!");
+
+    ASSERT(y + Height <= GAME_RES_HEIGHT, "Window is off the screen!")
+    
+    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+
+    for (int Row = 0; Row < Height; Row++)
+    {
+        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
+    }
+
+    if (Bordered)
+    {
+        // TODO
+    }
 }
