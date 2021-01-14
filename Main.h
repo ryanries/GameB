@@ -244,6 +244,21 @@ typedef enum RESOURCE_TYPE
 
 } RESOURCE_TYPE;
 
+// For use in the DrawWindow function.
+typedef enum WINDOW_FLAGS
+{
+	WINDOW_FLAG_BORDERED = 1,				// 1 << 0
+
+	WINDOW_FLAG_HORIZONTALLY_CENTERED = 2,	// 1 << 1, 0b00000010
+
+	WINDOW_FLAG_VERTICALLY_CENTERED = 4,	// 1 << 2, 0b00000100
+
+	WINDOW_FLAG_SHADOW_EFFECT = 8,			// 1 << 3, 0b00001000
+	
+	WINDOW_FLAG_SHAKE = 16					// 1 << 4, 0b00010000
+
+} WINDOW_FLAGS;
+
 /////////// END GLOBAL ENUMS /////////////
 
 /////////// BEGIN GLOBAL STRUCTS /////////////
@@ -321,10 +336,15 @@ typedef struct GAMEAREA
 	RECT Area;
 
 	GAMESOUND* Music;
+
 } GAMEAREA;
 
 
+// A 32-bit, 4-byte pixel. Each color goes 0-255.
+// This is a union so a PIXEL32 can either be referred to
+// as an unsigned 32-bit whole, or as a struct with 4 separate 8-bit components.
 typedef union PIXEL32 {
+
 	struct Colors {
 			
 		uint8_t Blue;
@@ -338,21 +358,8 @@ typedef union PIXEL32 {
 	} Colors;
 
 	DWORD Bytes;
+
 } PIXEL32;
-
-
-// A 32-bit, 4-byte pixel. Each color goes 0-255.
-//typedef struct PIXEL32
-//{
-//	uint8_t Blue;
-//
-//	uint8_t Green;
-//
-//	uint8_t Red;
-//
-//	uint8_t Alpha;
-//
-//} PIXEL32;
 
 // Miscellaneous statistics regarding hardware specs, program performance, etc.
 typedef struct GAMEPERFDATA
@@ -628,10 +635,12 @@ void InitializeGlobals(void);
 
 void RandomMonsterEncounter(void);
 
+// If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
+// If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
 void DrawWindow(
-	_In_ uint16_t x, 
-	_In_ uint16_t y, 
-	_In_ int16_t Width, 
-	_In_ int16_t Height, 
-	_In_ PIXEL32 BackgroundColor, 
-	_In_ BOOL Bordered);
+	_In_ uint16_t x,
+	_In_ uint16_t y,
+	_In_ int16_t Width,
+	_In_ int16_t Height,
+	_In_ PIXEL32 BackgroundColor,
+	_In_ DWORD Flags);

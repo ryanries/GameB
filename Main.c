@@ -17,7 +17,11 @@
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
+
+// "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
+//
 // --- TODO ---
+// Talk about uint8_least_t, uint8_fast_t, etc.
 // "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
 // Movement code is weird when you enter a portal - sometimes you jump out of the portal
 // even though your hand is not on the keyboard as if you had some movement queued up.
@@ -25,7 +29,6 @@
 // Transparency is broken in the SSE2 version of Blit32BppBitmapToBuffer. (AVX version works fine.)
 // ... moved the tile value debug display to the DrawDebugInfo function.
 // Make the fade in and fade out on the overworld better.
-// Hitting the Escape key while in the overworld should take us back to the main menu.
 // (Holding the Escape key down for several seconds should fast-quit the game?)
 // Make gPortalTiles an array like gPassableTiles
 // Add a picture of an xbox gamepad to the "gamepadunplugged" screen
@@ -452,7 +455,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         RenderFrameGraphics();
 
-        QueryPerformanceCounter((LARGE_INTEGER*)&FrameEnd);
+        QueryPerformanceCounter((LARGE_INTEGER*)&FrameEnd);        
 
         ElapsedMicroseconds = FrameEnd - FrameStart;
 
@@ -506,7 +509,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             GetProcessHandleCount(GetCurrentProcess(), &gPerformanceData.HandleCount);
 
-            K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));
+            K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));            
 
             gPerformanceData.RawFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorRaw / CALCULATE_AVG_FPS_EVERY_X_FRAMES) * 0.000001f);
 
@@ -2798,31 +2801,61 @@ void InitializeGlobals(void)
     gPortals[1] = gPortal002;
 }
 
+// If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
+// If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
 void DrawWindow(
     _In_ uint16_t x,
     _In_ uint16_t y,
     _In_ int16_t Width,
     _In_ int16_t Height,
     _In_ PIXEL32 BackgroundColor,
-    _In_ BOOL Bordered)
+    _In_ DWORD Flags)
 {
+    if (Flags & WINDOW_FLAG_HORIZONTALLY_CENTERED)
+    {
+        x = (GAME_RES_WIDTH / 2) - (Width / 2);
+    }
+
+    if (Flags & WINDOW_FLAG_VERTICALLY_CENTERED)
+    {
+        // TODO
+    }
+
     ASSERT(Width % sizeof(PIXEL32) == 0, "Window width must be a multiple of 4!");
 
-    ASSERT(x + Width <= GAME_RES_WIDTH, "Window is off the screen!");
+    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");    
 
-    ASSERT(y + Height <= GAME_RES_HEIGHT, "Window is off the screen!")
-    
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
     for (int Row = 0; Row < Height; Row++)
     {
         int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
-
+        
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
     }
 
-    if (Bordered)
+    if (Flags & WINDOW_FLAG_BORDERED)
     {
-        // TODO
+        // TODO        
+            
+        int MemoryOffset = StartingScreenPixel;
+        
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
+
+        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
+
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
+
+        for (int Row = 1; Row < Height; Row++)
+        {
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, 1);
+
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, 1);
+        }
+        
     }
 }
