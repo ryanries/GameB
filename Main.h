@@ -636,7 +636,9 @@ void InitializeGlobals(void);
 void RandomMonsterEncounter(void);
 
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
+
 // If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
+
 void DrawWindow(
 	_In_ uint16_t x,
 	_In_ uint16_t y,

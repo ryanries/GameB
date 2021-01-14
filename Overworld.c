@@ -87,9 +87,9 @@ void DrawOverworld(void)
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y,
         BrightnessAdjustment);
-                                           //  BB    GG    RR    AA
-    DrawWindow(32, 200, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, (WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED));
-
+                                        //  BB    GG    RR    AA
+    DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
+    
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;

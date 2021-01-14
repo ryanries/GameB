@@ -2802,7 +2802,9 @@ void InitializeGlobals(void)
 }
 
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
+
 // If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
+
 void DrawWindow(
     _In_ uint16_t x,
     _In_ uint16_t y,
@@ -2821,6 +2823,8 @@ void DrawWindow(
         // TODO
     }
 
+    // The window must be a multiple of 4 because we're using the stosd intrinsic which writes 4 bytes at a time.
+
     ASSERT(Width % sizeof(PIXEL32) == 0, "Window width must be a multiple of 4!");
 
     ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");    
@@ -2837,15 +2841,18 @@ void DrawWindow(
     if (Flags & WINDOW_FLAG_BORDERED)
     {
         // TODO        
-            
+
+        // Draw the top of the border.
         int MemoryOffset = StartingScreenPixel;
         
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
 
-        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
+        // Draw the bottom of the border.
+        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
 
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
 
+        // Draw one pixel on the left side and the right side for each row of the border.
         for (int Row = 1; Row < Height; Row++)
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
@@ -2855,7 +2862,6 @@ void DrawWindow(
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
 
             __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, 1);
-        }
-        
+        }        
     }
 }
