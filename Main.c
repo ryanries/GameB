@@ -21,6 +21,8 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
+// Separate DLL file?
+// Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Talk about uint8_least_t, uint8_fast_t, etc.
 // "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
 // Movement code is weird when you enter a portal - sometimes you jump out of the portal
@@ -900,7 +902,7 @@ DWORD InitializeHero(void)
     gPlayer.Direction = DOWN;
 
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
-    gPlayer.RandomEncounterPercentage = 100;
+    gPlayer.RandomEncounterPercentage = 90;
 
     return(0);    
 }
@@ -2419,15 +2421,25 @@ void StopMusic(void)
     gMusicIsPaused = FALSE;
 }
 
-void PlayGameMusic(_In_ GAMESOUND* GameSound)
+void PlayGameMusic(_In_ GAMESOUND* GameSound, _In_ BOOL Loop, _In_ BOOL Immediate)
 {
     if (gMusicIsPaused == FALSE)
     {
-        gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
+        if (Immediate)
+        {
+            gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
 
-        gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+            gXAudioMusicSourceVoice->lpVtbl->FlushSourceBuffers(gXAudioMusicSourceVoice);
+        }
 
-        GameSound->Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+        if (Loop)
+        {
+            GameSound->Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+        }
+        else
+        {
+            GameSound->Buffer.LoopCount = 0;
+        }
 
         gXAudioMusicSourceVoice->lpVtbl->SubmitSourceBuffer(gXAudioMusicSourceVoice, &GameSound->Buffer, NULL);
 
@@ -2641,6 +2653,20 @@ DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
         goto Exit;
     }
 
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Battle01.ogg", RESOURCE_TYPE_OGG, &gMusicBattle01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Battle01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "BattleIntro01.ogg", RESOURCE_TYPE_OGG, &gMusicBattleIntro01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading BattleIntro01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_0])) != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
@@ -2820,7 +2846,7 @@ void DrawWindow(
 
     if (Flags & WINDOW_FLAG_VERTICALLY_CENTERED)
     {
-        // TODO
+        y = (GAME_RES_HEIGHT / 2) - (Height / 2);
     }
 
     // The window must be a multiple of 4 because we're using the stosd intrinsic which writes 4 bytes at a time.
@@ -2836,6 +2862,35 @@ void DrawWindow(
         int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
         
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
+    }    
+
+    if (Flags & WINDOW_FLAG_SHADOW_EFFECT)
+    {
+        // Shift the window one pixel up and to the left,
+        // to make sure that the shadow does not fall outside of the bounds of the screen.
+        if (x > 0)
+        {
+            x -= 1;
+        }
+
+        if (y > 0)
+        {
+            y -= 1;
+        }
+
+        int MemoryOffset = StartingScreenPixel;
+
+        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height) + 1;
+
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, Width);
+
+        // Draw one grey pixel on the right side of the window, one pixel per row
+        for (int Row = 1; Row < Height; Row++)
+        {
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
+
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, 1);
+        }
     }
 
     if (Flags & WINDOW_FLAG_BORDERED)
@@ -2845,23 +2900,24 @@ void DrawWindow(
         // Draw the top of the border.
         int MemoryOffset = StartingScreenPixel;
         
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);
 
         // Draw the bottom of the border.
         MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
 
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, Width);
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);        
 
         // Draw one pixel on the left side and the right side for each row of the border.
+
         for (int Row = 1; Row < Height; Row++)
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
-            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, 1);
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);            
 
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
 
-            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFFFFFF, 1);
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);
         }        
     }
 }

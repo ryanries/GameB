@@ -546,6 +546,10 @@ GAMESOUND gMusicOverworld01;
 
 GAMESOUND gMusicDungeon01;
 
+GAMESOUND gMusicBattle01;
+
+GAMESOUND gMusicBattleIntro01;
+
 HERO gPlayer;
 
 float gSFXVolume;
@@ -619,7 +623,7 @@ DWORD Load32BppBitmapFromMemory(_In_ void* Buffer, _Inout_ GAMEBITMAP* GameBitma
 
 void PlayGameSound(_In_ GAMESOUND* GameSound);
 
-void PlayGameMusic(_In_ GAMESOUND* GameSound);
+void PlayGameMusic(_In_ GAMESOUND* GameSound, _In_ BOOL Loop, _In_ BOOL Immediate);
 
 void PauseMusic(void);
 

@@ -77,7 +77,7 @@ void DrawOverworld(void)
 
         if (MusicIsPlaying() == FALSE)
         {            
-            PlayGameMusic(gCurrentArea.Music);
+            PlayGameMusic(gCurrentArea.Music, TRUE, TRUE);
         }
     }
 
@@ -88,7 +88,7 @@ void DrawOverworld(void)
         gPlayer.ScreenPos.y,
         BrightnessAdjustment);
                                         //  BB    GG    RR    AA
-    DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
+    //DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_SHADOW_EFFECT | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
     
     LocalFrameCounter++;
 
