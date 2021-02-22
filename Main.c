@@ -198,7 +198,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     // Used to ensure that the assets file both exists and is not a directory.    
     DWORD AssetFileAttributes = 0;
-    
 
     // This critical section is used to synchronize access to the log file vis a vis
     // LogMessageA when used by multiple threads simultaneously. Documentation says
@@ -227,6 +226,13 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     }
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
+
+    if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__);
+
+        goto Exit;
+    }
 
     // This function uses a global mutex to determine whether another instance of the same
     // process is already running. This is not hack-proof but it does prevent accidents.
@@ -578,6 +584,31 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
         {
             Result = DefWindowProcA(WindowHandle, Message, WParam, LParam);
         }
+    }
+
+    return(Result);
+}
+
+DWORD LoadGameCode(char* ModuleFileName)
+{
+    DWORD Result = ERROR_SUCCESS;
+
+    HMODULE GameCodeModule = LoadLibraryA(ModuleFileName);    
+
+    if (GameCodeModule == NULL)
+    {
+        Result = GetLastError();
+
+        goto Exit;
+    }
+
+
+
+Exit:
+
+    if (Result != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Function failed with error 0x%08lx!", __FUNCTION__, Result);
     }
 
     return(Result);

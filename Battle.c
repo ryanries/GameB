@@ -45,6 +45,33 @@ void DrawBattle(void)
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
     }
 
+    if (LocalFrameCounter == 10)
+    {
+        TextColor.Colors.Red = 64;
+
+        TextColor.Colors.Green = 64;
+
+        TextColor.Colors.Blue = 64;
+    }
+
+    if (LocalFrameCounter == 20)
+    {
+        TextColor.Colors.Red = 128;
+
+        TextColor.Colors.Green = 128;
+
+        TextColor.Colors.Blue = 128;
+    }
+
+    if (LocalFrameCounter == 30)
+    {
+        TextColor.Colors.Red = 192;
+
+        TextColor.Colors.Green = 192;
+
+        TextColor.Colors.Blue = 192;
+    }
+
     if (LocalFrameCounter == 40)
     {
         TextColor.Colors.Red = 255;

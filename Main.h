@@ -101,13 +101,15 @@
 
 #endif
 
-#define GAME_NAME	"Game_B"
+#define GAME_NAME				"Game_B"
 
-#define GAME_VER	"0.9a"
+#define GAME_VER				"0.9a"
 
-#define ASSET_FILE	"Assets.dat"
+#define ASSET_FILE				"Assets.dat"
 
 #define LOG_FILE_NAME GAME_NAME ".log"
+
+#define GAME_CODE_MODULE		"GameCode.dll"
 
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
@@ -584,6 +586,8 @@ BOOL gGameIsRunning;
 /////////// FUNCTION DELCARATIONS /////////////
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
+
+DWORD LoadGameCode(_In_ char* ModuleFileName);
 
 DWORD CreateMainGameWindow(void);
 
