@@ -229,7 +229,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
     {
-        LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__);
+        LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
 
         goto Exit;
     }
@@ -589,7 +589,7 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
     return(Result);
 }
 
-DWORD LoadGameCode(char* ModuleFileName)
+DWORD LoadGameCode(_In_ char* ModuleFileName)
 {
     DWORD Result = ERROR_SUCCESS;
 
@@ -606,7 +606,11 @@ DWORD LoadGameCode(char* ModuleFileName)
 
 Exit:
 
-    if (Result != ERROR_SUCCESS)
+    if (Result == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] Successfully loaded code from module %s!", __FUNCTION__, GAME_CODE_MODULE);
+    }
+    else
     {
         LogMessageA(LL_ERROR, "[%s] Function failed with error 0x%08lx!", __FUNCTION__, Result);
     }
