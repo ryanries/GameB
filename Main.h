@@ -169,11 +169,6 @@
 // which currently is just all 98 ASCII characters in a single row.
 #define FONT_SHEET_CHARACTERS_PER_ROW 98
 
-// This is for using the undocumented Windows API function NtQueryTimerResolution.
-typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
-
-_NtQueryTimerResolution NtQueryTimerResolution;
-
 /////////// BEGIN GLOBAL ENUMS /////////////
 
 typedef enum DIRECTION
@@ -521,7 +516,9 @@ typedef struct MENU
 
 /////////// END GLOBAL STRUCTS /////////////
 
+HMODULE gGameCodeModule;
 
+FILETIME gGameCodeLastWriteTime;
 
 GAMEPERFDATA gPerformanceData;
 
@@ -584,6 +581,18 @@ HANDLE gEssentialAssetsLoadedEvent;
 BOOL gGameIsRunning;
 
 /////////// FUNCTION DELCARATIONS /////////////
+
+// IMPORTS FROM NTDLL.DLL //
+
+// This is for using the undocumented Windows API function NtQueryTimerResolution.
+typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
+
+_NtQueryTimerResolution NtQueryTimerResolution;
+
+// IMPORTS FROM GAMECODE.DLL //
+typedef int(__cdecl* _TestFunc01) (void);
+
+_TestFunc01 TestFunc01;
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
 

@@ -21,6 +21,7 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
+// Screen doesn't refresh (the debug overlay) when in the Battle State
 // Separate DLL file?
 // Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Talk about uint8_least_t, uint8_fast_t, etc.
@@ -525,6 +526,44 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             FindFirstConnectedGamepad();
 
+            #ifdef _DEBUG
+
+            HANDLE GameCodeFileHandle = INVALID_HANDLE_VALUE;            
+
+            GameCodeFileHandle = CreateFileA(GAME_CODE_MODULE, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
+            
+            if ((GameCodeFileHandle == INVALID_HANDLE_VALUE) || (GameCodeFileHandle == NULL))
+            {
+                LogMessageA(LL_WARNING, "[%s] Failed to load game code module! Error 0x%08lx", __FUNCTION__, GetLastError());
+            }
+            else
+            {
+                FILETIME LastWriteTime = { 0 };
+
+                if (GetFileTime(GameCodeFileHandle, NULL, NULL, &LastWriteTime) == 0)
+                {
+                    LogMessageA(LL_WARNING, "[%s] GetFileTime failed with 0x%08lx!", __FUNCTION__, GetLastError());
+                }
+                else
+                {
+                    if (LastWriteTime.dwHighDateTime != gGameCodeLastWriteTime.dwHighDateTime ||
+                        LastWriteTime.dwLowDateTime != gGameCodeLastWriteTime.dwLowDateTime)
+                    {
+                        if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
+                        {
+                            LogMessageA(LL_WARNING, "[%s] Failed to load game code module %s!", __FUNCTION__, GAME_CODE_MODULE);                            
+                        }
+                    }
+                }
+
+                if (GameCodeFileHandle != INVALID_HANDLE_VALUE)
+                {
+                    CloseHandle(GameCodeFileHandle);
+                }
+            }
+
+            #endif
+
             ElapsedMicrosecondsAccumulatorRaw = 0;
 
             ElapsedMicrosecondsAccumulatorCooked = 0;
@@ -591,19 +630,58 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
 
 DWORD LoadGameCode(_In_ char* ModuleFileName)
 {
-    DWORD Result = ERROR_SUCCESS;
+    DWORD Result = ERROR_SUCCESS;    
 
-    HMODULE GameCodeModule = LoadLibraryA(ModuleFileName);    
+    HANDLE GameCodeFileHandle = INVALID_HANDLE_VALUE;    
 
-    if (GameCodeModule == NULL)
+    if (gGameCodeModule)
+    {
+        FreeLibrary(gGameCodeModule);
+
+        gGameCodeModule = NULL;
+    }
+
+    GameCodeFileHandle = CreateFileA(ModuleFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
+
+    if (GameCodeFileHandle == INVALID_HANDLE_VALUE)
+    {
+        LogMessageA(LL_WARNING, "[%s] Failed to load game code module! Error 0x%08lx", __FUNCTION__, GetLastError());
+    }
+    else
+    {
+        FILETIME LastWriteTime = { 0 };
+
+        if (GetFileTime(GameCodeFileHandle, NULL, NULL, &LastWriteTime) == 0)
+        {
+            LogMessageA(LL_WARNING, "[%s] GetFileTime failed with 0x%08lx!", __FUNCTION__, GetLastError());
+        }
+        else
+        {
+            gGameCodeLastWriteTime = LastWriteTime;
+        }
+
+        if (GameCodeFileHandle != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(GameCodeFileHandle);
+        }
+    }
+
+    gGameCodeModule = LoadLibraryA(ModuleFileName);    
+
+    if (gGameCodeModule == NULL)
     {
         Result = GetLastError();
 
         goto Exit;
     }
 
+    if ((TestFunc01 = (_TestFunc01)GetProcAddress(gGameCodeModule, "TestFunc01")) == NULL)
+    {
+        Result = GetLastError();
 
-
+        goto Exit;
+    }
+    
 Exit:
 
     if (Result == ERROR_SUCCESS)
@@ -790,6 +868,11 @@ void ProcessPlayerInput(void)
     if ((gInputEnabled == FALSE) || (gWindowHasFocus == FALSE))
     {
         return;
+    }
+
+    if (GetAsyncKeyState(VK_F2))
+    {
+        TestFunc01();
     }
 
     gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
