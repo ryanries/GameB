@@ -33,8 +33,11 @@ The environment variable is called GAMEBDIR and it should point to the fully-qua
 You can use the setx utility to create this environment variable. For example:
 
 `C:\>setx GAMEBDIR C:\Users\ryanr\source\repos\GameB`
+
 ` `
+
 `SUCCESS: Specified value was saved.`
+
 
 `GAMEBDIR=C:\Users\ryanr\source\repos\GameB`
 
