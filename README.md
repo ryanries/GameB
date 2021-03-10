@@ -28,6 +28,17 @@ If you run the game from the Visual Studio debugger, the working directory of th
 as the Visual Studio solution. But if you run the game normally, outside of the debugger, the working directory
 will be the same directory as the game's executable.
 
+There is also an environment variable you should create.
+The environment variable is called GAMEBDIR and it should point to the fully-qualified path to the project on your machine.
+You can use the setx utility to create this environment variable. For example:
+
+`C:\>setx GAMEBDIR C:\Users\ryanr\source\repos\GameB`
+` `
+`SUCCESS: Specified value was saved.`
+
+`GAMEBDIR=C:\Users\ryanr\source\repos\GameB`
+
+
  
 # License
 ----------

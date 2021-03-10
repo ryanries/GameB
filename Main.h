@@ -111,6 +111,8 @@
 
 #define GAME_CODE_MODULE		"GameCode.dll"
 
+#define GAME_CODE_MODULE_TMP	"GameCode.tmp"
+
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
 #define GAME_RES_WIDTH	384
@@ -646,7 +648,7 @@ BOOL MusicIsPlaying(void);
 
 DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource);
 
-DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam);
+DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
 void InitializeGlobals(void);
 

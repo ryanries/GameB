@@ -1,1 +1,2 @@
-copy C:\Users\ryanr\source\repos\GameB\GameCode\x86\Debug\GameCode.dll C:\Users\ryanr\source\repos\GameB\x86\Debug\GameCode.dll /Y
+copy %GAMEBDIR%\GameCode\x86\Debug\GameCode.dll %GAMEBDIR%\x86\Debug\GameCode.tmp /Y
+copy %GAMEBDIR%\GameCode\x86\Debug\GameCode.dll %GAMEBDIR%\GameCode.tmp /Y

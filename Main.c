@@ -526,43 +526,17 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             FindFirstConnectedGamepad();
 
-            #ifdef _DEBUG
-
-            HANDLE GameCodeFileHandle = INVALID_HANDLE_VALUE;            
-
-            GameCodeFileHandle = CreateFileA(GAME_CODE_MODULE, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
             
-            if ((GameCodeFileHandle == INVALID_HANDLE_VALUE) || (GameCodeFileHandle == NULL))
+#ifdef _DEBUG
+
+            if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
             {
-                LogMessageA(LL_WARNING, "[%s] Failed to load game code module! Error 0x%08lx", __FUNCTION__, GetLastError());
-            }
-            else
-            {
-                FILETIME LastWriteTime = { 0 };
-
-                if (GetFileTime(GameCodeFileHandle, NULL, NULL, &LastWriteTime) == 0)
+                if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
                 {
-                    LogMessageA(LL_WARNING, "[%s] GetFileTime failed with 0x%08lx!", __FUNCTION__, GetLastError());
+                    LogMessageA(LL_WARNING, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
                 }
-                else
-                {
-                    if (LastWriteTime.dwHighDateTime != gGameCodeLastWriteTime.dwHighDateTime ||
-                        LastWriteTime.dwLowDateTime != gGameCodeLastWriteTime.dwLowDateTime)
-                    {
-                        if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
-                        {
-                            LogMessageA(LL_WARNING, "[%s] Failed to load game code module %s!", __FUNCTION__, GAME_CODE_MODULE);                            
-                        }
-                    }
-                }
-
-                if (GameCodeFileHandle != INVALID_HANDLE_VALUE)
-                {
-                    CloseHandle(GameCodeFileHandle);
-                }
-            }
-
-            #endif
+            }        
+#endif
 
             ElapsedMicrosecondsAccumulatorRaw = 0;
 
@@ -632,8 +606,6 @@ DWORD LoadGameCode(_In_ char* ModuleFileName)
 {
     DWORD Result = ERROR_SUCCESS;    
 
-    HANDLE GameCodeFileHandle = INVALID_HANDLE_VALUE;    
-
     if (gGameCodeModule)
     {
         FreeLibrary(gGameCodeModule);
@@ -641,28 +613,24 @@ DWORD LoadGameCode(_In_ char* ModuleFileName)
         gGameCodeModule = NULL;
     }
 
-    GameCodeFileHandle = CreateFileA(ModuleFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
-
-    if (GameCodeFileHandle == INVALID_HANDLE_VALUE)
+    if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
     {
-        LogMessageA(LL_WARNING, "[%s] Failed to load game code module! Error 0x%08lx", __FUNCTION__, GetLastError());
-    }
-    else
-    {
-        FILETIME LastWriteTime = { 0 };
-
-        if (GetFileTime(GameCodeFileHandle, NULL, NULL, &LastWriteTime) == 0)
+        if (DeleteFileA(GAME_CODE_MODULE) == 0)
         {
-            LogMessageA(LL_WARNING, "[%s] GetFileTime failed with 0x%08lx!", __FUNCTION__, GetLastError());
+            LogMessageA(LL_WARNING, "[%s] Failed to delete file %s! Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GetLastError());            
         }
         else
         {
-            gGameCodeLastWriteTime = LastWriteTime;
+            LogMessageA(LL_INFO, "[%s] Deleted file %s.", __FUNCTION__, GAME_CODE_MODULE);
         }
 
-        if (GameCodeFileHandle != INVALID_HANDLE_VALUE)
+        if (MoveFileA(GAME_CODE_MODULE_TMP, GAME_CODE_MODULE) == 0)
         {
-            CloseHandle(GameCodeFileHandle);
+            LogMessageA(LL_WARNING, "[%s] Failed to replace file %s with file %s. Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GAME_CODE_MODULE_TMP, GetLastError());            
+        }
+        else
+        {
+            LogMessageA(LL_INFO, "[%s] Renamed file %s to %s.", __FUNCTION__, GAME_CODE_MODULE_TMP, GAME_CODE_MODULE);
         }
     }
 
@@ -2700,7 +2668,7 @@ Exit:
 // This background thread loads all of the game's assets such as fonts, music,
 // maps and sprites. Loading the assets on a separate thread improves the startup time
 // of the game assuming the user has more than one CPU core.
-DWORD AssetLoadingThreadProc(_In_ LPVOID lpParam)
+DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
 {
     UNREFERENCED_PARAMETER(lpParam);
 
@@ -2904,7 +2872,7 @@ void InitializeGlobals(void)
 
     gPassableTiles[1] = TILE_PORTAL_01;
 
-    gPassableTiles[2] = TILE_BRICK_01;
+    gPassableTiles[2] = TILE_BRICK_01;    
 
     // C99 syntax?
     gOverworldArea = (GAMEAREA)
