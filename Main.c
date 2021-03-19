@@ -22,7 +22,6 @@
 //
 // --- TODO ---
 // Screen doesn't refresh (the debug overlay) when in the Battle State
-// Separate DLL file?
 // Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Talk about uint8_least_t, uint8_fast_t, etc.
 // "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
@@ -231,6 +230,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
+
+        MessageBoxA(NULL, "Failed to load " GAME_CODE_MODULE "!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
     }
@@ -528,7 +529,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             
 #ifdef _DEBUG
-
+            
             if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
             {
                 if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
@@ -554,6 +555,11 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 Exit:
 
     LogMessageA(LL_INFO, "[%s] Game is exiting.\r\n", __FUNCTION__);
+
+    // Set this just in case we failed before entering the main game loop,
+    // and the asset loading thread never got a chance to set it, which could
+    // hang us.
+    SetEvent(gEssentialAssetsLoadedEvent);
 
 	return(0);
 }
@@ -643,7 +649,7 @@ DWORD LoadGameCode(_In_ char* ModuleFileName)
         goto Exit;
     }
 
-    if ((TestFunc01 = (_TestFunc01)GetProcAddress(gGameCodeModule, "TestFunc01")) == NULL)
+    if ((RandomMonsterEncounter = (_RandomMonsterEncounter)GetProcAddress(gGameCodeModule, "RandomMonsterEncounter")) == NULL)
     {
         Result = GetLastError();
 
@@ -836,11 +842,6 @@ void ProcessPlayerInput(void)
     if ((gInputEnabled == FALSE) || (gWindowHasFocus == FALSE))
     {
         return;
-    }
-
-    if (GetAsyncKeyState(VK_F2))
-    {
-        TestFunc01();
     }
 
     gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);

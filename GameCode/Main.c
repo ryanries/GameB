@@ -61,10 +61,3 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
     return(TRUE);
 }
 #endif
-
-_declspec(dllexport) int TestFunc01(void)
-{
-    MessageBoxA(NULL, "test message 04", "Test", MB_OK | MB_ICONASTERISK);
-
-    return(0);
-}

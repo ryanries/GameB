@@ -37,3 +37,4 @@ REM copy Assets.dat into whatever directory or directories it needs to be in
 
 copy Assets.dat .\x64\Debug\Assets.dat
 copy Assets.dat .\x64\Release\Assets.dat
+copy Assets.dat .\build\Assets.dat

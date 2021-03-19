@@ -9,6 +9,8 @@ void PPI_Battle(void)
 		gPreviousGameState = gCurrentGameState;
 
 		gCurrentGameState = GAMESTATE_OVERWORLD;
+
+        StopMusic();
 	}
 }
 
@@ -18,7 +20,9 @@ void DrawBattle(void)
 
     static uint64_t LastFrameSeen;
 
-    static PIXEL32 TextColor;
+    static PIXEL32 TextColor;    
+
+    static int16_t BrightnessAdjustment = -255;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -52,6 +56,8 @@ void DrawBattle(void)
         TextColor.Colors.Green = 64;
 
         TextColor.Colors.Blue = 64;
+
+        BrightnessAdjustment = -128;
     }
 
     if (LocalFrameCounter == 20)
@@ -61,6 +67,8 @@ void DrawBattle(void)
         TextColor.Colors.Green = 128;
 
         TextColor.Colors.Blue = 128;
+
+        BrightnessAdjustment = -64;
     }
 
     if (LocalFrameCounter == 30)
@@ -70,6 +78,8 @@ void DrawBattle(void)
         TextColor.Colors.Green = 192;
 
         TextColor.Colors.Blue = 192;
+
+        BrightnessAdjustment = -32;
     }
 
     if (LocalFrameCounter == 40)
@@ -80,8 +90,12 @@ void DrawBattle(void)
 
         TextColor.Colors.Blue = 255;
 
+        BrightnessAdjustment = 0;
+
         gInputEnabled = TRUE;
     }
+
+    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 
 	DrawWindow(0, 0, 96, 96, (PIXEL32){ 0, 0, 0, 0xFF }, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED);
 

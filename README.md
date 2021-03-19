@@ -34,13 +34,31 @@ You can use the setx utility to create this environment variable. For example:
 
 `C:\>setx GAMEBDIR C:\Users\ryanr\source\repos\GameB`
 
-` `
 
 `SUCCESS: Specified value was saved.`
 
 
 `GAMEBDIR=C:\Users\ryanr\source\repos\GameB`
 
+# Tools
+--------
+Some extra tools used to help create this game:
+
+(These are all 3rd party tools I bear no responsibility for and have no control over.)
+
+- [Paint.NET](https://www.getpaint.net/)
+
+- [32bpp bmpx extension for Paint.NET](https://forums.getpaint.net/topic/11201-alpha-32bits-bitmap-support-for-paintnet/#entry308033)
+
+- [Tiled](https://www.mapeditor.org/)
+
+- [Audacity](https://www.audacityteam.org/)
+
+- [ASCIIFlow](https://asciiflow.com/#/)
+
+- [BFXer](https://www.bfxr.net/)
+
+- [Aseprite](https://www.aseprite.org/)
 
  
 # License

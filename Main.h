@@ -592,9 +592,9 @@ typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT 
 _NtQueryTimerResolution NtQueryTimerResolution;
 
 // IMPORTS FROM GAMECODE.DLL //
-typedef int(__cdecl* _TestFunc01) (void);
+typedef int(__cdecl* _RandomMonsterEncounter) (_In_ GAMESTATE* PreviousGameState, _Inout_ GAMESTATE* CurrentGameState);
 
-_TestFunc01 TestFunc01;
+_RandomMonsterEncounter RandomMonsterEncounter;
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
 
@@ -651,8 +651,6 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
 void InitializeGlobals(void);
-
-void RandomMonsterEncounter(void);
 
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
 

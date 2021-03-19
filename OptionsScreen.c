@@ -184,7 +184,9 @@ void PPI_OptionsScreen(void)
         }
     }
 
-    if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
+    if ((gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown) ||
+        (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown) ||
+        (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown))
     {
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Action();
 
@@ -213,11 +215,21 @@ void MenuItem_OptionsScreen_Back(void)
 
 void MenuItem_OptionsScreen_ScreenSize(void)
 {
-    if (gPerformanceData.CurrentScaleFactor < gPerformanceData.MaxScaleFactor)
+    if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
+    {
+        gPerformanceData.CurrentScaleFactor--;        
+    }
+    else
     {
         gPerformanceData.CurrentScaleFactor++;
     }
-    else
+
+    if (gPerformanceData.CurrentScaleFactor < 1)
+    {
+        gPerformanceData.CurrentScaleFactor = gPerformanceData.MaxScaleFactor;
+    }
+
+    if (gPerformanceData.CurrentScaleFactor > gPerformanceData.MaxScaleFactor)
     {
         gPerformanceData.CurrentScaleFactor = 1;
     }
@@ -227,7 +239,19 @@ void MenuItem_OptionsScreen_ScreenSize(void)
 
 void MenuItem_OptionsScreen_MusicVolume(void)
 {
-    gMusicVolume += 0.1f;
+    if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
+    {
+        gMusicVolume -= 0.1f;
+    }
+    else
+    {
+        gMusicVolume += 0.1f;
+    }
+
+    if (gMusicVolume < 0.0f)
+    {
+        gMusicVolume = 1.0f;
+    }  
 
     if ((uint8_t)(gMusicVolume * 10) > 10)
     {
@@ -239,7 +263,19 @@ void MenuItem_OptionsScreen_MusicVolume(void)
 
 void MenuItem_OptionsScreen_SFXVolume(void)
 {
-    gSFXVolume += 0.1f;
+    if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
+    {
+        gSFXVolume -= 0.1f;
+    }
+    else
+    {
+        gSFXVolume += 0.1f;
+    }
+
+    if (gSFXVolume < 0.0f)
+    {
+        gSFXVolume = 1.0f;
+    }
 
     if ((uint8_t)(gSFXVolume * 10) > 10)
     {
