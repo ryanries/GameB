@@ -92,13 +92,13 @@ void DrawOptionsScreen(void)
 
     if (LocalFrameCounter == 40)
     {
-        TextColor.Colors.Red = 255;
+TextColor.Colors.Red = 255;
 
-        TextColor.Colors.Green = 255;
+TextColor.Colors.Green = 255;
 
-        TextColor.Colors.Blue = 255;
+TextColor.Colors.Blue = 255;
 
-        gInputEnabled = TRUE;
+gInputEnabled = TRUE;
     }
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
@@ -184,13 +184,24 @@ void PPI_OptionsScreen(void)
         }
     }
 
-    if ((gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown) ||
-        (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown) ||
-        (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown))
+    
+    if ((gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown))
     {
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Action();
 
         PlayGameSound(&gSoundMenuChoose);
+    }
+    else if ((gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown) ||        
+             (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown))    
+    {
+        // Allow the left and right buttons to work in the options menu,
+        // but not on the back button. Must still use the choose key to go back.
+        if (gMenu_OptionsScreen.SelectedItem != gMenu_OptionsScreen.ItemCount - 1)
+        {
+            gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Action();
+
+            PlayGameSound(&gSoundMenuChoose);
+        }
     }
 
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
