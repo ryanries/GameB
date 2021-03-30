@@ -21,7 +21,10 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
-// Screen doesn't refresh (the debug overlay) when in the Battle State
+// Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
+// sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
+// slightly better when in multiples of word size too.
+// 
 // Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Talk about uint8_least_t, uint8_fast_t, etc.
 // "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
@@ -1815,55 +1818,59 @@ __forceinline void DrawDebugInfo(void)
 
     //BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0x60, 0x60, 0x60, 0xff }, 1, 1);
     
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 0);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 0));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSCookd:%.01f", gPerformanceData.CookedFPSAverage);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 8);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 1));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MinTimer:%.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 16);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 2));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MaxTimer:%.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 24);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 3));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CurTimer:%.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 32);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 4));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Handles: %lu", gPerformanceData.HandleCount);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 40);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 5));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Memory:  %zu KB", gPerformanceData.MemInfo.PrivateUsage / 1024);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 48);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 6));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CPU:     %.02f%%", gPerformanceData.CPUPercent);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 56);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 7));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FramesT: %llu", gPerformanceData.TotalFramesRendered);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 64);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 8));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenXY:%hu,%hu", gPlayer.ScreenPos.x, gPlayer.ScreenPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 72);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 9));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "WorldXY: %hu,%hu", gPlayer.WorldPos.x, gPlayer.WorldPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 80);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 10));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CameraXY:%hu,%hu", gCamera.x, gCamera.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 88);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 11));
 
     sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Movement:%u", gPlayer.MovementRemaining);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, 96);
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 12));
+
+    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Steps:%llu", gPlayer.StepsTaken);
+
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 13));
 
     // Draw the tile values around the player so we can verify which tiles we should be and should not be allowed to walk on.
  
