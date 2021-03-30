@@ -2836,7 +2836,23 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
-    }    
+    }   
+
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Grasslands01.bmpx", RESOURCE_TYPE_BMPX, &gBattleScene_Grasslands01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Grasslands01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Dungeon01.bmpx", RESOURCE_TYPE_BMPX, &gBattleScene_Dungeon01)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Dungeon01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    //
 
 Exit:
 

@@ -17,6 +17,10 @@ MyMiniz.exe Assets.dat + .\Assets\Hero_Suit0_Up_Walk1.bmpx >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\Hero_Suit0_Up_Walk2.bmpx >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\Maps\Overworld01.bmpx >> CopyAssets.log
 
+REM --- BATTLE SCENES ---
+MyMiniz.exe Assets.dat + .\Assets\BattleScenes\Grasslands01.bmpx >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\BattleScenes\Dungeon01.bmpx >> CopyAssets.log
+
 REM --- SOUNDS ---
 MyMiniz.exe Assets.dat + .\Assets\MenuChoose.wav >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\MenuNavigate.wav >> CopyAssets.log

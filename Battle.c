@@ -24,6 +24,8 @@ void DrawBattle(void)
 
     static int16_t BrightnessAdjustment = -255;
 
+    GAMEBITMAP* BattleScene = NULL;
+
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
     // or we have left this gamestate previously and have just come back to it.
@@ -97,8 +99,38 @@ void DrawBattle(void)
 
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 
-	DrawWindow(0, 0, 96, 96, (PIXEL32){ 0, 0, 0, 0xFF }, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED);
+	DrawWindow(0, 0, 96, 96, (PIXEL32){ 0, 0, 0, 0xFF }, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED | WINDOW_FLAG_BORDERED);
 
+
+
+    switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
+    {
+        case TILE_GRASS_01:
+        {
+            BattleScene = &gBattleScene_Grasslands01;
+
+            break;
+        }
+        case TILE_BRICK_01:
+        {
+            BattleScene = &gBattleScene_Dungeon01;
+
+            break;
+        }
+        default:
+        {
+            ASSERT(FALSE, "Random monster encountered on an unknown tile!");
+        }
+    }
+
+    if (BattleScene != 0)
+    {
+        Blit32BppBitmapToBuffer(BattleScene, 145, 73, BrightnessAdjustment);
+    }
+    else
+    {
+        ASSERT(FALSE, "BattleScene is NULL!");
+    }
 
     LocalFrameCounter++;
 

@@ -380,16 +380,20 @@ void PPI_Overworld(void)
                 else
                 {
                     // Should we run into a random monster encounter?
-
-                    DWORD Random = 0;
-
-                    rand_s((unsigned int*)&Random);
-
-                    Random = Random % 100;
-
-                    if (Random >= gPlayer.RandomEncounterPercentage)
+                    if ((gPlayer.StepsTaken - gPlayer.StepsSinceLastRandomMonsterEncounter) >= RANDOM_MONSTER_GRACE_PERIOD_STEPS)
                     {
-                        RandomMonsterEncounter(&gPreviousGameState, &gCurrentGameState);
+                        DWORD Random = 0;
+
+                        rand_s((unsigned int*)&Random);
+
+                        Random = Random % 100;
+
+                        if (Random >= gPlayer.RandomEncounterPercentage)
+                        {
+                            gPlayer.StepsSinceLastRandomMonsterEncounter = gPlayer.StepsTaken;
+
+                            RandomMonsterEncounter(&gPreviousGameState, &gCurrentGameState);
+                        }
                     }
                 }
 

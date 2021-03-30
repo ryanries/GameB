@@ -171,6 +171,10 @@
 // which currently is just all 98 ASCII characters in a single row.
 #define FONT_SHEET_CHARACTERS_PER_ROW 98
 
+// The number of steps the player must take after the previous random monster
+// encounter before another random monster encounter can take place.
+#define RANDOM_MONSTER_GRACE_PERIOD_STEPS 3
+
 /////////// BEGIN GLOBAL ENUMS /////////////
 
 typedef enum DIRECTION
@@ -448,6 +452,8 @@ typedef struct HERO
 	// instantly being teleported back because they're currently standing on a portal.
 	BOOL HasPlayerMovedSincePortal;
 
+	
+
 	// SUIT_0, SUIT_1, or SUIT_2
 	uint8_t CurrentArmor;		
 
@@ -457,6 +463,8 @@ typedef struct HERO
 
 	// 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
 	uint8_t RandomEncounterPercentage;
+
+	uint64_t StepsSinceLastRandomMonsterEncounter;
 
 
 
@@ -528,6 +536,10 @@ GAMEPERFDATA gPerformanceData;
 GAMEBITMAP gBackBuffer;
 
 GAMEBITMAP g6x7Font;
+
+GAMEBITMAP gBattleScene_Grasslands01;
+
+GAMEBITMAP gBattleScene_Dungeon01;
 
 GAMEMAP gOverworld01;
 
