@@ -47,29 +47,9 @@ void DrawOverworld(void)
         memset(&TextColor, 0, sizeof(PIXEL32));
 
         BrightnessAdjustment = -255;
-
-        gInputEnabled = FALSE;
     }
 
-    if (LocalFrameCounter == 10)
-    {
-        BrightnessAdjustment = -128;
-    }
-
-    if (LocalFrameCounter == 20)
-    {
-        BrightnessAdjustment = -64;
-    }
-
-    if (LocalFrameCounter == 30)
-    {
-        BrightnessAdjustment = -32;
-    }
-
-    if (LocalFrameCounter == 40)
-    {
-        BrightnessAdjustment = 0;     
-    }
+    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, &BrightnessAdjustment);
 
     if (LocalFrameCounter == 60)
     {

@@ -175,6 +175,12 @@
 // encounter before another random monster encounter can take place.
 #define RANDOM_MONSTER_GRACE_PERIOD_STEPS 3
 
+// The number of frames taken by the fade animation.
+#define FADE_DURATION_FRAMES 40
+
+// The default text color.
+#define COLOR_TEXT (PIXEL32){ .Bytes = 0xFCFCFCFF }
+
 /////////// BEGIN GLOBAL ENUMS /////////////
 
 typedef enum DIRECTION
@@ -675,3 +681,9 @@ void DrawWindow(
 	_In_ int16_t Height,
 	_In_ PIXEL32 BackgroundColor,
 	_In_ DWORD Flags);
+
+void ApplyFadeIn(
+	_In_ uint64_t FrameCounter, 
+	_In_ PIXEL32 DefaultTextColor, 
+	_Inout_ PIXEL32* TextColor, 
+	_Inout_opt_ int16_t* BrightnessAdjustment);

@@ -121,6 +121,14 @@ int32_t gFontCharacterPixelOffset[] = {
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
 };
 
+// Lookup table for fade in/out animations. Maps frame count to brightness adjustments.
+const int16_t gFadeBrightnessGradient[] = {
+    -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
+    -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
+    -64, -64, -64, -64, -64, -64, -64, -64, -64, -64,
+    -32, -32, -32, -32, -32, -32, -32, -32, -32, -32
+};
+
 // If the game window does not have focus, then do not process player input.
 BOOL gWindowHasFocus;
 
@@ -3030,4 +3038,45 @@ void DrawWindow(
             __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);
         }        
     }
+}
+
+void ApplyFadeIn(
+    _In_ uint64_t FrameCounter, 
+    _In_ PIXEL32 DefaultTextColor, 
+    _Inout_ PIXEL32* TextColor, 
+    _Inout_opt_ int16_t* BrightnessAdjustment)
+{
+    #pragma warning(suppress: 4127)
+    ASSERT(_countof(gFadeBrightnessGradient) == FADE_DURATION_FRAMES, "gFadeBrightnessGradient has too few elements!");
+
+    int16_t LocalBrightnessAdjustment;
+
+    if (FrameCounter > FADE_DURATION_FRAMES)
+    {
+        return;
+    }
+
+    if (FrameCounter == FADE_DURATION_FRAMES)
+    {
+        gInputEnabled = TRUE;
+
+        LocalBrightnessAdjustment = 0;
+    }
+    else
+    {
+        gInputEnabled = FALSE;
+
+        LocalBrightnessAdjustment = gFadeBrightnessGradient[FrameCounter];
+    }
+
+    if (BrightnessAdjustment != NULL)
+    {
+        *BrightnessAdjustment = LocalBrightnessAdjustment;
+    }
+
+    TextColor->Colors.Red   = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Red + LocalBrightnessAdjustment)));
+
+    TextColor->Colors.Blue  = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Blue + LocalBrightnessAdjustment)));
+
+    TextColor->Colors.Green = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Green + LocalBrightnessAdjustment)));
 }

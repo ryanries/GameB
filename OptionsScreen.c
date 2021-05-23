@@ -54,8 +54,6 @@ void DrawOptionsScreen(void)
     {
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
-
         gMenu_OptionsScreen.SelectedItem = 0;
 
         gInputEnabled = FALSE;
@@ -63,43 +61,7 @@ void DrawOptionsScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    if (LocalFrameCounter == 10)
-    {
-        TextColor.Colors.Red = 64;
-
-        TextColor.Colors.Green = 64;
-
-        TextColor.Colors.Blue = 64;
-    }
-
-    if (LocalFrameCounter == 20)
-    {
-        TextColor.Colors.Red = 128;
-
-        TextColor.Colors.Green = 128;
-
-        TextColor.Colors.Blue = 128;
-    }
-
-    if (LocalFrameCounter == 30)
-    {
-        TextColor.Colors.Red = 192;
-
-        TextColor.Colors.Green = 192;
-
-        TextColor.Colors.Blue = 192;
-    }
-
-    if (LocalFrameCounter == 40)
-    {
-TextColor.Colors.Red = 255;
-
-TextColor.Colors.Green = 255;
-
-TextColor.Colors.Blue = 255;
-
-gInputEnabled = TRUE;
-    }
+    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, NULL);
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
     {

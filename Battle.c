@@ -51,57 +51,11 @@ void DrawBattle(void)
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
     }
 
-    if (LocalFrameCounter == 10)
-    {
-        TextColor.Colors.Red = 64;
-
-        TextColor.Colors.Green = 64;
-
-        TextColor.Colors.Blue = 64;
-
-        BrightnessAdjustment = -128;
-    }
-
-    if (LocalFrameCounter == 20)
-    {
-        TextColor.Colors.Red = 128;
-
-        TextColor.Colors.Green = 128;
-
-        TextColor.Colors.Blue = 128;
-
-        BrightnessAdjustment = -64;
-    }
-
-    if (LocalFrameCounter == 30)
-    {
-        TextColor.Colors.Red = 192;
-
-        TextColor.Colors.Green = 192;
-
-        TextColor.Colors.Blue = 192;
-
-        BrightnessAdjustment = -32;
-    }
-
-    if (LocalFrameCounter == 40)
-    {
-        TextColor.Colors.Red = 255;
-
-        TextColor.Colors.Green = 255;
-
-        TextColor.Colors.Blue = 255;
-
-        BrightnessAdjustment = 0;
-
-        gInputEnabled = TRUE;
-    }
-
+    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, &BrightnessAdjustment);
+    
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 
 	DrawWindow(0, 0, 96, 96, (PIXEL32){ 0, 0, 0, 0xFF }, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED | WINDOW_FLAG_BORDERED);
-
-
 
     switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
     {
