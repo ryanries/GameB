@@ -372,7 +372,7 @@ void PPI_Overworld(void)
                         {
                             gPlayer.StepsSinceLastRandomMonsterEncounter = gPlayer.StepsTaken;
 
-                            RandomMonsterEncounter(&gPreviousGameState, &gCurrentGameState);
+                            RandomMonsterEncounter();
                         }
                     }
                 }
@@ -432,4 +432,11 @@ void PortalHandler(void)
     {
         ASSERT(FALSE, "Player is standing on a portal but we do not have a portal handler for it!");
     }
+}
+
+void RandomMonsterEncounter(void)
+{
+    gPreviousGameState = gCurrentGameState;    
+
+    gCurrentGameState = GAMESTATE_BATTLE;
 }

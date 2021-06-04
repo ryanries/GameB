@@ -56,3 +56,5 @@ void PPI_Overworld(void);
 void DrawOverworld(void);
 
 void PortalHandler(void);
+
+void RandomMonsterEncounter(void);

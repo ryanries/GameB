@@ -109,9 +109,9 @@
 
 #define LOG_FILE_NAME GAME_NAME ".log"
 
-#define GAME_CODE_MODULE		"GameCode.dll"
+//#define GAME_CODE_MODULE		"GameCode.dll"
 
-#define GAME_CODE_MODULE_TMP	"GameCode.tmp"
+//#define GAME_CODE_MODULE_TMP	"GameCode.tmp"
 
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
@@ -532,9 +532,9 @@ typedef struct MENU
 
 /////////// END GLOBAL STRUCTS /////////////
 
-HMODULE gGameCodeModule;
+//HMODULE gGameCodeModule;
 
-FILETIME gGameCodeLastWriteTime;
+//FILETIME gGameCodeLastWriteTime;
 
 GAMEPERFDATA gPerformanceData;
 
@@ -610,13 +610,13 @@ typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT 
 _NtQueryTimerResolution NtQueryTimerResolution;
 
 // IMPORTS FROM GAMECODE.DLL //
-typedef int(__cdecl* _RandomMonsterEncounter) (_In_ GAMESTATE* PreviousGameState, _Inout_ GAMESTATE* CurrentGameState);
+//typedef int(__cdecl* _RandomMonsterEncounter) (_In_ GAMESTATE* PreviousGameState, _Inout_ GAMESTATE* CurrentGameState);
 
-_RandomMonsterEncounter RandomMonsterEncounter;
+//_RandomMonsterEncounter RandomMonsterEncounter;
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
 
-DWORD LoadGameCode(_In_ char* ModuleFileName);
+//DWORD LoadGameCode(_In_ char* ModuleFileName);
 
 DWORD CreateMainGameWindow(void);
 

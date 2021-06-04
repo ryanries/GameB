@@ -2,6 +2,11 @@
 
 #include "Battle.h"
 
+void GenerateMonster(void)
+{
+    
+}
+
 void PPI_Battle(void)
 {
 	if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)

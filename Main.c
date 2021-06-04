@@ -238,14 +238,14 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
-    if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
+    //if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
+    //{
+    //    LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
 
-        MessageBoxA(NULL, "Failed to load " GAME_CODE_MODULE "!", "Error!", MB_ICONERROR | MB_OK);
+    //    MessageBoxA(NULL, "Failed to load " GAME_CODE_MODULE "!", "Error!", MB_ICONERROR | MB_OK);
 
-        goto Exit;
-    }
+    //    goto Exit;
+    //}
 
     // This function uses a global mutex to determine whether another instance of the same
     // process is already running. This is not hack-proof but it does prevent accidents.
@@ -539,16 +539,16 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
             FindFirstConnectedGamepad();
 
             
-#ifdef _DEBUG
+//#ifdef _DEBUG
             
-            if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
+/*            if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
             {
                 if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
                 {
                     LogMessageA(LL_WARNING, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
                 }
-            }        
-#endif
+            } */       
+//#endif
 
             ElapsedMicrosecondsAccumulatorRaw = 0;
 
@@ -619,67 +619,67 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
     return(Result);
 }
 
-DWORD LoadGameCode(_In_ char* ModuleFileName)
-{
-    DWORD Result = ERROR_SUCCESS;    
-
-    if (gGameCodeModule)
-    {
-        FreeLibrary(gGameCodeModule);
-
-        gGameCodeModule = NULL;
-    }
-
-    if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
-    {
-        if (DeleteFileA(GAME_CODE_MODULE) == 0)
-        {
-            LogMessageA(LL_WARNING, "[%s] Failed to delete file %s! Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GetLastError());            
-        }
-        else
-        {
-            LogMessageA(LL_INFO, "[%s] Deleted file %s.", __FUNCTION__, GAME_CODE_MODULE);
-        }
-
-        if (MoveFileA(GAME_CODE_MODULE_TMP, GAME_CODE_MODULE) == 0)
-        {
-            LogMessageA(LL_WARNING, "[%s] Failed to replace file %s with file %s. Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GAME_CODE_MODULE_TMP, GetLastError());            
-        }
-        else
-        {
-            LogMessageA(LL_INFO, "[%s] Renamed file %s to %s.", __FUNCTION__, GAME_CODE_MODULE_TMP, GAME_CODE_MODULE);
-        }
-    }
-
-    gGameCodeModule = LoadLibraryA(ModuleFileName);    
-
-    if (gGameCodeModule == NULL)
-    {
-        Result = GetLastError();
-
-        goto Exit;
-    }
-
-    if ((RandomMonsterEncounter = (_RandomMonsterEncounter)GetProcAddress(gGameCodeModule, "RandomMonsterEncounter")) == NULL)
-    {
-        Result = GetLastError();
-
-        goto Exit;
-    }
-    
-Exit:
-
-    if (Result == ERROR_SUCCESS)
-    {
-        LogMessageA(LL_INFO, "[%s] Successfully loaded code from module %s!", __FUNCTION__, GAME_CODE_MODULE);
-    }
-    else
-    {
-        LogMessageA(LL_ERROR, "[%s] Function failed with error 0x%08lx!", __FUNCTION__, Result);
-    }
-
-    return(Result);
-}
+//DWORD LoadGameCode(_In_ char* ModuleFileName)
+//{
+//    DWORD Result = ERROR_SUCCESS;    
+//
+//    if (gGameCodeModule)
+//    {
+//        FreeLibrary(gGameCodeModule);
+//
+//        gGameCodeModule = NULL;
+//    }
+//
+//    if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
+//    {
+//        if (DeleteFileA(GAME_CODE_MODULE) == 0)
+//        {
+//            LogMessageA(LL_WARNING, "[%s] Failed to delete file %s! Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GetLastError());            
+//        }
+//        else
+//        {
+//            LogMessageA(LL_INFO, "[%s] Deleted file %s.", __FUNCTION__, GAME_CODE_MODULE);
+//        }
+//
+//        if (MoveFileA(GAME_CODE_MODULE_TMP, GAME_CODE_MODULE) == 0)
+//        {
+//            LogMessageA(LL_WARNING, "[%s] Failed to replace file %s with file %s. Error 0x%08lx", __FUNCTION__, GAME_CODE_MODULE, GAME_CODE_MODULE_TMP, GetLastError());            
+//        }
+//        else
+//        {
+//            LogMessageA(LL_INFO, "[%s] Renamed file %s to %s.", __FUNCTION__, GAME_CODE_MODULE_TMP, GAME_CODE_MODULE);
+//        }
+//    }
+//
+//    gGameCodeModule = LoadLibraryA(ModuleFileName);    
+//
+//    if (gGameCodeModule == NULL)
+//    {
+//        Result = GetLastError();
+//
+//        goto Exit;
+//    }
+//
+//    if ((RandomMonsterEncounter = (_RandomMonsterEncounter)GetProcAddress(gGameCodeModule, "RandomMonsterEncounter")) == NULL)
+//    {
+//        Result = GetLastError();
+//
+//        goto Exit;
+//    }
+//    
+//Exit:
+//
+//    if (Result == ERROR_SUCCESS)
+//    {
+//        LogMessageA(LL_INFO, "[%s] Successfully loaded code from module %s!", __FUNCTION__, GAME_CODE_MODULE);
+//    }
+//    else
+//    {
+//        LogMessageA(LL_ERROR, "[%s] Function failed with error 0x%08lx!", __FUNCTION__, Result);
+//    }
+//
+//    return(Result);
+//}
 
 // TODO: Consider non-16:9 displays. E.g., ultra-wide monitors will have to have black bars on the sides, 
 // with the game center screen. The game itself has a 16:10 aspect ratio (resolution 384x240.)
@@ -2897,14 +2897,14 @@ void InitializeGlobals(void)
     // if I try to assign more values to this array than it can hold.
     // Which baffles me, because I can't think of any reason why neither the compiler
     // nor the static analyzer could not or should not warn me of such a seemingly simple thing.
-#pragma warning(suppress: 4127)
-    ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");
+/*#pragma warning(suppress: 4127)
+    ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");*/    
 
     gPassableTiles[0] = TILE_GRASS_01;
 
     gPassableTiles[1] = TILE_PORTAL_01;
 
-    gPassableTiles[2] = TILE_BRICK_01;    
+    gPassableTiles[2] = TILE_BRICK_01;
 
     // C99 syntax?
     gOverworldArea = (GAMEAREA)
