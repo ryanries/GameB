@@ -56,7 +56,7 @@ void DrawBattle(void)
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
     }
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, &BrightnessAdjustment);
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
     
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 

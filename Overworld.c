@@ -49,7 +49,7 @@ void DrawOverworld(void)
         BrightnessAdjustment = -255;
     }
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, &BrightnessAdjustment);
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
 
     if (LocalFrameCounter == 60)
     {

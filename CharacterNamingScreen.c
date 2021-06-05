@@ -187,7 +187,7 @@ void DrawCharacterNaming(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, &BrightnessAdjustment);
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
 
     BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 16);
 

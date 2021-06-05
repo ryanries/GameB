@@ -179,7 +179,7 @@
 #define FADE_DURATION_FRAMES 40
 
 // The default text color.
-#define COLOR_TEXT (PIXEL32){ .Bytes = 0xFCFCFCFF }
+#define COLOR_NES_WHITE (PIXEL32){ .Bytes = 0xFCFCFCFF }
 
 /////////// BEGIN GLOBAL ENUMS /////////////
 

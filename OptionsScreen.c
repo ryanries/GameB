@@ -61,7 +61,7 @@ void DrawOptionsScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, NULL);
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
     {

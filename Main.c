@@ -21,6 +21,7 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
+// ... Renamed COLOR_TEXT to COLOR_NES_WHITE, updated DrawDebugText
 // Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
 // sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
 // slightly better when in multiples of word size too.
@@ -121,12 +122,13 @@ int32_t gFontCharacterPixelOffset[] = {
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
 };
 
-// Lookup table for fade in/out animations. Maps frame count to brightness adjustments.
+// Lookup table for fade in/out animations. 
+// Maps frame count to brightness adjustments.
 const int16_t gFadeBrightnessGradient[] = {
     -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
     -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
-    -64, -64, -64, -64, -64, -64, -64, -64, -64, -64,
-    -32, -32, -32, -32, -32, -32, -32, -32, -32, -32
+     -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,
+     -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
 };
 
 // If the game window does not have focus, then do not process player input.
@@ -1816,69 +1818,93 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
     LeaveCriticalSection(&gLogCritSec);
 }
 
+// Draw some debug statistics when pressing the F1 key.
 __forceinline void DrawDebugInfo(void)
 {
     char DebugTextBuffer[64] = { 0 };
 
-    PIXEL32 White = { 0xFF, 0xFF, 0xFF, 0xFF };
-
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSRaw:  %.01f", gPerformanceData.RawFPSAverage);
-
-    //BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0x60, 0x60, 0x60, 0xff }, 1, 1);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "FPS:     %.01f (%.01f)", 
+        gPerformanceData.CookedFPSAverage, 
+        gPerformanceData.RawFPSAverage);  
     
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 0));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 0));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FPSCookd:%.01f", gPerformanceData.CookedFPSAverage);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "Timer:   %.02f/%.02f/%.02f", 
+        (gPerformanceData.MinimumTimerResolution / 10000.0f),
+        (gPerformanceData.MaximumTimerResolution / 10000.0f),
+        (gPerformanceData.CurrentTimerResolution / 10000.0f));
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 1));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 1));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MinTimer:%.02f", gPerformanceData.MinimumTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "Handles: %lu", 
+        gPerformanceData.HandleCount);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 2));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 2));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "MaxTimer:%.02f", gPerformanceData.MaximumTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "Memory:  %zu KB", 
+        gPerformanceData.MemInfo.PrivateUsage / 1024);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 3));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 3));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CurTimer:%.02f", gPerformanceData.CurrentTimerResolution / 10000.0f);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "CPU:     %.02f%%", 
+        gPerformanceData.CPUPercent);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 4));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 4));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Handles: %lu", gPerformanceData.HandleCount);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "FramesT: %llu", 
+        gPerformanceData.TotalFramesRendered);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 5));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 5));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Memory:  %zu KB", gPerformanceData.MemInfo.PrivateUsage / 1024);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "ScreenXY:%hu,%hu", 
+        gPlayer.ScreenPos.x, 
+        gPlayer.ScreenPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 6));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 6));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CPU:     %.02f%%", gPerformanceData.CPUPercent);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "WorldXY: %hu,%hu", 
+        gPlayer.WorldPos.x, 
+        gPlayer.WorldPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 7));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 7));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "FramesT: %llu", gPerformanceData.TotalFramesRendered);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "CameraXY:%hu,%hu", 
+        gCamera.x, 
+        gCamera.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 8));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 8));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "ScreenXY:%hu,%hu", gPlayer.ScreenPos.x, gPlayer.ScreenPos.y);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "Movement:%u", 
+        gPlayer.MovementRemaining);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 9));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 9));
 
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "WorldXY: %hu,%hu", gPlayer.WorldPos.x, gPlayer.WorldPos.y);
+    sprintf_s(DebugTextBuffer, 
+        sizeof(DebugTextBuffer), 
+        "Steps:   %llu", 
+        gPlayer.StepsTaken);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 10));
-
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "CameraXY:%hu,%hu", gCamera.x, gCamera.y);
-
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 11));
-
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Movement:%u", gPlayer.MovementRemaining);
-
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 12));
-
-    sprintf_s(DebugTextBuffer, sizeof(DebugTextBuffer), "Steps:%llu", gPlayer.StepsTaken);
-
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &White, 0, (8 * 13));
+    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 10));
 
     // Draw the tile values around the player so we can verify which tiles we should be and should not be allowed to walk on.
  
@@ -1887,14 +1913,14 @@ __forceinline void DrawDebugInfo(void)
         // What is the value of the tile that the player is currently standing on?
         _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-        BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
+        BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
 
         if (gPlayer.ScreenPos.y >= 16)
         {
             // What is the value of the tile above the player?
             _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
         }
 
         if (gPlayer.ScreenPos.x < (GAME_RES_WIDTH - 16))
@@ -1902,7 +1928,7 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile to the right of the player?
             _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
         }
 
         if (gPlayer.ScreenPos.x >= 16)
@@ -1910,7 +1936,7 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile to left of the player?
             _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
         }
 
         if (gPlayer.ScreenPos.y <= GAME_RES_HEIGHT - 32)
@@ -1918,7 +1944,7 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile below the player?
             _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }, gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
+            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
         }
     }
 }

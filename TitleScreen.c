@@ -68,7 +68,7 @@ void DrawTitleScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_TEXT, &TextColor, NULL);
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
 
     //    AARRGGBB ?
     //__stosd(gBackBuffer.Memory, 0xFF0000FF, GAME_DRAWING_AREA_MEMORY_SIZE / sizeof(PIXEL32));
