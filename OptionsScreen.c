@@ -33,7 +33,7 @@ MENU gMenu_OptionsScreen = { "Options", 0, _countof(gMI_OptionsScreenItems), gMI
 
 void DrawOptionsScreen(void)
 {
-    PIXEL32 Grey = { 0x6F, 0x6F, 0x6F, 0x6F };
+    PIXEL32 Grey = COLOR_NES_GRAY;
 
     static uint64_t LocalFrameCounter;
 
@@ -113,7 +113,7 @@ void DrawOptionsScreen(void)
 
     BlitStringToBuffer(ScreenSizeString, &g6x7Font, &TextColor, 224, gMI_OptionsScreen_ScreenSize.y);
 
-    BlitStringToBuffer("»",
+    BlitStringToBuffer("\xBB",
         &g6x7Font,
         &TextColor,
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->x - 6,

@@ -32,7 +32,7 @@ typedef struct MONSTER
 
 } MONSTER;
 
-MONSTER gCurrentMonster;
+extern MONSTER gCurrentMonster;
 
 void GenerateMonster(void);
 

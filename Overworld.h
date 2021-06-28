@@ -39,17 +39,17 @@ typedef struct PORTAL
 
 
 
-PORTAL gPortal001;
+extern PORTAL gPortal001;
 
-PORTAL gPortal002;
+extern PORTAL gPortal002;
 
-PORTAL gPortals[2];
+extern PORTAL gPortals[2];
 
-GAMEAREA gCurrentArea;
+extern GAMEAREA gCurrentArea;
 
-GAMEAREA gOverworldArea;
+extern GAMEAREA gOverworldArea;
 
-GAMEAREA gDungeon01Area;
+extern GAMEAREA gDungeon01Area;
 
 void PPI_Overworld(void);
 

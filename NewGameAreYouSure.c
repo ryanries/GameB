@@ -83,7 +83,7 @@ void DrawNewGameAreYouSure(void)
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_NewGameAreYouSure.Items[1]->Name) * 6) / 2),
         115);
 
-    BlitStringToBuffer("»",
+    BlitStringToBuffer("\xBB",
         &g6x7Font,
         &TextColor,
         gMenu_NewGameAreYouSure.Items[gMenu_NewGameAreYouSure.SelectedItem]->x - 6,

@@ -40,6 +40,9 @@ You can use the setx utility to create this environment variable. For example:
 
 `GAMEBDIR=C:\Users\ryanr\source\repos\GameB`
 
+
+If you are using the Clang compiler,  build with the included clang_*.bat batch scripts.
+
 # Tools
 --------
 Some extra tools used to help create this game:
@@ -59,6 +62,18 @@ Some extra tools used to help create this game:
 - [BFXer](https://www.bfxr.net/)
 
 - [Aseprite](https://www.aseprite.org/)
+
+- [Clang](https://github.com/llvm/llvm-project/releases/)
+
+- [WinDbgX](https://www.microsoft.com/en-us/p/windbg-preview/9pgjgd53tn86?activetab=pivot:overviewtab)
+
+- [Procdump](https://live.sysinternals.com)
+
+- [Process Monitor](https://live.sysinternals.com)
+
+- [Process Explorer](https://live.sysinternals.com)
+
+- [Notepad++](https://notepad-plus-plus.org/)
 
  
 # License

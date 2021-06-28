@@ -25,12 +25,12 @@ void DrawGamepadUnplugged(void)
 
     BlitStringToBuffer(GAMEPADUNPLUGGEDSTRING1,
         &g6x7Font,
-        &((PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }),
+        &COLOR_NES_WHITE,
         (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(GAMEPADUNPLUGGEDSTRING1) * 6) / 2), 100);
 
     BlitStringToBuffer(GAMEPADUNPLUGGEDSTRING2,
         &g6x7Font,
-        &((PIXEL32) { 0xFF, 0xFF, 0xFF, 0xFF }),
+        &COLOR_NES_WHITE,
         (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(GAMEPADUNPLUGGEDSTRING2) * 6) / 2), 115);
 }
 

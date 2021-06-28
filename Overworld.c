@@ -21,6 +21,20 @@
 
 BOOL gFade;
 
+GAMEAREA gCurrentArea = { 0 };
+
+GAMEAREA gOverworldArea = { 0 };
+
+GAMEAREA gDungeon01Area = { 0 };
+
+PORTAL gPortal001 = { 0 };
+
+PORTAL gPortal002 = { 0 };
+
+PORTAL gPortals[2] = { 0 };
+
+
+
 void DrawOverworld(void)
 {
     static uint64_t LocalFrameCounter;

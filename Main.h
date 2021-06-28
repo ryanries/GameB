@@ -93,7 +93,15 @@
 // In release builds, a failed assertion has no effect.
 #ifdef _DEBUG
 
-#define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
+	#ifdef CLANG
+
+	#define ASSERT(Expression, Message) if (!(Expression)) { __builtin_trap(); }
+
+	#else
+	
+	#define ASSERT(Expression, Message) if (!(Expression)) { __ud2(); }
+	
+	#endif
 
 #else
 
@@ -178,8 +186,10 @@
 // The number of frames taken by the fade animation.
 #define FADE_DURATION_FRAMES 40
 
-// The default text color.
-#define COLOR_NES_WHITE (PIXEL32){ .Bytes = 0xFCFCFCFF }
+// The default text color. (Closest thing to pure white in the NES color palette.)
+#define COLOR_NES_WHITE (PIXEL32){ .Bytes = 0xFFFCFCFC }
+
+#define COLOR_NES_GRAY (PIXEL32){ .Bytes = 0xFF202020 }
 
 /////////// BEGIN GLOBAL ENUMS /////////////
 
@@ -536,69 +546,69 @@ typedef struct MENU
 
 //FILETIME gGameCodeLastWriteTime;
 
-GAMEPERFDATA gPerformanceData;
+extern GAMEPERFDATA gPerformanceData;
 
 // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
-GAMEBITMAP gBackBuffer;
+extern GAMEBITMAP gBackBuffer;
 
-GAMEBITMAP g6x7Font;
+extern GAMEBITMAP g6x7Font;
 
-GAMEBITMAP gBattleScene_Grasslands01;
+extern GAMEBITMAP gBattleScene_Grasslands01;
 
-GAMEBITMAP gBattleScene_Dungeon01;
+extern GAMEBITMAP gBattleScene_Dungeon01;
 
-GAMEMAP gOverworld01;
+extern GAMEMAP gOverworld01;
 
-GAMESTATE gCurrentGameState;
+extern GAMESTATE gCurrentGameState;
 
-GAMESTATE gPreviousGameState;
+extern GAMESTATE gPreviousGameState;
 
-GAMEINPUT gGameInput;
+extern GAMEINPUT gGameInput;
 
-GAMESOUND gSoundSplashScreen;
+extern GAMESOUND gSoundSplashScreen;
 
-GAMESOUND gSoundMenuNavigate;
+extern GAMESOUND gSoundMenuNavigate;
 
-GAMESOUND gSoundMenuChoose;
+extern GAMESOUND gSoundMenuChoose;
 
-GAMESOUND gMusicOverworld01;
+extern GAMESOUND gMusicOverworld01;
 
-GAMESOUND gMusicDungeon01;
+extern GAMESOUND gMusicDungeon01;
 
-GAMESOUND gMusicBattle01;
+extern GAMESOUND gMusicBattle01;
 
-GAMESOUND gMusicBattleIntro01;
+extern GAMESOUND gMusicBattleIntro01;
 
-HERO gPlayer;
+extern HERO gPlayer;
 
-float gSFXVolume;
+extern float gSFXVolume;
 
-float gMusicVolume;
+extern float gMusicVolume;
 
-BOOL gMusicIsPaused;
+extern BOOL gMusicIsPaused;
 
-int8_t gGamepadID;
+extern int8_t gGamepadID;
 
-HWND gGameWindow;                   // A global handle to the game window.
+extern HWND gGameWindow;                   // A global handle to the game window.
 
-IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
+extern IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 
-IXAudio2SourceVoice* gXAudioMusicSourceVoice;
+extern IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
-uint8_t gPassableTiles[3];
+extern uint8_t gPassableTiles[3];
 
-UPOINT gCamera;
+extern UPOINT gCamera;
 
-HANDLE gAssetLoadingThreadHandle;
+extern HANDLE gAssetLoadingThreadHandle;
 
-BOOL gInputEnabled;
+extern BOOL gInputEnabled;
 
 // This event gets signalled/set after the most essential assets have been loaded.
 // "Essential" means the assets required to render the splash screen.
-HANDLE gEssentialAssetsLoadedEvent;
+extern HANDLE gEssentialAssetsLoadedEvent;
 
 // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
-BOOL gGameIsRunning;
+extern BOOL gGameIsRunning;
 
 /////////// FUNCTION DELCARATIONS /////////////
 
@@ -607,7 +617,7 @@ BOOL gGameIsRunning;
 // This is for using the undocumented Windows API function NtQueryTimerResolution.
 typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
 
-_NtQueryTimerResolution NtQueryTimerResolution;
+extern _NtQueryTimerResolution NtQueryTimerResolution;
 
 // IMPORTS FROM GAMECODE.DLL //
 //typedef int(__cdecl* _RandomMonsterEncounter) (_In_ GAMESTATE* PreviousGameState, _Inout_ GAMESTATE* CurrentGameState);

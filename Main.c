@@ -21,7 +21,8 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
-// ... Renamed COLOR_TEXT to COLOR_NES_WHITE, updated DrawDebugText
+// Shadow effect for text
+// Window border color
 // Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
 // sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
 // slightly better when in multiples of word size too.
@@ -97,7 +98,72 @@
 // Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
 // the constants so that the exact file format is only readable by our game and not common
 // tools such as 7zip, WinRAR, etc.
-#include "miniz.h"      
+#include "miniz.h"
+
+
+
+GAMEINPUT gGameInput = { 0 };
+
+GAMESTATE gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+
+GAMESTATE gPreviousGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+
+GAMEPERFDATA gPerformanceData = { 0 };
+
+BOOL gInputEnabled = TRUE;
+
+GAMESOUND gSoundSplashScreen = { 0 };
+
+GAMESOUND gSoundMenuNavigate = { 0 };
+
+GAMESOUND gSoundMenuChoose = { 0 };
+
+GAMESOUND gMusicOverworld01 = { 0 };
+
+GAMESOUND gMusicDungeon01 = { 0 };
+
+GAMESOUND gMusicBattle01 = { 0 };
+
+GAMESOUND gMusicBattleIntro01 = { 0 };
+
+GAMEMAP gOverworld01 = { 0 };
+
+HERO gPlayer = { 0 };
+
+GAMEBITMAP gBackBuffer = { 0 };
+
+GAMEBITMAP g6x7Font = { 0 };
+
+GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
+
+GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
+
+int8_t gGamepadID = -1;
+
+HWND gGameWindow = NULL;                   // A global handle to the game window.
+
+IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES] = { 0 };
+
+IXAudio2SourceVoice* gXAudioMusicSourceVoice = NULL;
+
+uint8_t gPassableTiles[3] = { 0 };
+
+UPOINT gCamera = { 0 };
+
+HANDLE gAssetLoadingThreadHandle = INVALID_HANDLE_VALUE;
+
+HANDLE gEssentialAssetsLoadedEvent = INVALID_HANDLE_VALUE;
+
+_NtQueryTimerResolution NtQueryTimerResolution = NULL;
+
+BOOL gGameIsRunning = TRUE;
+
+float gSFXVolume = 0.0f;
+
+float gMusicVolume = 0.0f;
+
+BOOL gMusicIsPaused = FALSE;
+ 
 
 // This critical section is used to synchronize LogMessageA between multiple threads.
 CRITICAL_SECTION gLogCritSec;
@@ -3005,7 +3071,22 @@ void DrawWindow(
     {
         int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
         
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+        
+		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
+		
+		#endif
     }    
 
     if (Flags & WINDOW_FLAG_SHADOW_EFFECT)
@@ -3025,15 +3106,45 @@ void DrawWindow(
         int MemoryOffset = StartingScreenPixel;
 
         MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height) + 1;
-
+		
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+			
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, Width);
+		
+		#endif
 
         // Draw one grey pixel on the right side of the window, one pixel per row
         for (int Row = 1; Row < Height; Row++)
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
 
+			#ifdef CLANG
+		
+			__asm {
+				mov		eax,[MemoryOffset]
+				mov		rdx,qword ptr [gBackBuffer.Memory]
+				lea		rdi,[rdx+rax*4]
+				mov		eax,[BackgroundColor]
+				mov		 cx,[Width]
+				rep stosd			
+			}
+		
+			#else
+				
             __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, 1);
+			
+			#endif
         }
     }
 
@@ -3044,12 +3155,39 @@ void DrawWindow(
         // Draw the top of the border.
         int MemoryOffset = StartingScreenPixel;
         
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);
+		
+		#endif
 
         // Draw the bottom of the border.
         MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
 
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
         __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);        
+		#endif
 
         // Draw one pixel on the left side and the right side for each row of the border.
 
@@ -3057,11 +3195,37 @@ void DrawWindow(
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
             __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);            
+		#endif
 
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
 
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
             __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);
+		#endif
         }        
     }
 }

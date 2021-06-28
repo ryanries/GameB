@@ -38,7 +38,7 @@ void DrawOpeningSplashScreen(void)
     static uint64_t LastFrameSeen;
 
     // TextColor is used to create the fade in and fade out effect for the text.
-    static PIXEL32 TextColor = { 0xFF, 0xFF, 0xFF, 0xFF };
+    static PIXEL32 TextColor = { { 0xFF, 0xFF, 0xFF, 0xFF } };
 
     // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
     // corner of the splash screen which lets us know that the assets are still loading in the
@@ -89,12 +89,12 @@ void DrawOpeningSplashScreen(void)
     // that we are still busy loading assets in the background.
     if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
     {
-        BlitStringToBuffer("Loading...", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 }, 
+        BlitStringToBuffer("Loading...", &g6x7Font, &COLOR_NES_GRAY, 
             (GAME_RES_WIDTH - (6 * 11)), (GAME_RES_HEIGHT - 7));
 
         if (Blink)
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &(PIXEL32) { 32, 32, 32, 255 },
+            BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_NES_GRAY,
                 (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
         }
     }
