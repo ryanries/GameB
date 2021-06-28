@@ -65,7 +65,7 @@ Some extra tools used to help create this game:
 
 - [Clang](https://github.com/llvm/llvm-project/releases/)
 
-- [WinDbgX](https://www.microsoft.com/en-us/p/windbg-preview/9pgjgd53tn86?activetab=pivot:overviewtab)
+- [WinDbgX](https://www.microsoft.com/en-us/p/windbg-preview/9pgjgd53tn86)
 
 - [Procdump](https://live.sysinternals.com)
 
