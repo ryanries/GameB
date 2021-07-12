@@ -126,14 +126,7 @@ void PPI_NewGameAreYouSure(void)
 
 void MenuItem_NewGameAreYouSure_Yes(void)
 {
-    // TODO: RESET EVERYTHING, including reset hero to all defaults
-    // Don't forget to flush sound queues?
-    
-    InitializeHero();
-
-    gPreviousGameState = gCurrentGameState;
-
-    gCurrentGameState = GAMESTATE_OVERWORLD;
+    ResetEverythingForNewGame();   
 }
 
 void MenuItem_NewGameAreYouSure_No(void)

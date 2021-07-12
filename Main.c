@@ -21,20 +21,15 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint—Exupery
 //
 // --- TODO ---
+// Move extern globals to their own header file?
+// Should BlitBackgroundToBuffer be in overworld.c instead of main.c?
 // Shadow effect for text
-// Window border color
 // Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
 // sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
 // slightly better when in multiples of word size too.
 // 
 // Add Flags to the BlitString function similar to what we did for the DrawWindow function.
-// Talk about uint8_least_t, uint8_fast_t, etc.
-// "Are you sure you want to start a new game?" needs to take us all the way back to opening splash, not overworld
-// Movement code is weird when you enter a portal - sometimes you jump out of the portal
-// even though your hand is not on the keyboard as if you had some movement queued up.
 // Does setting gPlayer.RandomEncounterPercentage to 90 really *feel* like 10%? (Does 80 really *feel* like 20%, etc.?)
-// Transparency is broken in the SSE2 version of Blit32BppBitmapToBuffer. (AVX version works fine.)
-// ... moved the tile value debug display to the DrawDebugInfo function.
 // Make the fade in and fade out on the overworld better.
 // (Holding the Escape key down for several seconds should fast-quit the game?)
 // Make gPortalTiles an array like gPassableTiles
@@ -43,7 +38,6 @@
 // enhance Blit32BppBitmap function so that it can alter the color of bitmaps at run time?
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
 // talk about the scope of #define precompiler directives
-// shadow effect for text?
 // gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
 // Optimization: String caching?
@@ -60,8 +54,6 @@
 //
 // Screen size code for monitors that are not 16 : 9
 //
-// Menus
-// 
 // Game states (Maybe each state should be a struct that includes an array of valid gamestates that it may transition to?)
 
 // Contains global declarations shared among multiple files.
@@ -94,13 +86,16 @@
 // Contains declarations that are specific to the "Are you sure you want to start a new game?" screen.
 #include "NewGameAreYouSure.h"
 
-
 // Miniz zip file [de]compression by Rich Geldreich <richgel99@gmail.com>, but we've modified some of 
 // the constants so that the exact file format is only readable by our game and not common
 // tools such as 7zip, WinRAR, etc.
 #include "miniz.h"
 
 
+/////////// BEGIN INITIALIZATION OF EXTERN GLOBALS ///////////
+
+// These global variables need to be initialized to an arbitrary value because they are declared
+// using the extern keyword in Main.h.
 
 GAMEINPUT gGameInput = { 0 };
 
@@ -140,7 +135,7 @@ GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
 
 int8_t gGamepadID = -1;
 
-HWND gGameWindow = NULL;                   // A global handle to the game window.
+HWND gGameWindow = NULL;
 
 IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES] = { 0 };
 
@@ -192,6 +187,7 @@ int32_t gFontCharacterPixelOffset[] = {
 // Maps frame count to brightness adjustments.
 const int16_t gFadeBrightnessGradient[] = {
     -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
+    -192, -192, -192, -192, -192, -192, -192, -192, -192, -192,
     -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
      -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,
      -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
@@ -306,15 +302,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
-    //if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
-    //{
-    //    LogMessageA(LL_ERROR, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
-
-    //    MessageBoxA(NULL, "Failed to load " GAME_CODE_MODULE "!", "Error!", MB_ICONERROR | MB_OK);
-
-    //    goto Exit;
-    //}
-
     // This function uses a global mutex to determine whether another instance of the same
     // process is already running. This is not hack-proof but it does prevent accidents.
     if (GameIsAlreadyRunning() == TRUE)
@@ -325,8 +312,6 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         goto Exit;
     }
-
-    InitializeGlobals();
 
     // We need the undocumented Windows API function NtQueryTimerResolution to get the resolution of the global system timer.
     // A higher resolution timer will show a lower number, because if your clock can tick every e.g. 0.5ms, that is a higher 
@@ -384,10 +369,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         }
     }
 
-#ifdef AVX
-    LogMessageA(LL_INFO, "[%s] SIMD Level: AVX", __FUNCTION__);
-#elif defined SSE2
-    LogMessageA(LL_INFO, "[%s] SIMD Level: SSE2", __FUNCTION__);
+#ifdef __AVX2__
+    LogMessageA(LL_INFO, "[%s] SIMD Level: AVX2", __FUNCTION__);
 #else
     LogMessageA(LL_WARNING, "[%s] SIMD Level: None", __FUNCTION__);
 #endif
@@ -417,6 +400,12 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         gPerformanceData.MinimumTimerResolution,
         gPerformanceData.MaximumTimerResolution,
         gPerformanceData.CurrentTimerResolution);
+
+    if (gPerformanceData.CurrentTimerResolution < 9500 ||
+        gPerformanceData.CurrentTimerResolution > 10500)
+    {
+        LogMessageA(LL_WARNING, "[%s] Current timer resolution is sub-optimal! Game performance may be negatively affected!");
+    }
 
     // Increase process and thread priority to minimize the chances of another thread on the system
     // preempting us when we need to run and causing a stutter in our frame rate. (Though it can still happen.)
@@ -514,15 +503,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 #endif
 
-    if (InitializeHero() != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Failed to initialize hero!", __FUNCTION__);
-
-        MessageBoxA(NULL, "Failed to initialize hero!", "Error!", MB_ICONERROR | MB_OK);
-
-        goto Exit;
-    }
-
+    ResetEverythingForNewGame();
+	
 
     // This is the main game loop. Setting gGameIsRunning to FALSE at any point will cause
     // the game to exit immediately. The loop has two important functions: ProcessPlayerInput
@@ -578,7 +560,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         ElapsedMicrosecondsAccumulatorCooked += ElapsedMicroseconds;
 
-        if ((gPerformanceData.TotalFramesRendered % CALCULATE_AVG_FPS_EVERY_X_FRAMES) == 0)
+		// Every CALCULATE_STATS_EVERY_X_FRAMES frames, we calculate some statistics such as average
+		// FPS, CPU usage, etc.
+        if ((gPerformanceData.TotalFramesRendered % CALCULATE_STATS_EVERY_X_FRAMES) == 0)
         {
             GetSystemTimeAsFileTime((FILETIME*)&gPerformanceData.CurrentSystemTime);
 
@@ -600,23 +584,11 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));            
 
-            gPerformanceData.RawFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorRaw / CALCULATE_AVG_FPS_EVERY_X_FRAMES) * 0.000001f);
+            gPerformanceData.RawFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorRaw / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
 
-            gPerformanceData.CookedFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorCooked / CALCULATE_AVG_FPS_EVERY_X_FRAMES) * 0.000001f);
+            gPerformanceData.CookedFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorCooked / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
 
             FindFirstConnectedGamepad();
-
-            
-//#ifdef _DEBUG
-            
-/*            if (GetFileAttributesA(GAME_CODE_MODULE_TMP) != INVALID_FILE_ATTRIBUTES)
-            {
-                if (LoadGameCode(GAME_CODE_MODULE) != ERROR_SUCCESS)
-                {
-                    LogMessageA(LL_WARNING, "[%s] Failed to load module %s!", __FUNCTION__, GAME_CODE_MODULE);
-                }
-            } */       
-//#endif
 
             ElapsedMicrosecondsAccumulatorRaw = 0;
 
@@ -784,9 +756,21 @@ DWORD CreateMainGameWindow(void)
 
     WindowClass.lpszClassName = GAME_NAME "_WINDOWCLASS";   
 
-    // This is set in the application manifest, as recommended by MSDN.
-    // Not recommended to set this via code so that is why this line is commented out.
-    // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    // High DPI awareness is set in the application manifest, as recommended by MSDN.
+    // MSDN says it is not recommended to set this via code. However, if using a different
+    // compiler/IDE other than Visual Studio, adding a manifest file to the binary might be
+    // difficult. i.e. I don't know how to do it with Clang so when using Clang I set this via code:
+     
+#ifdef CLANG
+    if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
+    {
+        Result = GetLastError();
+
+        LogMessageA(LL_ERROR, "[%s] SetProcessDpiAwarenessContext failed! Error 0x%08lx!", __FUNCTION__, Result);
+
+        goto Exit;
+    }
+#endif
 
     if (RegisterClassExA(&WindowClass) == 0)
     {
@@ -916,13 +900,20 @@ BOOL GameIsAlreadyRunning(void)
     }
 }
 
+// Get the state of all player input here, including both keyboard key state as well as
+// gamepad button state. The "gamepad unplugged" gamestate can also be triggered from here
+// in case the gamepad is surprise removed. (e.g. tripping over the cord.)
+// We capture the current state of each key and also the previous state of the keys from 
+// the previous frame. This allows us to tell when the button is being held down.
+// Input is disabled when the game's window is out of focus, and for a brief moment during
+// each gamestate transition/fade-out/fade-in. Even when player input is disabled though,
+// we still want to get player input even though we don't act on it. Reason being is if
+// we don't, we get an undesirable effect where motion is "queued up" when moving between
+// input disabled and enabled states. For example, when the player enters a door, input is
+// disabled and the player is frozen while we transition from outdoors to indoors, but we don't
+// want the player to keep walking even though the player has taken their hands off the keys.
 void ProcessPlayerInput(void)
 {
-    if ((gInputEnabled == FALSE) || (gWindowHasFocus == FALSE))
-    {
-        return;
-    }
-
     gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
 
     gGameInput.DebugKeyIsDown  = GetAsyncKeyState(VK_F1);
@@ -970,6 +961,11 @@ void ProcessPlayerInput(void)
     if (gGameInput.DebugKeyIsDown && !gGameInput.DebugKeyWasDown)
     {
         gPerformanceData.DisplayDebugInfo = !gPerformanceData.DisplayDebugInfo;
+    }
+
+    if ((gInputEnabled == FALSE) || (gWindowHasFocus == FALSE))
+    {
+        goto InputDisabled;
     }
 
     switch (gCurrentGameState)
@@ -1034,6 +1030,9 @@ void ProcessPlayerInput(void)
         }
     }
 
+
+InputDisabled:
+
     gGameInput.DebugKeyWasDown  = gGameInput.DebugKeyIsDown;
 
     gGameInput.LeftKeyWasDown   = gGameInput.LeftKeyIsDown;
@@ -1049,8 +1048,84 @@ void ProcessPlayerInput(void)
     gGameInput.EscapeKeyWasDown = gGameInput.EscapeKeyIsDown;
 }
 
-DWORD InitializeHero(void)
+// This resets all necessary global variables. Call this once during game 
+// startup, and whenever the player chooses to start a new game from scratch.
+void ResetEverythingForNewGame(void)
 {
+    StopMusic();
+
+    gPreviousGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+
+    gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
+
+    gCamera.x = 0;
+
+    gCamera.y = 0;
+
+    gGameIsRunning = TRUE;
+
+    gGamepadID = -1;
+
+    gPassableTiles[0] = TILE_GRASS_01;
+
+    gPassableTiles[1] = TILE_PORTAL_01;
+
+    gPassableTiles[2] = TILE_BRICK_01;
+    
+    gOverworldArea = (GAMEAREA)
+    {
+        .Name = "The World",
+        .Area = (RECT){.left = 0, .top = 0, .right = 3840, .bottom = 2400 },
+        .Music = &gMusicOverworld01
+    };
+
+    gDungeon01Area = (GAMEAREA)
+    {
+        .Name = "Dungeon 01",
+        .Area = (RECT){.left = 3856, .top = 0, .right = 4240, .bottom = 240 },
+        .Music = &gMusicDungeon01
+    };
+
+    gCurrentArea = gOverworldArea;
+
+
+
+    gPortal001 = (PORTAL){
+        .DestinationArea = gDungeon01Area,
+        .CameraPos = (UPOINT){.x = 3856, .y = 0 },
+        .ScreenDestination = (UPOINT){.x = 64, .y = 32 },
+        .WorldDestination = (UPOINT){.x = 3920, .y = 32},
+        .WorldPos = (UPOINT){.x = 272, .y = 80 } };
+
+    gPortal002 = (PORTAL){
+        .DestinationArea = gOverworldArea,
+        .CameraPos = (UPOINT){.x = 0, .y = 0 },
+        .ScreenDestination = (UPOINT){.x = 272, .y = 80 },
+        .WorldDestination = (UPOINT){.x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y},
+        .WorldPos = (UPOINT){.x = 3920, .y = 32 } };
+
+    gPortals[0] = gPortal001;
+
+    gPortals[1] = gPortal002;
+
+
+
+
+	
+	
+
+    gPlayer.Active = FALSE;
+
+    memset(gPlayer.Name, 0, sizeof(gPlayer.Name));
+
+    gPlayer.HasPlayerMovedSincePortal = FALSE;
+
+    gPlayer.MovementRemaining = 0;
+
+    gPlayer.StepsSinceLastRandomMonsterEncounter = 0;
+
+    gPlayer.StepsTaken = 0;
+	
     gPlayer.HP = 20;
     
     gPlayer.Money = 0;
@@ -1070,7 +1145,7 @@ DWORD InitializeHero(void)
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
     gPlayer.RandomEncounterPercentage = 90;
 
-    return(0);    
+    return;    
 }
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y)
@@ -1119,7 +1194,10 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
                 StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.BitmapInfo.bmiHeader.biWidth * StringBitmap.BitmapInfo.bmiHeader.biHeight) - \
                     StringBitmap.BitmapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.BitmapInfo.bmiHeader.biWidth) * YPixel;
                 
-                memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
+
+                // NOTE: memcpy_s is safer but is much slower.
+                //memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
+                memcpy(&FontSheetPixel, (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
 
                 if (FontSheetPixel.Colors.Alpha == 255)
                 {
@@ -1129,7 +1207,9 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
 
                     FontSheetPixel.Colors.Blue  = Color->Colors.Blue;
 
-                    memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));
+                    // NOTE: memcpy_s is safer but is much slower.
+                    //memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));                    
+                    memcpy((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, &FontSheetPixel, sizeof(PIXEL32));
                 }                
             }
         }
@@ -1248,7 +1328,7 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
     PIXEL32 BitmapPixel = { 0 };
 
-#ifdef AVX
+#ifdef __AVX2__
     // We go 8 pixels at a time SIMD-style, until there are fewer than 8 pixels left 
     // on the current row, then finish the remainder of the row one pixel at a time.
 
@@ -1267,6 +1347,8 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
             BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
 
             // Load 256 bits (8 pixels) from memory into register YMMx
+			// WARNING: The buffer MUST be 32-byte aligned or else this intrinsic will crash the program!
+			// If unable to guarantee 32-byte alignment, use _mm256_loadu_si256 instead.
             BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
             //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
             // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
@@ -1342,94 +1424,6 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
             XPixel++;
         }
     }
-
-#elif defined SSE2     
-    // We go 4 pixels at a time SIMD-style, until there are fewer than 4 pixels left 
-    // on the current row, then finish the remainder of the row one pixel at a time.
-
-    __m128i BitmapQuadPixel;
-
-    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
-    {
-        int16_t PixelsRemainingOnThisRow = (int16_t)GameBitmap->BitmapInfo.bmiHeader.biWidth;
-
-        int16_t XPixel = 0;        
-
-        while (PixelsRemainingOnThisRow >= 4)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
-            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB      
-            // XMM0 = 00FFFFFF00FFFFFF-00FFFFFF00FFFFFF            
-            
-            // Zero-extend each element of the low half of BitmapQuadPixel so that
-            // each color channel is now 16 bits.
-            __m128i Half1 = _mm_unpacklo_epi8(BitmapQuadPixel, _mm_setzero_si128());
-            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
-            // XMM0 = 000000FF00FF00FF-000000FF00FF00FF
-
-            // Add the brightness adjustment to each 16-bit element, except the alpha channel.            
-            Half1 = _mm_add_epi16(Half1, _mm_set_epi16(
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
-
-            // Do the same to Half2 as we just did to Half1.
-            __m128i Half2 = _mm_unpackhi_epi8(BitmapQuadPixel, _mm_setzero_si128());
-
-            Half2 = _mm_add_epi16(Half2, _mm_set_epi16(
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
-
-            // Pack the two halves back into a single 128-bit 4-pixel result.
-            BitmapQuadPixel = _mm_packus_epi16(Half1, Half2);
-
-            // TODO: TRANSPARENCY IS CURRENTLY BROKEN IN THE SSE2 VERSION
-            // I HAVE NOT YET BEEN ABLE TO GET THE MASK WORKING LIKE IT DOES IN THE AVX2 VERSION
-
-            // Create a mask that selects only the pixels that have an Alpha == 255.
-            //__m128i Mask = _mm_cmpeq_epi8(BitmapQuadPixel, _mm_set1_epi8(-1));           
-
-            // Conditionally store the result to the global back buffer, based on the mask
-            // we just created that selects only the pixels where Alpha == 255.            
-            //_mm_maskmoveu_si128(BitmapQuadPixel, Mask, ((PIXEL32*)gBackBuffer.Memory + MemoryOffset));
-            
-            _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
-
-            PixelsRemainingOnThisRow -= 4;
-
-            XPixel += 4;
-        }
-
-        while (PixelsRemainingOnThisRow > 0)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
-
-            if (BitmapPixel.Alpha == 255)
-            {
-                // Clamp between 0 and 255
-                // min(upper, max(x, lower))
-                BitmapPixel.Red = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
-
-                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
-
-                BitmapPixel.Blue = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
-
-                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
-            }
-
-            PixelsRemainingOnThisRow--;
-
-            XPixel++;
-        }
-    }
-
 #else
     for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
     {
@@ -1441,15 +1435,15 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
             memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
 
-            if (BitmapPixel.Alpha == 255)
+            if (BitmapPixel.Colors.Alpha == 255)
             {
                 // Clamp between 0 and 255
                 // min(upper, max(x, lower))
-                BitmapPixel.Red   = (uint8_t)min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Red   = (uint8_t)min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
 
-                BitmapPixel.Green = (uint8_t)min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
 
-                BitmapPixel.Blue  = (uint8_t)min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+                BitmapPixel.Colors.Blue  = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
 
                 memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
             }
@@ -1476,7 +1470,7 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
 
     int32_t BitmapOffset = 0;
 
-#ifdef AVX
+#ifdef __AVX2__
     // We go 8 pixels at a time, SIMD-style.    
 
     __m256i BitmapOctoPixel;
@@ -1524,43 +1518,6 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
             _mm256_store_si256((__m256i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapOctoPixel);
         }
     }
-#elif defined SSE2    
-    // We go 4 pixels at a time, SIMD-style.
-
-    __m128i BitmapQuadPixel;
-
-    for (int16_t YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
-    {
-        for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel += 4)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            BitmapQuadPixel = _mm_load_si128((const __m128i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
-            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB      
-            // XMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1 
-
-            // Zero-extend each element of the low half of BitmapQuadPixel so that
-            // each color channel is now 16 bits.
-            __m128i Half1 = _mm_unpacklo_epi8(BitmapQuadPixel, _mm_setzero_si128());
-            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
-            // XMM0 = 00FF005B006E00E1-00FF005B006E00E1            
-
-            // Add the brightness adjustment to each 16-bit element            
-            Half1 = _mm_add_epi16(Half1, _mm_set1_epi16(BrightnessAdjustment));
-
-            // Do the same to Half2 as we just did to Half1.
-            __m128i Half2 = _mm_unpackhi_epi8(BitmapQuadPixel, _mm_setzero_si128());
-
-            Half2 = _mm_add_epi16(Half2, _mm_set1_epi16(BrightnessAdjustment));
-
-            // Pack the two halves back into a single 128-bit 4-pixel result.
-            BitmapQuadPixel = _mm_packus_epi16(Half1, Half2);            
-
-            _mm_store_si128((__m128i*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), BitmapQuadPixel);
-        }
-    }
 
 #else
     // We go 1 pixel at a time, no SIMD.
@@ -1579,11 +1536,11 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
 
             // Clamp between 0 and 255
             // min(upper, max(x, lower))
-            BitmapPixel.Red   = (uint8_t) min(255, max((BitmapPixel.Red + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Red   = (uint8_t) min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
 
-            BitmapPixel.Green = (uint8_t) min(255, max((BitmapPixel.Green + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Green = (uint8_t) min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
 
-            BitmapPixel.Blue  = (uint8_t) min(255, max((BitmapPixel.Blue + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Blue  = (uint8_t) min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
 
             memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
         }
@@ -1865,6 +1822,8 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
 
     if ((LogFileHandle = CreateFileA(LOG_FILE_NAME, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE)
     {
+        MessageBoxA(NULL, "Failed to access log file!", "ERROR!", MB_ICONERROR | MB_OK);
+
         ASSERT(FALSE, "Failed to access log file!");        
     }
 
@@ -2975,78 +2934,21 @@ Exit:
     return(Error);
 }
 
-void InitializeGlobals(void)
-{
-    gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
-
-    gGameIsRunning = TRUE;
-
-    gGamepadID = -1;
-
-    // Make sure the gPassableTiles array is large enough to fit 
-    // all of the values you are about to assign here!
-    // I only made this assert because the compiler decided not to warn me
-    // if I try to assign more values to this array than it can hold.
-    // Which baffles me, because I can't think of any reason why neither the compiler
-    // nor the static analyzer could not or should not warn me of such a seemingly simple thing.
-/*#pragma warning(suppress: 4127)
-    ASSERT(_countof(gPassableTiles) == 3, "The gPassableTiles array is the wrong size!");*/    
-
-    gPassableTiles[0] = TILE_GRASS_01;
-
-    gPassableTiles[1] = TILE_PORTAL_01;
-
-    gPassableTiles[2] = TILE_BRICK_01;
-
-    // C99 syntax?
-    gOverworldArea = (GAMEAREA)
-    {
-        .Name = "The World",
-        .Area = (RECT){.left = 0, .top = 0, .right = 3840, .bottom = 2400 },
-        .Music = &gMusicOverworld01
-    };
-
-    gDungeon01Area = (GAMEAREA)
-    {
-        .Name = "Dungeon 01",
-        .Area = (RECT){.left = 3856, .top = 0, .right = 4240, .bottom = 240 },    
-        .Music = &gMusicDungeon01 
-    };
-
-    gCurrentArea = gOverworldArea;
-
-#pragma warning(suppress: 4127)
-    ASSERT(_countof(gPortals) == 2, "The gPortals array is the wrong size!");
-
-    gPortal001 = (PORTAL){
-        .DestinationArea = gDungeon01Area,
-        .CameraPos = (UPOINT){ .x = 3856, .y = 0 },
-        .ScreenDestination = (UPOINT){ .x = 64, .y = 32 },
-        .WorldDestination = (UPOINT){ .x = 3920, .y = 32},
-        .WorldPos = (UPOINT){ .x = 272, .y = 80 } };
-
-    gPortal002 = (PORTAL){
-        .DestinationArea = gOverworldArea,
-        .CameraPos = (UPOINT){ .x = 0, .y = 0 },
-        .ScreenDestination = (UPOINT){ .x = 272, .y = 80 },
-        .WorldDestination = (UPOINT){ .x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y},
-        .WorldPos = (UPOINT){ .x = 3920, .y = 32 } };
-
-    gPortals[0] = gPortal001;
-
-    gPortals[1] = gPortal002;
-}
-
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
-
 // If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
-
+// BackgroundColor is ignored and may be NULL if WINDOW_FLAG_OPAQUE is not set.
+// BorderColor is ignored and may be NULL if WINDOW_FLAG_BORDERED is not set.
+// Either the BORDERED or the OPAQUE flag needs to be set, or both, or else the window would just be
+// transparent and invisible. The window border will cut into the inside of the window area.
+// TODO: Implement a WINDOW_FLAG_ROUNDED_CORNERS?
 void DrawWindow(
-    _In_ uint16_t x,
-    _In_ uint16_t y,
+    _In_opt_ uint16_t x,
+    _In_opt_ uint16_t y,
     _In_ int16_t Width,
     _In_ int16_t Height,
-    _In_ PIXEL32 BackgroundColor,
+    _In_opt_ PIXEL32* BorderColor,
+    _In_opt_ PIXEL32* BackgroundColor,
+    _In_opt_ PIXEL32* ShadowColor,
     _In_ DWORD Flags)
 {
     if (Flags & WINDOW_FLAG_HORIZONTALLY_CENTERED)
@@ -3059,174 +2961,80 @@ void DrawWindow(
         y = (GAME_RES_HEIGHT / 2) - (Height / 2);
     }
 
-    // The window must be a multiple of 4 because we're using the stosd intrinsic which writes 4 bytes at a time.
-
-    ASSERT(Width % sizeof(PIXEL32) == 0, "Window width must be a multiple of 4!");
-
-    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");    
+    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");
+    
+    ASSERT((Flags & WINDOW_FLAG_BORDERED) || (Flags & WINDOW_FLAG_OPAQUE), "Window must have either the BORDERED or the OPAQUE flags (or both) set!");
 
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
-    for (int Row = 0; Row < Height; Row++)
+    if (Flags & WINDOW_FLAG_OPAQUE)
     {
-        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
-        
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-        
-		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
-		
-		#endif
-    }    
+        ASSERT(BackgroundColor != NULL, "WINDOW_FLAG_OPAQUE is set but BackgroundColor is NULL!");
 
-    if (Flags & WINDOW_FLAG_SHADOW_EFFECT)
-    {
-        // Shift the window one pixel up and to the left,
-        // to make sure that the shadow does not fall outside of the bounds of the screen.
-        if (x > 0)
+        for (int Row = 0; Row < Height; Row++)
         {
-            x -= 1;
-        }
+            int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
-        if (y > 0)
-        {
-            y -= 1;
-        }
-
-        int MemoryOffset = StartingScreenPixel;
-
-        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height) + 1;
-		
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-			
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, Width);
-		
-		#endif
-
-        // Draw one grey pixel on the right side of the window, one pixel per row
-        for (int Row = 1; Row < Height; Row++)
-        {
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
-
-			#ifdef CLANG
-		
-			__asm {
-				mov		eax,[MemoryOffset]
-				mov		rdx,qword ptr [gBackBuffer.Memory]
-				lea		rdi,[rdx+rax*4]
-				mov		eax,[BackgroundColor]
-				mov		 cx,[Width]
-				rep stosd			
-			}
-		
-			#else
-				
-            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, 1);
-			
-			#endif
+            for (int Pixel = 0; Pixel < Width; Pixel++)
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
+            }
         }
     }
 
     if (Flags & WINDOW_FLAG_BORDERED)
     {
-        // TODO        
-
+        ASSERT(BorderColor != NULL, "WINDOW_FLAG_BORDERED is set but BorderColor is NULL!");
         // Draw the top of the border.
         int MemoryOffset = StartingScreenPixel;
-        
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);
-		
-		#endif
+
+        for (int Pixel = 0; Pixel < Width; Pixel++)
+        {
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+        }
 
         // Draw the bottom of the border.
         MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
 
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);        
-		#endif
+        for (int Pixel = 0; Pixel < Width; Pixel++)
+        {
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+        }
 
-        // Draw one pixel on the left side and the right side for each row of the border.
-
-        for (int Row = 1; Row < Height; Row++)
+        // Draw one pixel on the left side and the right for each row of the border, from the top down.
+        for (int Row = 1; Row < Height - 1; Row++)
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);            
-		#endif
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
 
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
 
-		#ifdef CLANG
-		
-		__asm {
-			mov		eax,[MemoryOffset]
-			mov		rdx,qword ptr [gBackBuffer.Memory]
-			lea		rdi,[rdx+rax*4]
-			mov		eax,[BackgroundColor]
-			mov		 cx,[Width]
-			rep stosd			
-		}
-		
-		#else
-            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);
-		#endif
-        }        
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+        }
+    }
+
+    // TODO: If a window was placed at the edge of the screen, the shadow effect might attempt
+    // to draw off-screen and crash! i.e. make sure there's room to draw the shadow before attempting!
+    if (Flags & WINDOW_FLAG_SHADOW)
+    {
+        ASSERT(ShadowColor != NULL, "WINDOW_FLAG_SHADOW is set but ShadowColor is NULL!");
+
+        // Draw the bottom of the shadow.
+        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
+
+        for (int Pixel = 1; Pixel < (Width + 1); Pixel++)
+        {
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, ShadowColor, sizeof(PIXEL32));
+        }
+
+        // Draw one pixel on the right side for each row of the border, from the top down.
+        for (int Row = 1; Row < Height; Row++)
+        {
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
+
+            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+        }
     }
 }
 

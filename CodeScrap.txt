@@ -773,3 +773,179 @@ __forceinline void ClearScreen(_In_ PIXEL32* Pixel)
 }
 
 #endif
+
+
+
+#ifdef TEMP
+
+    // The window must be a multiple of 4 because we're using the stosd intrinsic which writes 4 bytes at a time.
+
+    ASSERT(Width % sizeof(PIXEL32) == 0, "Window width must be a multiple of 4!");
+
+    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");    
+
+    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+
+    for (int Row = 0; Row < Height; Row++)
+    {
+        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+        
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+        
+		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, BackgroundColor.Bytes, Width);
+		
+		#endif
+    }    
+
+    if (Flags & WINDOW_FLAG_SHADOW_EFFECT)
+    {
+        // Shift the window one pixel up and to the left,
+        // to make sure that the shadow does not fall outside of the bounds of the screen.
+        if (x > 0)
+        {
+            x -= 1;
+        }
+
+        if (y > 0)
+        {
+            y -= 1;
+        }
+
+        int MemoryOffset = StartingScreenPixel;
+
+        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height) + 1;
+		
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+			
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, Width);
+		
+		#endif
+
+        // Draw one grey pixel on the right side of the window, one pixel per row
+        for (int Row = 1; Row < Height; Row++)
+        {
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
+
+			#ifdef CLANG
+		
+			__asm {
+				mov		eax,[MemoryOffset]
+				mov		rdx,qword ptr [gBackBuffer.Memory]
+				lea		rdi,[rdx+rax*4]
+				mov		eax,[BackgroundColor]
+				mov		 cx,[Width]
+				rep stosd			
+			}
+		
+			#else
+				
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFF7C7C7C, 1);
+			
+			#endif
+        }
+    }
+
+    if (Flags & WINDOW_FLAG_BORDERED)
+    {
+        // TODO        
+
+        // Draw the top of the border.
+        int MemoryOffset = StartingScreenPixel;
+        
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+		__stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);
+		
+		#endif
+
+        // Draw the bottom of the border.
+        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
+
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+        __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, Width);        
+		#endif
+
+        // Draw one pixel on the left side and the right side for each row of the border.
+
+        for (int Row = 1; Row < Height; Row++)
+        {
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);            
+		#endif
+
+            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+
+		#ifdef CLANG
+		
+		__asm {
+			mov		eax,[MemoryOffset]
+			mov		rdx,qword ptr [gBackBuffer.Memory]
+			lea		rdi,[rdx+rax*4]
+			mov		eax,[BackgroundColor]
+			mov		 cx,[Width]
+			rep stosd			
+		}
+		
+		#else
+            __stosd((PDWORD)gBackBuffer.Memory + MemoryOffset, 0xFFFCFCFC, 1);
+		#endif
+        }        
+    }
+
+#endif

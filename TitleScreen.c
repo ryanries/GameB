@@ -61,6 +61,8 @@ void DrawTitleScreen(void)
         else
         {
             gMenu_TitleScreen.SelectedItem = 1;
+
+            gMI_ResumeGame.Enabled = FALSE;
         }
 
         gInputEnabled = FALSE;
@@ -105,32 +107,54 @@ void PPI_TitleScreen(void)
     {
         if (gMenu_TitleScreen.SelectedItem < gMenu_TitleScreen.ItemCount - 1)
         {
-            gMenu_TitleScreen.SelectedItem++;
-
-            PlayGameSound(&gSoundMenuNavigate);
+            gMenu_TitleScreen.SelectedItem++;            
         }
+        else
+        {
+            // Wrap around to the Resume button, if it is available.
+            // Otherwise, wrap around to the Start New Game button.
+
+            if (gPlayer.Active == TRUE)
+            {                
+                gMenu_TitleScreen.SelectedItem = 0;
+            }
+            else
+            {
+                gMenu_TitleScreen.SelectedItem = 1;
+            }
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
     }
 
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
-        if (gMenu_TitleScreen.SelectedItem > 0)
-        {
-            if (gMenu_TitleScreen.SelectedItem == 1) // Don't move to "Resume" if there is no game currently in progress.
-            {
-                if (gPlayer.Active)
-                {
-                    gMenu_TitleScreen.SelectedItem--;
+        // If we're at the top of the menu, wrap around to the bottom.
+        // The Resume button only appears if a game is in progress.        
 
-                    PlayGameSound(&gSoundMenuNavigate);
-                }
+        if (gMenu_TitleScreen.SelectedItem == 0)
+        {
+            ASSERT(gPlayer.Active == TRUE, "Resume button is selected, yet no game is currently in progress!?");
+
+            gMenu_TitleScreen.SelectedItem = gMenu_TitleScreen.ItemCount - 1;
+        }
+        else if (gMenu_TitleScreen.SelectedItem == 1)
+        {
+            if (gPlayer.Active == TRUE)
+            {
+                gMenu_TitleScreen.SelectedItem--;
             }
             else
             {
-                gMenu_TitleScreen.SelectedItem--;
-
-                PlayGameSound(&gSoundMenuNavigate);
+                gMenu_TitleScreen.SelectedItem = gMenu_TitleScreen.ItemCount - 1;
             }
         }
+        else
+        {
+            gMenu_TitleScreen.SelectedItem--;
+        }
+
+        PlayGameSound(&gSoundMenuNavigate);
     }
 
     if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
@@ -148,12 +172,13 @@ void MenuItem_TitleScreen_Resume(void)
     gCurrentGameState = GAMESTATE_OVERWORLD;
 }
 
+
+// If a game is already in progress, this should prompt the user if they are sure 
+// they want to start a new game first, and lose any unsaved progress.
+// Otherwise, just go directly to the character naming screen.
+
 void MenuItem_TitleScreen_StartNew(void)
 {
-    // TODO: If a game is already in progress, this should prompt the user if they are sure that they want to start a new game first,
-    // and lose any unsaved progress.
-    // Otherwise, just go to the character naming screen.
-
     if (gPlayer.Active == TRUE)
     {
         gPreviousGameState = gCurrentGameState;

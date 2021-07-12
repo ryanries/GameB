@@ -33,8 +33,9 @@
 // Disable warning about function being inlined.
 #pragma warning(disable: 4711)
 
-// Temporarily reduce warning level while including header files over which we have no control.
-#pragma warning(push, 3)	
+// Temporarily reduce warning level while including external 
+// header files over which we have no control.
+#pragma warning(push, 3)
 
 // The Windows API.
 #include <Windows.h>
@@ -63,21 +64,15 @@
 // Nicer data types, e.g., uint8_t, int32_t, etc.
 #include <stdint.h>
 
-// Windows Multimedia library, we use it for timeBeginPeriod to adjust the global system timer resolution.
+// Windows Multimedia library, we use it for timeBeginPeriod 
+// to adjust the global system timer resolution.
 #pragma comment(lib, "Winmm.lib")
 
-// Valid options are AVX, SSE2, or nothing.
-#define AVX
-
-#ifdef AVX
+#ifdef __AVX2__
 
 // AVX (Advanced Vector Extensions)
+// This advanced instruction set began appearing in CPUs circa 2013-2015.
 #include <immintrin.h>
-
-#elif defined SSE2
-
-// SSE2 (Streaming SIMD Extensions)
-#include <emmintrin.h>
 
 #endif
 
@@ -86,22 +81,28 @@
 
 // Maps the tiles in our overworld map to their numerical equivalents
 // so we can decide which tiles we're allowed to walk on and which
-// tiles block our player's movement, etc.
+// tiles block our player's movement, hurt or slow the player, etc.
 #include "Tiles.h"
 
-// In debug builds, a failed assertion crashes the entire program.
-// In release builds, a failed assertion has no effect.
+// In debug builds, a failed assertion crashes the entire program, which gives us an
+// opportunity to break in with a debugger. In release builds, a failed assertion has
+// no effect. My first version of this ASSERT macro was *(int *)0 = 0;, which worked
+// in MSVC but Clang complained about it. Turns out, Clang might optimize it away
+// causing the program to not ASSERT when it should. I could use *(volatile int *)0 = 0; 
+// to avoid any possible optimization and remove the warning from Clang, but instead I
+// updated both the Clang and MSVC versions to the UD2 CPU instruction, which is guarnateed
+// to raise an exception and not get optimized away.
 #ifdef _DEBUG
 
-	#ifdef CLANG
+#ifdef CLANG
 
-	#define ASSERT(Expression, Message) if (!(Expression)) { __builtin_trap(); }
+#define ASSERT(Expression, Message) if (!(Expression)) { __builtin_trap(); }
 
-	#else
-	
-	#define ASSERT(Expression, Message) if (!(Expression)) { __ud2(); }
-	
-	#endif
+#else
+
+#define ASSERT(Expression, Message) if (!(Expression)) { __ud2(); }
+
+#endif
 
 #else
 
@@ -117,10 +118,6 @@
 
 #define LOG_FILE_NAME GAME_NAME ".log"
 
-//#define GAME_CODE_MODULE		"GameCode.dll"
-
-//#define GAME_CODE_MODULE_TMP	"GameCode.tmp"
-
 // 384x240 is a 16:10 aspect ratio. Most monitors these days are 16:9. 
 // So when the game runs at full screen, it will have to be centered with black bars on the sides.
 #define GAME_RES_WIDTH	384
@@ -131,10 +128,11 @@
 
 #define GAME_DRAWING_AREA_MEMORY_SIZE		(GAME_RES_WIDTH * GAME_RES_HEIGHT * (GAME_BPP / 8))
 
-#define CALCULATE_AVG_FPS_EVERY_X_FRAMES	120
-
 // 16.67 milliseconds is 60 frames per second.
 #define TARGET_MICROSECONDS_PER_FRAME		16667ULL
+
+// Every 120 frames/2 seconds we will calculate some statistics such as average FPS, CPU usage, etc.
+#define CALCULATE_STATS_EVERY_X_FRAMES		120
 
 // This allows us to play up to 4 sound effects simultaneously
 // using the XAudio2 library. 
@@ -184,15 +182,23 @@
 #define RANDOM_MONSTER_GRACE_PERIOD_STEPS 3
 
 // The number of frames taken by the fade animation.
-#define FADE_DURATION_FRAMES 40
+// This involves using shades of grey that aren't in the NES color palette,
+// but it looks nicer.
+#define FADE_DURATION_FRAMES 50
 
-// The default text color. (Closest thing to pure white in the NES color palette.)
-#define COLOR_NES_WHITE (PIXEL32){ .Bytes = 0xFFFCFCFC }
+// Some pixel colors that conform to the original NES color palette.
+#define COLOR_NES_WHITE	(PIXEL32) { .Bytes = 0xFFFCFCFC }
 
-#define COLOR_NES_GRAY (PIXEL32){ .Bytes = 0xFF202020 }
+#define COLOR_NES_BLACK	(PIXEL32) { .Bytes = 0xFF000000 }
+
+// Some pixel colors that are handy but didn't exist in the NES color palette.
+
+#define COLOR_GRAY_0	(PIXEL32) { .Bytes = 0xFF202020 }
 
 /////////// BEGIN GLOBAL ENUMS /////////////
 
+// Which direction is the character facing?
+// This is used to index into an array to provide walking animations.
 typedef enum DIRECTION
 {
 	DOWN  = 0,
@@ -206,6 +212,7 @@ typedef enum DIRECTION
 } DIRECTION;
 
 // Used exclusively by LogMessageA
+// LogLevel can be changed in the Windows registry.
 typedef enum LOGLEVEL
 {
 	LL_NONE    = 0,
@@ -227,6 +234,7 @@ typedef enum LOGLEVEL
 // be able to transition from the battle gamestate directly to the
 // splash screen gamestate or vice versa. We track this with the 
 // gCurrentGameState and gPreviousGameState variables.
+// TODO: Do we want to enforce valid state transitions?
 typedef enum GAMESTATE
 {
 	GAMESTATE_OPENINGSPLASHSCREEN,
@@ -268,13 +276,15 @@ typedef enum WINDOW_FLAGS
 {
 	WINDOW_FLAG_BORDERED = 1,				// 1 << 0
 
-	WINDOW_FLAG_HORIZONTALLY_CENTERED = 2,	// 1 << 1, 0b00000010
+	WINDOW_FLAG_OPAQUE = 2,					// 1 << 1, 0b00000010
 
-	WINDOW_FLAG_VERTICALLY_CENTERED = 4,	// 1 << 2, 0b00000100
+	WINDOW_FLAG_HORIZONTALLY_CENTERED = 4,	// 1 << 2, 0b00000100
 
-	WINDOW_FLAG_SHADOW_EFFECT = 8,			// 1 << 3, 0b00001000
+	WINDOW_FLAG_VERTICALLY_CENTERED = 8,	// 1 << 3, 0b00001000
+
+	WINDOW_FLAG_SHADOW = 16,				// 1 << 4, 0b00010000	
 	
-	WINDOW_FLAG_SHAKE = 16					// 1 << 4, 0b00010000
+	WINDOW_FLAG_SHAKE = 32					// 1 << 5, 0b00100000
 
 } WINDOW_FLAGS;
 
@@ -292,7 +302,7 @@ typedef struct UPOINT
 } UPOINT;
 
 // Stores the current state of all player keyboard+gamepad input,
-// as well as the input state of the previous state, so we can tell
+// as well as the previous state from the last frame, so we can tell
 // whether a button is being held down or not.
 typedef struct GAMEINPUT
 {
@@ -327,12 +337,12 @@ typedef struct GAMEINPUT
 } GAMEINPUT;
 
 // GAMEBITMAP is any sort of bitmap, which might be a sprite, or a background, 
-// even the back buffer itself is a GAMEBITMAP.
+// or a font sheet, or even the back buffer itself.
 typedef struct GAMEBITMAP
 {
 	BITMAPINFO BitmapInfo;
 
-	void* Memory;	                        
+	void* Memory;
 
 } GAMEBITMAP;
 
@@ -359,7 +369,7 @@ typedef struct GAMEAREA
 } GAMEAREA;
 
 
-// A 32-bit, 4-byte pixel. Each color goes 0-255.
+// A 32-bit, 4-byte pixel. Each color is 0-255.
 // This is a union so a PIXEL32 can either be referred to
 // as an unsigned 32-bit whole, or as a struct with 4 separate 8-bit components.
 typedef union PIXEL32 {
@@ -449,9 +459,9 @@ typedef struct HERO
 {
 	char Name[9];
 
-	GAMEBITMAP Sprite[3][12];	// 3 suits of armor, 12 sprites for each armor set.
-
 	BOOL Active;
+
+	GAMEBITMAP Sprite[3][12];	// 3 suits of armor, 12 sprites for each armor set.	
 
 	UPOINT ScreenPos;			// Note screen position and world position are two different things.
 
@@ -466,9 +476,7 @@ typedef struct HERO
 	// This is used to allow the player to stand on a portal (or doorway, or stairs, etc.,) 
 	// and teleport to the other end of the portal and stand on the portal without 
 	// instantly being teleported back because they're currently standing on a portal.
-	BOOL HasPlayerMovedSincePortal;
-
-	
+	BOOL HasPlayerMovedSincePortal;	
 
 	// SUIT_0, SUIT_1, or SUIT_2
 	uint8_t CurrentArmor;		
@@ -481,8 +489,6 @@ typedef struct HERO
 	uint8_t RandomEncounterPercentage;
 
 	uint64_t StepsSinceLastRandomMonsterEncounter;
-
-
 
 	// TODO: Figure out how the stats are going to work.
 	int16_t HP;
@@ -513,7 +519,8 @@ typedef struct REGISTRYPARAMS
 } REGISTRYPARAMS;
 
 // Every MENU in the game is a collection of MENUITEMs.
-// This includes everything from simple Yes/No choices, to character naming dialogs, to vendor menus, etc.
+// This includes everything from simple Yes/No choices, 
+// to character naming dialogs, to vendor menus, etc.
 typedef struct MENUITEM
 {
 	char* Name;
@@ -542,29 +549,44 @@ typedef struct MENU
 
 /////////// END GLOBAL STRUCTS /////////////
 
-//HMODULE gGameCodeModule;
+/////////// BEGIN GLOBAL VARIABLE DECLARATIONS ///////////
 
-//FILETIME gGameCodeLastWriteTime;
+// Every global variable that will be shared among multiple compilation units/*.c files
+// needs the extern keyword. When using the extern keyword, the global variable must
+// also be assigned a value at the beginning of one and only one *.c file. For these
+// variables that will of course be Main.c. Unfortunately simultaneous declaration and
+// assignment is not sufficient. (e.g. extern int gVar = 0;)
 
+// Contains data such as number of frames rendered, memory usage, etc.
 extern GAMEPERFDATA gPerformanceData;
 
 // The "drawing surface" which we blit to the screen once per frame, 60 times per second.
 extern GAMEBITMAP gBackBuffer;
 
+// The smallest, most basic font.
 extern GAMEBITMAP g6x7Font;
 
+// Battle scenes are the 96x96 pictures that serve as the backdrop
+// for... battle scenes. We draw a monster over the top of the battle scene.
 extern GAMEBITMAP gBattleScene_Grasslands01;
 
 extern GAMEBITMAP gBattleScene_Dungeon01;
 
+// Consists of both the massive overworld bitmap and also the tilemap.
 extern GAMEMAP gOverworld01;
 
+// Used to track the current and previous game states. The game can only 
+// be in one gamestate at a time.
 extern GAMESTATE gCurrentGameState;
 
 extern GAMESTATE gPreviousGameState;
 
+// Holds the current state of all keyboard and gamepad input, as well as the 
+// previous state of input from the last frame. This is used to tell whether
+// the player is holding the button(s) down or not.
 extern GAMEINPUT gGameInput;
 
+// Noises and music.
 extern GAMESOUND gSoundSplashScreen;
 
 extern GAMESOUND gSoundMenuNavigate;
@@ -579,54 +601,65 @@ extern GAMESOUND gMusicBattle01;
 
 extern GAMESOUND gMusicBattleIntro01;
 
+// Yours truly.
 extern HERO gPlayer;
 
+// Sound effects and music volume.
 extern float gSFXVolume;
 
 extern float gMusicVolume;
 
 extern BOOL gMusicIsPaused;
 
+// This will be -1 if there is no gamepad plugged in. It will
+// be 0 if a gamepad is plugged into the first port.
 extern int8_t gGamepadID;
 
-extern HWND gGameWindow;                   // A global handle to the game window.
+// A global handle to the game window.
+extern HWND gGameWindow;                   
 
+// COM interfaces for the XAudio2 library.
+// Having 4 source voices for sound effects means we can play up to 
+// 4 sound effects simultaneously.
 extern IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 
+// We only need 1 source voice for music because we never play overlapping music tracks.
 extern IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
+// These are tiles that the player can walk normally on. e.g. NOT water or lava or walls.
 extern uint8_t gPassableTiles[3];
 
+// Imagine the camera is 50 feet up the sky looking straight down over the player.
+// Knowing the position of the camera is necessary to properly pan the overworld map as
+// the player walks.
 extern UPOINT gCamera;
 
+// The background thread that loads assets from the compressed archive during the splash screen.
 extern HANDLE gAssetLoadingThreadHandle;
 
+// Input is briefly disabled during scene transitions, and also when the main game 
+// window is out of focus.
 extern BOOL gInputEnabled;
 
 // This event gets signalled/set after the most essential assets have been loaded.
-// "Essential" means the assets required to render the splash screen.
+// "Essential" means the assets required to render the splash screen, which is
+// the basic font and the weird noise that plays at the beginning of the splash screen.
 extern HANDLE gEssentialAssetsLoadedEvent;
 
 // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 extern BOOL gGameIsRunning;
 
-/////////// FUNCTION DELCARATIONS /////////////
+/////////// END GLOBAL VARIABLE DECLARATIONS ///////////
 
-// IMPORTS FROM NTDLL.DLL //
+/////////// BEGIN FUNCTION DELCARATIONS /////////////
 
-// This is for using the undocumented Windows API function NtQueryTimerResolution.
+// Imported from Ntdll.dll, this is for using the undocumented Windows API 
+// function NtQueryTimerResolution.
 typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
 
 extern _NtQueryTimerResolution NtQueryTimerResolution;
 
-// IMPORTS FROM GAMECODE.DLL //
-//typedef int(__cdecl* _RandomMonsterEncounter) (_In_ GAMESTATE* PreviousGameState, _Inout_ GAMESTATE* CurrentGameState);
-
-//_RandomMonsterEncounter RandomMonsterEncounter;
-
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
-
-//DWORD LoadGameCode(_In_ char* ModuleFileName);
 
 DWORD CreateMainGameWindow(void);
 
@@ -634,7 +667,7 @@ BOOL GameIsAlreadyRunning(void);
 
 void ProcessPlayerInput(void);
 
-DWORD InitializeHero(void);
+void ResetEverythingForNewGame(void);
 
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment);
 
@@ -678,18 +711,21 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
 
 DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
-void InitializeGlobals(void);
-
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
-
 // If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
+// BackgroundColor is ignored and may be NULL if WINDOW_FLAG_OPAQUE is not set.
+// BorderColor is ignored and may be NULL if WINDOW_FLAG_BORDERED is not set.
+// Either the BORDERED or the OPAQUE flag needs to be set, or both, or else the window would just be
+// transparent and invisible. The window border will cut into the inside of the window area.
 
 void DrawWindow(
-	_In_ uint16_t x,
-	_In_ uint16_t y,
+	_In_opt_ uint16_t x,
+	_In_opt_ uint16_t y,
 	_In_ int16_t Width,
 	_In_ int16_t Height,
-	_In_ PIXEL32 BackgroundColor,
+	_In_opt_ PIXEL32* BorderColor,
+	_In_opt_ PIXEL32* BackgroundColor,
+	_In_opt_ PIXEL32* ShadowColor,
 	_In_ DWORD Flags);
 
 void ApplyFadeIn(

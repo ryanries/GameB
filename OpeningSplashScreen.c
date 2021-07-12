@@ -38,7 +38,7 @@ void DrawOpeningSplashScreen(void)
     static uint64_t LastFrameSeen;
 
     // TextColor is used to create the fade in and fade out effect for the text.
-    static PIXEL32 TextColor = { { 0xFF, 0xFF, 0xFF, 0xFF } };
+    static PIXEL32 TextColor;
 
     // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
     // corner of the splash screen which lets us know that the assets are still loading in the
@@ -50,15 +50,15 @@ void DrawOpeningSplashScreen(void)
     // LocalFrameCounter doesn't start counting until after this event is set.
     if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
     {
-        // It's been over 5 seconds and the essential assets have not finished
+        // It's been over 10 seconds and the essential assets have not finished
         // loading yet. Something is wrong.
-        if (gPerformanceData.TotalFramesRendered > 300)
+        if (gPerformanceData.TotalFramesRendered > 600)
         {
-            LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 5 seconds. Unable to continue!", __FUNCTION__);
-
             gGameIsRunning = FALSE;
 
-            MessageBoxA(gGameWindow, "Essential assets not loaded yet after 5 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
+            LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 10 seconds. Unable to continue!", __FUNCTION__);
+
+            MessageBoxA(gGameWindow, "Essential assets not loaded yet after 10 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
         }
 
         return;
@@ -72,11 +72,12 @@ void DrawOpeningSplashScreen(void)
     // and then back to the title screen again. In that case, we want to reset all
     // of the "local state," i.e., things that are local to this game state. Such
     // as text animation, selected menu item, etc.
-    if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
+    if (gPerformanceData.TotalFramesRendered == 0 ||
+        gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
+        memcpy(&TextColor, (void*)&COLOR_NES_WHITE, sizeof(PIXEL32));
 
         gInputEnabled = FALSE;
     }
@@ -89,12 +90,12 @@ void DrawOpeningSplashScreen(void)
     // that we are still busy loading assets in the background.
     if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
     {
-        BlitStringToBuffer("Loading...", &g6x7Font, &COLOR_NES_GRAY, 
+        BlitStringToBuffer("Loading...", &g6x7Font, &COLOR_GRAY_0,
             (GAME_RES_WIDTH - (6 * 11)), (GAME_RES_HEIGHT - 7));
 
         if (Blink)
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_NES_GRAY,
+            BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0,
                 (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
         }
     }

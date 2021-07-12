@@ -33,8 +33,6 @@ MENU gMenu_OptionsScreen = { "Options", 0, _countof(gMI_OptionsScreenItems), gMI
 
 void DrawOptionsScreen(void)
 {
-    PIXEL32 Grey = COLOR_NES_GRAY;
-
     static uint64_t LocalFrameCounter;
 
     static uint64_t LastFrameSeen;
@@ -79,9 +77,9 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (uint8_t)(gSFXVolume * 10))
         {
-            if (TextColor.Colors.Red == 255)
+            if (LocalFrameCounter > FADE_DURATION_FRAMES)
             {
-                BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
+                BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
             }
         }
         else
@@ -94,9 +92,9 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (uint8_t)(gMusicVolume * 10))
         {
-            if (TextColor.Colors.Red == 255)
+            if (LocalFrameCounter > FADE_DURATION_FRAMES)
             {
-                BlitStringToBuffer("\xf2", &g6x7Font, &Grey, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
+                BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
             }
         }
         else
@@ -128,22 +126,30 @@ void PPI_OptionsScreen(void)
 {
     if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
     {
-        if (gMenu_OptionsScreen.SelectedItem < gMenu_OptionsScreen.ItemCount - 1)
+        if (gMenu_OptionsScreen.SelectedItem == gMenu_OptionsScreen.ItemCount - 1)
+        {
+            gMenu_OptionsScreen.SelectedItem = 0;
+        }
+        else
         {
             gMenu_OptionsScreen.SelectedItem++;
-
-            PlayGameSound(&gSoundMenuNavigate);
         }
+
+        PlayGameSound(&gSoundMenuNavigate);
     }
 
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
-        if (gMenu_OptionsScreen.SelectedItem > 0)
+        if (gMenu_OptionsScreen.SelectedItem == 0)
+        {
+            gMenu_OptionsScreen.SelectedItem = gMenu_OptionsScreen.ItemCount - 1;            
+        }
+        else
         {
             gMenu_OptionsScreen.SelectedItem--;
-
-            PlayGameSound(&gSoundMenuNavigate);
         }
+
+        PlayGameSound(&gSoundMenuNavigate);
     }
 
     
