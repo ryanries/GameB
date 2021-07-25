@@ -187,7 +187,7 @@ void DrawCharacterNaming(void)
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
 
-    DrawWindow(108, 11, 166, 18, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+    DrawWindowThick(108, 11, 166, 18, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
 
     DrawWindow(108, 105, 166, 60, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
 

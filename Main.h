@@ -191,9 +191,13 @@
 
 #define COLOR_NES_BLACK	(PIXEL32) { .Bytes = 0xFF000000 }
 
+
 // Some pixel colors that are handy but didn't exist in the NES color palette.
 
 #define COLOR_GRAY_0	(PIXEL32) { .Bytes = 0xFF202020 }
+
+
+
 
 /////////// BEGIN GLOBAL ENUMS /////////////
 
@@ -284,7 +288,9 @@ typedef enum WINDOW_FLAGS
 
 	WINDOW_FLAG_SHADOW = 16,				// 1 << 4, 0b00010000	
 	
-	WINDOW_FLAG_SHAKE = 32					// 1 << 5, 0b00100000
+	WINDOW_FLAG_SHAKE = 32,					// 1 << 5, 0b00100000
+
+	WINDOW_FLAG_ROUNDED_CORNERS = 64		// 1 << 6, 0b01000000
 
 } WINDOW_FLAGS;
 
@@ -719,6 +725,16 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 // transparent and invisible. The window border will cut into the inside of the window area.
 
 void DrawWindow(
+	_In_opt_ uint16_t x,
+	_In_opt_ uint16_t y,
+	_In_ int16_t Width,
+	_In_ int16_t Height,
+	_In_opt_ PIXEL32* BorderColor,
+	_In_opt_ PIXEL32* BackgroundColor,
+	_In_opt_ PIXEL32* ShadowColor,
+	_In_ DWORD Flags);
+
+void DrawWindowThick(
 	_In_opt_ uint16_t x,
 	_In_opt_ uint16_t y,
 	_In_ int16_t Width,
