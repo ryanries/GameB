@@ -2,9 +2,33 @@
 
 #include "Battle.h"
 
+MONSTER* gCurrentMonster = NULL;
+
+MONSTER gSlime001 = { "Slime", &gMonsterSprite_Slime_001, 5, 0, 10 };
+
+MONSTER gRat001 = { "Rat", &gMonsterSprite_Rat_001, 10, 0, 15 };
+
+MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
+
 void GenerateMonster(void)
 {
+    unsigned int RandomValue = 0;
+
+    rand_s(&RandomValue);
+
+    gCurrentMonster = gOutdoorMonsters[RandomValue % _countof(gOutdoorMonsters)];
+
+    // if standing on outdoor tile then select from pool of outdoor monsters
+
+    // if standing on dungeon tile, select from pool of dungeon monsters
+
+    // etc...
+
+
+
     
+
+    //gCurrentMonster = 
 }
 
 void PPI_Battle(void)
@@ -54,6 +78,13 @@ void DrawBattle(void)
         PlayGameMusic(&gMusicBattleIntro01, FALSE, TRUE);
 
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
+
+        GenerateMonster();
+
+        if (gCurrentMonster == NULL)
+        {
+            ASSERT(FALSE, "No monster was generated!");
+        }
     }
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
@@ -84,12 +115,23 @@ void DrawBattle(void)
 
     if (BattleScene != 0)
     {
-        Blit32BppBitmapToBuffer(BattleScene, 145, 73, BrightnessAdjustment);
+        Blit32BppBitmapToBuffer(BattleScene, 
+            (int16_t)((GAME_RES_WIDTH / 2) - (BattleScene->BitmapInfo.bmiHeader.biWidth / 2)), 
+            64, 
+            BrightnessAdjustment);
     }
     else
     {
         ASSERT(FALSE, "BattleScene is NULL!");
     }
+
+    if (gCurrentMonster)
+    {
+        Blit32BppBitmapToBuffer(gCurrentMonster->Sprite, 
+            (int16_t)((GAME_RES_WIDTH / 2) - (gCurrentMonster->Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
+            96, 
+            BrightnessAdjustment);
+    }  
 
     LocalFrameCounter++;
 

@@ -578,6 +578,10 @@ extern GAMEBITMAP gBattleScene_Grasslands01;
 
 extern GAMEBITMAP gBattleScene_Dungeon01;
 
+extern GAMEBITMAP gMonsterSprite_Slime_001;
+
+extern GAMEBITMAP gMonsterSprite_Rat_001;
+
 // Consists of both the massive overworld bitmap and also the tilemap.
 extern GAMEMAP gOverworld01;
 

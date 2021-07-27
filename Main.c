@@ -133,6 +133,10 @@ GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
 
 GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
 
+GAMEBITMAP gMonsterSprite_Slime_001 = { 0 };
+
+GAMEBITMAP gMonsterSprite_Rat_001 = { 0 };
+
 int8_t gGamepadID = -1;
 
 HWND gGameWindow = NULL;
@@ -2914,6 +2918,20 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
     if ((Error = LoadAssetFromArchive(ASSET_FILE, "Dungeon01.bmpx", RESOURCE_TYPE_BMPX, &gBattleScene_Dungeon01)) != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] Loading Dungeon01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Slime001.bmpx", RESOURCE_TYPE_BMPX, &gMonsterSprite_Slime_001)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Slime001.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
+
+        goto Exit;
+    }
+
+    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Rat001.bmpx", RESOURCE_TYPE_BMPX, &gMonsterSprite_Rat_001)) != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] Loading Rat001.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
 
         goto Exit;
     }

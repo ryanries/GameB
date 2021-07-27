@@ -33,6 +33,11 @@ MyMiniz.exe Assets.dat + .\Assets\Dungeon01.ogg >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\Battle01.ogg >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\BattleIntro01.ogg >> CopyAssets.log
 
+REM --- MONSTERS ---
+
+MyMiniz.exe Assets.dat + .\Assets\Monsters\Slime001.bmpx >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\Monsters\Rat001.bmpx >> CopyAssets.log
+
 REM --- TILEMAPS ---
 
 MyMiniz.exe Assets.dat + .\Assets\Maps\Overworld01.tmx >> CopyAssets.log
