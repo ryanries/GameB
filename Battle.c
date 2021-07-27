@@ -79,6 +79,9 @@ void DrawBattle(void)
 
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
 
+        // TODO: THIS IS BROKEN because if the player encounters a monster,
+        // then hits escape to go back to the title screen, then goes back to the game,
+        // a new monster will be generated mid-fight!
         GenerateMonster();
 
         if (gCurrentMonster == NULL)
