@@ -263,6 +263,7 @@ typedef enum GAMESTATE
 
 // These are the only supported types of assets that we can 
 // extract from the compressed assets archive file.
+// TODO: We probably don't even need this, we can just infer type from file extension.
 typedef enum RESOURCE_TYPE
 {
 	RESOURCE_TYPE_WAV,
@@ -290,7 +291,9 @@ typedef enum WINDOW_FLAGS
 	
 	WINDOW_FLAG_SHAKE = 32,					// 1 << 5, 0b00100000
 
-	WINDOW_FLAG_ROUNDED_CORNERS = 64		// 1 << 6, 0b01000000
+	WINDOW_FLAG_ROUNDED_CORNERS = 64,		// 1 << 6, 0b01000000
+
+	WINDOW_FLAG_THICK = 128					// 1 << 7, 0b10000000
 
 } WINDOW_FLAGS;
 
@@ -738,18 +741,10 @@ void DrawWindow(
 	_In_opt_ PIXEL32* ShadowColor,
 	_In_ DWORD Flags);
 
-void DrawWindowThick(
-	_In_opt_ uint16_t x,
-	_In_opt_ uint16_t y,
-	_In_ int16_t Width,
-	_In_ int16_t Height,
-	_In_opt_ PIXEL32* BorderColor,
-	_In_opt_ PIXEL32* BackgroundColor,
-	_In_opt_ PIXEL32* ShadowColor,
-	_In_ DWORD Flags);
-
 void ApplyFadeIn(
 	_In_ uint64_t FrameCounter, 
 	_In_ PIXEL32 DefaultTextColor, 
 	_Inout_ PIXEL32* TextColor, 
 	_Inout_opt_ int16_t* BrightnessAdjustment);
+
+int64_t FileSizeA(_In_ const char* FileName);

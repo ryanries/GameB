@@ -35,9 +35,16 @@ void PPI_Battle(void)
 {
 	if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
 	{
+        ASSERT(gCurrentGameState == GAMESTATE_BATTLE, "Invalid game state!");        
+
 		gPreviousGameState = gCurrentGameState;
 
 		gCurrentGameState = GAMESTATE_OVERWORLD;
+
+        LogMessageA(LL_DEBUG, "[%s] Transitioning from game state %d to %d. Player hit escape while in battle.",
+            __FUNCTION__,
+            gPreviousGameState,
+            gCurrentGameState);
 
         StopMusic();
 	}
@@ -81,7 +88,10 @@ void DrawBattle(void)
 
         // TODO: THIS IS BROKEN because if the player encounters a monster,
         // then hits escape to go back to the title screen, then goes back to the game,
-        // a new monster will be generated mid-fight!
+        // a new monster will be generated mid-fight! So we can't rely on LocalFrameCounter == 0
+
+        // TODO: ALSO we need to make copies of the random monsters we generate, not modify the 
+        // archetypes themselves.
         GenerateMonster();
 
         if (gCurrentMonster == NULL)

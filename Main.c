@@ -18,8 +18,11 @@
 // miniz by Rich Geldreich <richgel99@gmail.com> is public domain (or possibly MIT licensed) and a copy of its license can be found in the miniz.c file.
 
 
-// "Don't build software. Create an endless yearning for C." -- Antoine de Saint�Exupery
+// "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
+// --- DONE ---
+// Wangjangled DrawWindow some more. Talk about the use of ternary operators and recursion.
+// 
 // --- TODO ---
 // Move extern globals to their own header file?
 // Should BlitBackgroundToBuffer be in overworld.c instead of main.c?
@@ -168,6 +171,8 @@ BOOL gMusicIsPaused = FALSE;
 CRITICAL_SECTION gLogCritSec;
 
 // Map any char value to an offset dictated by the g6x7Font ordering.
+// 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
+// We use them as a cursor in menus.
 int32_t gFontCharacterPixelOffset[] = {
     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
@@ -179,7 +184,7 @@ int32_t gFontCharacterPixelOffset[] = {
         62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-    //  .. .. .. .. .. .. .. .. .. .. .. �  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. �  .. .. .. ..
+    //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
         93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
@@ -278,6 +283,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     // Used to ensure that the assets file both exists and is not a directory.    
     DWORD AssetFileAttributes = 0;
 
+    int64_t LogFileSize = 0;
+
     // This critical section is used to synchronize access to the log file vis a vis
     // LogMessageA when used by multiple threads simultaneously. Documentation says
     // this function never fails, therefore checking its return code is not important.
@@ -305,6 +312,17 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
     }
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
+
+    LogFileSize = FileSizeA(LOG_FILE_NAME);    
+
+    if (LogFileSize > 1024 * 1024)
+    {
+        LogMessageA(LL_WARNING, "[%s] Log file %s is %lld bytes, which is pretty large! Consider deleting the log file!", __FUNCTION__, LOG_FILE_NAME, LogFileSize);
+    }
+    else
+    {
+        LogMessageA(LL_INFO, "[%s] Log file %s is %lld bytes.", __FUNCTION__, LOG_FILE_NAME, LogFileSize);
+    }
 
     // This function uses a global mutex to determine whether another instance of the same
     // process is already running. This is not hack-proof but it does prevent accidents.
@@ -588,9 +606,9 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
             K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&gPerformanceData.MemInfo, sizeof(gPerformanceData.MemInfo));            
 
-            gPerformanceData.RawFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorRaw / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
+            gPerformanceData.RawFPSAverage = 1.0f / (((float)ElapsedMicrosecondsAccumulatorRaw / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
 
-            gPerformanceData.CookedFPSAverage = 1.0f / ((ElapsedMicrosecondsAccumulatorCooked / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
+            gPerformanceData.CookedFPSAverage = 1.0f / (((float)ElapsedMicrosecondsAccumulatorCooked / CALCULATE_STATS_EVERY_X_FRAMES) * 0.000001f);
 
             FindFirstConnectedGamepad();
 
@@ -954,11 +972,16 @@ void ProcessPlayerInput(void)
 
             // TODO: If music is playing we should pause the music right now.
 
-            gGamepadID = -1;
+            gGamepadID = -1;            
 
             gPreviousGameState = gCurrentGameState;
 
             gCurrentGameState = GAMESTATE_GAMEPADUNPLUGGED;
+
+            LogMessageA(LL_WARNING, "[%s] Gamepad unplugged! Transitioning from game state %d to %d.",
+                __FUNCTION__,
+                gPreviousGameState,
+                gCurrentGameState);
         }
     }
 
@@ -1056,6 +1079,8 @@ InputDisabled:
 // startup, and whenever the player chooses to start a new game from scratch.
 void ResetEverythingForNewGame(void)
 {
+    LogMessageA(LL_INFO, "[%s] Resetting everything for a new game.", __FUNCTION__);
+
     StopMusic();
 
     gPreviousGameState = GAMESTATE_OPENINGSPLASHSCREEN;
@@ -1355,14 +1380,14 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 			// If unable to guarantee 32-byte alignment, use _mm256_loadu_si256 instead.
             BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
             //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
-            // YMM0�=�FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
+            // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
 
             // Blow the 256-bit vector apart into two separate 256-bit vectors Half1 and Half2, 
             // each containing 4 pixels, where each pixel is now 16 bits instead of 8.            
 
             __m256i Half1 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 0));
             //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
-            // YMM0�=�00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
+            // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
 
             // Add the brightness adjustment to each 16-bit element, except alpha.
             Half1 = _mm256_add_epi16(Half1, _mm256_set_epi16(
@@ -1490,18 +1515,18 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
             // Load 256 bits (8 pixels) from memory into register YMMx
             BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
             //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
-            // YMM0�=�FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
+            // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
 
             // Blow the 256-bit vector apart into two separate 256-bit vectors Half1 and Half2, 
             // each containing 4 pixels, where each pixel is now 16 bits instead of 8.            
 
             __m256i Half1 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 0));
             //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
-            // YMM0�=�00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
+            // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
 
             // Add the brightness adjustment to each 16-bit element
             Half1 = _mm256_add_epi16(Half1, _mm256_set1_epi16(BrightnessAdjustment));
-            // YMM0�=�0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2
+            // YMM0 = 0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2
 
             // Do the same for Half2 that we just did for Half1.
             __m256i Half2 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 1));
@@ -1803,6 +1828,8 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
         case LL_DEBUG:
         {
             strcpy_s(SeverityString, sizeof(SeverityString), "[DEBUG]");
+
+            break;
         }
         default:
         {
@@ -2952,13 +2979,15 @@ Exit:
     return(Error);
 }
 
+
+
 // If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
 // If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
 // BackgroundColor is ignored and may be NULL if WINDOW_FLAG_OPAQUE is not set.
 // BorderColor is ignored and may be NULL if WINDOW_FLAG_BORDERED is not set.
 // Either the BORDERED or the OPAQUE flag needs to be set, or both, or else the window would just be
-// transparent and invisible. The window border will cut into the inside of the window area.
-// TODO: Implement a WINDOW_FLAG_ROUNDED_CORNERS?
+// transparent and invisible. 
+// The window border will cut into the inside of the window area.
 
 void DrawWindow(
     _In_opt_ uint16_t x,
@@ -2994,20 +3023,27 @@ void DrawWindow(
         {
             int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
-            for (int Pixel = 0; Pixel < Width; Pixel++)
+            // If the user wants rounded corners, don't draw the first and last pixels on the first and last rows.
+            // Get a load of this sweet ternary action:
+            for (int Pixel = ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) && (Row == 0 || Row == Height - 1)) ? 1 : 0; 
+                Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) && (Row == 0 || Row == Height - 1)) ? 1 : 0;
+                Pixel++)
             {
                 memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
-            }
+            }            
         }
     }
 
     if (Flags & WINDOW_FLAG_BORDERED)
     {
-        ASSERT(BorderColor != NULL, "WINDOW_FLAG_BORDERED is set but BorderColor is NULL!");
+        ASSERT(BorderColor != NULL, "WINDOW_FLAG_BORDERED is set but BorderColor is NULL!");       
+
         // Draw the top of the border.
         int MemoryOffset = StartingScreenPixel;
 
-        for (int Pixel = 0; Pixel < Width; Pixel++)
+        for (int Pixel = ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0); 
+            Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
+            Pixel++)
         {
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
         }
@@ -3015,7 +3051,9 @@ void DrawWindow(
         // Draw the bottom of the border.
         MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1));
 
-        for (int Pixel = 0; Pixel < Width; Pixel++)
+        for (int Pixel = ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
+            Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
+            Pixel++)
         {
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
         }
@@ -3031,18 +3069,27 @@ void DrawWindow(
 
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
         }
+        
+        // Recursion ahead!
+        // If the user wants a thick window, just draw a smaller concentric bordered window inside the existing window.
+        if (Flags & WINDOW_FLAG_THICK)
+        {
+            DrawWindow(x + 1, y + 1, Width - 2, Height - 2, BorderColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+        }
     }
 
     // TODO: If a window was placed at the edge of the screen, the shadow effect might attempt
     // to draw off-screen and crash! i.e. make sure there's room to draw the shadow before attempting!
     if (Flags & WINDOW_FLAG_SHADOW)
     {
-        ASSERT(ShadowColor != NULL, "WINDOW_FLAG_SHADOW is set but ShadowColor is NULL!");
+        ASSERT(ShadowColor != NULL, "WINDOW_FLAG_SHADOW is set but ShadowColor is NULL!");        
 
         // Draw the bottom of the shadow.
         int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
 
-        for (int Pixel = 1; Pixel < (Width + 1); Pixel++)
+        for (int Pixel = 1; 
+            Pixel < Width + ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 0 : 1); 
+            Pixel++)
         {
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, ShadowColor, sizeof(PIXEL32));
         }
@@ -3054,171 +3101,186 @@ void DrawWindow(
 
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
         }
-    }
-}
 
-// Prototype procedure for testing/review
-// DrawWindow procedure that implements WINDOW_FLAG_ROUNDED_CORNERS
-// The windows are drawn with a border of 2 pixels wide.
-void DrawWindowThick(
-    _In_opt_ uint16_t x,
-    _In_opt_ uint16_t y,
-    _In_ int16_t Width,
-    _In_ int16_t Height,
-    _In_opt_ PIXEL32* BorderColor,
-    _In_opt_ PIXEL32* BackgroundColor,
-    _In_opt_ PIXEL32* ShadowColor,
-    _In_ DWORD Flags)
-{
-    if (Flags & WINDOW_FLAG_HORIZONTALLY_CENTERED)
-    {
-        x = (GAME_RES_WIDTH / 2) - (Width / 2);
-    }
-
-    if (Flags & WINDOW_FLAG_VERTICALLY_CENTERED)
-    {
-        y = (GAME_RES_HEIGHT / 2) - (Height / 2);
-    }
-
-    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");
-    
-    ASSERT((Flags & WINDOW_FLAG_BORDERED) || (Flags & WINDOW_FLAG_OPAQUE), "Window must have either the BORDERED or the OPAQUE flags (or both) set!");
-
-    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
-
-    if (Flags & WINDOW_FLAG_OPAQUE)
-    {
-        ASSERT(BackgroundColor != NULL, "WINDOW_FLAG_OPAQUE is set but BackgroundColor is NULL!");
-
-        for (int Row = 0; Row < Height; Row++)
-        {
-            int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
-
-            for (int Pixel = 0; Pixel < Width; Pixel++)
-            {
-                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
-            }
-        }
-    }
-
-    if (Flags & WINDOW_FLAG_BORDERED)
-    {
-        ASSERT(BorderColor != NULL, "WINDOW_FLAG_BORDERED is set but BorderColor is NULL!");
-		// Draw the top of the border.
-		int MemoryOffset = StartingScreenPixel;
-
-		// easy solution, we'll make every window 2 pixels thick
-		if( Flags & WINDOW_FLAG_ROUNDED_CORNERS)
-		{
-			for (int Pixel = 1; Pixel < Width-1; Pixel++)
-			{
-				memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-			}
-		}
-		else
-		{
-			for (int Pixel = 0; Pixel < Width; Pixel++)
-			{
-				memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-			}
-		}
-
-        // draw 2nd line of top
-		MemoryOffset = StartingScreenPixel - GAME_RES_WIDTH;
-		for (int Pixel = 0; Pixel < Width; Pixel++)
-		{
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-		}
-
-        // Draw the bottom of the border.
-        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 2));
-        for (int Pixel = 0; Pixel < Width; Pixel++)
-        {
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-        }
-        
-        // draw 2nd line of bottom border
-        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1 ));
-
-        if (Flags & WINDOW_FLAG_ROUNDED_CORNERS)
-        {
-            for (int Pixel = 1; Pixel < Width-1; Pixel++)
-            {
-             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-            }
-        }
-        else
-        {
-            for (int Pixel = 0; Pixel < Width; Pixel++)
-            {
-                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
-            }
-        }
-
-        // Draw one pixel on the left side and the right for each row of the border, from the top down.
-        for (int Row = 1; Row < Height - 1; Row++)
-        {
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row - 1 );
-
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
-
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 2);
-
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
-        }
-
-        for (int Row = 1; Row < Height - 1; Row++)
-        {
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row );
-
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
-
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
-
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
-        }
-    }
-
-    // TODO: If a window was placed at the edge of the screen, the shadow effect might attempt
-    // to draw off-screen and crash! i.e. make sure there's room to draw the shadow before attempting!
-    if (Flags & WINDOW_FLAG_SHADOW)
-    {
-        ASSERT(ShadowColor != NULL, "WINDOW_FLAG_SHADOW is set but ShadowColor is NULL!");
-
-        // Draw the bottom of the shadow.
-        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
-
-        int this_width = Width+1;
-        int this_start = 1;
-        int this_row = 1;
-        if( Flags & WINDOW_FLAG_ROUNDED_CORNERS) {
-             this_width--;
-             this_start++;
-             this_row++;
-        }
-
-        for (;this_start < (this_width); this_start++)
-        {
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + this_start, ShadowColor, sizeof(PIXEL32));
-        }
-
-        // Draw one pixel on the right side for each row of the border, from the top down.
-        
-        for ( ; this_row < Height; this_row++)
-        {
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * this_row) + Width;
-
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
-        }
-
-        // if bordered is on, fix one pixel of the drop shadow
-        if (Flags & WINDOW_FLAG_ROUNDED_CORNERS)
+        // Draw one shadow pixel in the bottom-right corner to compensate for rounded corner.
+        if (Flags & WINDOW_FLAG_ROUNDED_CORNERS) 
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1)) + (Width - 1);
+
             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
         }
     }
 }
+
+// If WINDOW_FLAG_HORIZONTALLY_CENTERED is specified, the x coordinate is ignored and may be zero.
+// If WINDOW_FLAG_VERTICALLY_CENTERED is specified, the y coordinate is ignored and may be zero.
+// BackgroundColor is ignored and may be NULL if WINDOW_FLAG_OPAQUE is not set.
+// BorderColor is ignored and may be NULL if WINDOW_FLAG_BORDERED is not set.
+// Either the BORDERED or the OPAQUE flag needs to be set, or both, or else the window would just be
+// transparent and invisible. The window border will cut into the inside of the window area.
+// TODO: Implement a WINDOW_FLAG_ROUNDED_CORNERS?
+//void DrawWindow(
+//    _In_opt_ uint16_t x,
+//    _In_opt_ uint16_t y,
+//    _In_ int16_t Width,
+//    _In_ int16_t Height,
+//    _In_opt_ PIXEL32* BorderColor,
+//    _In_opt_ PIXEL32* BackgroundColor,
+//    _In_opt_ PIXEL32* ShadowColor,
+//    _In_ DWORD Flags)
+//{
+//    if (Flags & WINDOW_FLAG_HORIZONTALLY_CENTERED)
+//    {
+//        x = (GAME_RES_WIDTH / 2) - (Width / 2);
+//    }
+//
+//    if (Flags & WINDOW_FLAG_VERTICALLY_CENTERED)
+//    {
+//        y = (GAME_RES_HEIGHT / 2) - (Height / 2);
+//    }
+//
+//    ASSERT((x + Width <= GAME_RES_WIDTH) && (y + Height <= GAME_RES_HEIGHT), "Window is off the screen!");
+//    
+//    ASSERT((Flags & WINDOW_FLAG_BORDERED) || (Flags & WINDOW_FLAG_OPAQUE), "Window must have either the BORDERED or the OPAQUE flags (or both) set!");
+//
+//    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+//
+//    if (Flags & WINDOW_FLAG_OPAQUE)
+//    {
+//        ASSERT(BackgroundColor != NULL, "WINDOW_FLAG_OPAQUE is set but BackgroundColor is NULL!");
+//
+//        for (int Row = 0; Row < Height; Row++)
+//        {
+//            int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+//
+//            for (int Pixel = 0; Pixel < Width; Pixel++)
+//            {
+//                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
+//            }
+//        }
+//    }
+//
+//    if (Flags & WINDOW_FLAG_BORDERED)
+//    {
+//        ASSERT(BorderColor != NULL, "WINDOW_FLAG_BORDERED is set but BorderColor is NULL!");
+//		// Draw the top of the border.
+//		int MemoryOffset = StartingScreenPixel;
+//
+//		// easy solution, we'll make every window 2 pixels thick
+//		if( Flags & WINDOW_FLAG_ROUNDED_CORNERS)
+//		{
+//			for (int Pixel = 1; Pixel < Width-1; Pixel++)
+//			{
+//				memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//			}
+//		}
+//		else
+//		{
+//			for (int Pixel = 0; Pixel < Width; Pixel++)
+//			{
+//				memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//			}
+//		}
+//
+//        if (Flags & WINDOW_FLAG_THICK)
+//        {
+//            // draw 2nd line of top
+//            MemoryOffset = StartingScreenPixel - GAME_RES_WIDTH;
+//            for (int Pixel = 0; Pixel < Width; Pixel++)
+//            {
+//                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//            }
+//        }
+//
+//        // Draw the bottom of the border.
+//        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 2));
+//        for (int Pixel = 0; Pixel < Width; Pixel++)
+//        {
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//        }
+//        
+//        // draw 2nd line of bottom border
+//        MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1 ));
+//
+//        if (Flags & WINDOW_FLAG_ROUNDED_CORNERS)
+//        {
+//            for (int Pixel = 1; Pixel < Width-1; Pixel++)
+//            {
+//             memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//            }
+//        }
+//        else
+//        {
+//            for (int Pixel = 0; Pixel < Width; Pixel++)
+//            {
+//                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+//            }
+//        }
+//
+//        // Draw one pixel on the left side and the right for each row of the border, from the top down.
+//        for (int Row = 1; Row < Height - 1; Row++)
+//        {
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row - 1 );
+//
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+//
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 2);
+//
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+//        }
+//
+//        for (int Row = 1; Row < Height - 1; Row++)
+//        {
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row );
+//
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+//
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+//
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+//        }
+//    }
+//
+//    // TODO: If a window was placed at the edge of the screen, the shadow effect might attempt
+//    // to draw off-screen and crash! i.e. make sure there's room to draw the shadow before attempting!
+//    if (Flags & WINDOW_FLAG_SHADOW)
+//    {
+//        ASSERT(ShadowColor != NULL, "WINDOW_FLAG_SHADOW is set but ShadowColor is NULL!");
+//
+//        // Draw the bottom of the shadow.
+//        int MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Height);
+//
+//        int this_width = Width+1;
+//        int this_start = 1;
+//        int this_row = 1;
+//        if( Flags & WINDOW_FLAG_ROUNDED_CORNERS) {
+//             this_width--;
+//             this_start++;
+//             this_row++;
+//        }
+//
+//        for (;this_start < (this_width); this_start++)
+//        {
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + this_start, ShadowColor, sizeof(PIXEL32));
+//        }
+//
+//        // Draw one pixel on the right side for each row of the border, from the top down.
+//        
+//        for ( ; this_row < Height; this_row++)
+//        {
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * this_row) + Width;
+//
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+//        }
+//
+//        // if bordered is on, fix one pixel of the drop shadow
+//        if (Flags & WINDOW_FLAG_ROUNDED_CORNERS)
+//        {
+//            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1)) + (Width - 1);
+//            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+//        }
+//    }
+//}
 
 void ApplyFadeIn(
     _In_ uint64_t FrameCounter, 
@@ -3259,4 +3321,31 @@ void ApplyFadeIn(
     TextColor->Colors.Blue  = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Blue + LocalBrightnessAdjustment)));
 
     TextColor->Colors.Green = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Green + LocalBrightnessAdjustment)));
+}
+
+int64_t FileSizeA(_In_ const char* FileName)
+{
+    HANDLE FileHandle = INVALID_HANDLE_VALUE;
+
+    LARGE_INTEGER Size = { 0 };
+    
+    FileHandle = CreateFileA(FileName, 
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, 
+        NULL, 
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL, 
+        NULL);
+
+    if (FileHandle != INVALID_HANDLE_VALUE)
+    {
+        GetFileSizeEx(FileHandle, &Size);    
+    }
+
+    if (FileHandle != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(FileHandle);
+    }
+
+    return(Size.QuadPart);
 }

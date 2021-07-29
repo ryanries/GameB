@@ -31,7 +31,7 @@ void DrawNewGameAreYouSure(void)
 {    
     static uint64_t LocalFrameCounter;
 
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen = 0;
 
     static PIXEL32 TextColor;
 
@@ -126,12 +126,23 @@ void PPI_NewGameAreYouSure(void)
 
 void MenuItem_NewGameAreYouSure_Yes(void)
 {
+    ASSERT(gCurrentGameState == GAMESTATE_NEWGAMEAREYOUSURE, "Invalid game state!");
+
     ResetEverythingForNewGame();   
 }
 
 void MenuItem_NewGameAreYouSure_No(void)
 {
+    ASSERT(gCurrentGameState == GAMESTATE_NEWGAMEAREYOUSURE, "Invalid game state!");
+
     gPreviousGameState = gCurrentGameState;
 
     gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+    LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player selected '%s' from '%s' menu.",
+        __FUNCTION__,
+        gPreviousGameState,
+        gCurrentGameState,
+        gMenu_NewGameAreYouSure.Items[gMenu_NewGameAreYouSure.SelectedItem]->Name,
+        gMenu_NewGameAreYouSure.Name);
 }

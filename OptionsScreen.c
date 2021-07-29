@@ -35,7 +35,7 @@ void DrawOptionsScreen(void)
 {
     static uint64_t LocalFrameCounter;
 
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen = 0;
 
     static PIXEL32 TextColor;
 
@@ -182,9 +182,18 @@ void PPI_OptionsScreen(void)
 
 void MenuItem_OptionsScreen_Back(void)
 {
+    ASSERT(gCurrentGameState == GAMESTATE_OPTIONSSCREEN, "Invalid game state!");
+
     gCurrentGameState = gPreviousGameState;
 
     gPreviousGameState = GAMESTATE_OPTIONSSCREEN;
+
+    LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player selected '%s' from '%s' menu.",
+        __FUNCTION__,
+        gPreviousGameState,
+        gCurrentGameState,
+        gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Name,
+        gMenu_OptionsScreen.Name);
 
     if (SaveRegistryParameters() != ERROR_SUCCESS)
     {

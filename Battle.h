@@ -32,7 +32,7 @@ typedef struct MONSTER
 
 	// TODO: A list of "sayings" that the monster can make...
 
-	// char* Sayings[] = { "Squeek squeek", "Scratch *sniff*" };
+	// char* Sayings[] = { "Squeek squeek", "Scratch *sniff*", "R E D R U M", "etc." };
 
 } MONSTER;
 

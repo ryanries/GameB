@@ -35,7 +35,7 @@ void DrawOpeningSplashScreen(void)
     // back to it later, we will know that because LastFrameSeen will be less than the 
     // global total number of frames rendered. We can use that fact to then reset any
     // local state for this gamestate so we can replay animations, reset text color, etc.
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen = 0;
 
     // TextColor is used to create the fade in and fade out effect for the text.
     static PIXEL32 TextColor;
@@ -43,7 +43,7 @@ void DrawOpeningSplashScreen(void)
     // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
     // corner of the splash screen which lets us know that the assets are still loading in the
     // background.
-    static BOOL Blink;
+    static BOOL Blink = FALSE;
 
     // If we are not finished loading "essential" assets such as basic font and splash
     // screen noise, then exit immediately, because splash screen cannot be drawn yet.
@@ -164,9 +164,11 @@ void DrawOpeningSplashScreen(void)
                 gPreviousGameState = gCurrentGameState;
 
                 gCurrentGameState = GAMESTATE_TITLESCREEN;
-                
-                // In case we want to skip the title screen, for debugging purposes:
-                //gCurrentGameState = GAMESTATE_OVERWORLD;
+
+                LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Asset loading is complete.",
+                    __FUNCTION__,
+                    gPreviousGameState,
+                    gCurrentGameState);
             }
         }
 
@@ -204,6 +206,11 @@ void PPI_OpeningSplashScreen(void)
                 gPreviousGameState = gCurrentGameState;
 
                 gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+                LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player pressed Escape to skip splash screen, and asset loading is complete.",
+                    __FUNCTION__,
+                    gPreviousGameState,
+                    gCurrentGameState);
             }
         }
     }

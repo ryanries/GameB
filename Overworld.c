@@ -39,7 +39,7 @@ void DrawOverworld(void)
 {
     static uint64_t LocalFrameCounter;
 
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen = 0;
 
     static PIXEL32 TextColor;
 
@@ -96,9 +96,13 @@ void PPI_Overworld(void)
 {    
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
     {
+        ASSERT(gCurrentGameState == GAMESTATE_OVERWORLD, "Invalid game state!");
+
         gPreviousGameState = gCurrentGameState;
 
         gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+        LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
 
         PauseMusic();
 
@@ -450,7 +454,11 @@ void PortalHandler(void)
 
 void RandomMonsterEncounter(void)
 {
+    ASSERT(gCurrentGameState == GAMESTATE_OVERWORLD, "Invalid game state!");
+
     gPreviousGameState = gCurrentGameState;    
 
     gCurrentGameState = GAMESTATE_BATTLE;
+
+    LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
 }

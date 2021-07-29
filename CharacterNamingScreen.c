@@ -157,7 +157,7 @@ void DrawCharacterNaming(void)
 {
     static uint64_t LocalFrameCounter;
 
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen = 0;
 
     static PIXEL32 TextColor;
 
@@ -187,9 +187,35 @@ void DrawCharacterNaming(void)
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
 
-    DrawWindowThick(108, 11, 166, 18, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
+    DrawWindow(108, 11, 166, 18, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK);
 
     DrawWindow(108, 105, 166, 60, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+    
+    // DrawWindow Tests ... dare I say unit tests?
+
+    DrawWindow(16, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE);
+
+    DrawWindow(34, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+
+    DrawWindow(52, 60, 16, 16, &TextColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+
+    DrawWindow(70, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE);
+
+    DrawWindow(88, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+
+    DrawWindow(106, 60, 16, 16, NULL, &COLOR_NES_WHITE, &COLOR_NES_BLACK, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_SHADOW);
+    
+    DrawWindow(124, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+
+    DrawWindow(142, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
+
+    DrawWindow(160, 60, 16, 16, &COLOR_NES_WHITE, NULL, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK);
+
+    DrawWindow(178, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW);
+
+    DrawWindow(196, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
+
+    // End DrawWindow Tests
 
     BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 16);
 
@@ -452,9 +478,18 @@ void MenuItem_CharacterNaming_Back(void)
 {
     if (strlen(gPlayer.Name) < 1)
     {
+        ASSERT(gCurrentGameState == GAMESTATE_CHARACTERNAMING, "Invalid game state!");        
+
         gPreviousGameState = gCurrentGameState;
 
         gCurrentGameState = GAMESTATE_TITLESCREEN;
+
+        LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player selected '%s' from '%s' menu.",
+            __FUNCTION__,
+            gPreviousGameState,
+            gCurrentGameState,
+            gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name,
+            gMenu_CharacterNaming.Name);
     }
     else
     {
@@ -468,9 +503,18 @@ void MenuItem_CharacterNaming_OK(void)
 {
     if (strlen(gPlayer.Name) > 0)
     {
+        ASSERT(gCurrentGameState == GAMESTATE_CHARACTERNAMING, "Invalid game state!");        
+
         gPreviousGameState = gCurrentGameState;
 
         gCurrentGameState = GAMESTATE_OVERWORLD;
+
+        LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player selected '%s' from '%s' menu.",
+            __FUNCTION__,
+            gPreviousGameState,
+            gCurrentGameState,
+            gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name,
+            gMenu_CharacterNaming.Name);
 
         gPlayer.Active = TRUE;        
 
