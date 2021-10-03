@@ -162,6 +162,8 @@ void DrawBattle(void)
         &COLOR_NES_BLACK,
         WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
 
+    DrawPlayerStatsWindow(&TextColor);
+
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;

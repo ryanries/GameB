@@ -748,3 +748,5 @@ void ApplyFadeIn(
 	_Inout_opt_ int16_t* BrightnessAdjustment);
 
 int64_t FileSizeA(_In_ const char* FileName);
+
+void DrawPlayerStatsWindow(PIXEL32* FadeColor);

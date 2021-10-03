@@ -84,6 +84,8 @@ void DrawOverworld(void)
                                         //  BB    GG    RR    AA
     //DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_SHADOW_EFFECT | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
     
+    DrawPlayerStatsWindow(&TextColor);
+
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
