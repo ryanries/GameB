@@ -126,11 +126,19 @@ void DrawBattle(void)
         }
     }
 
+    // Draw the border around the monster battle scene.
+    DrawWindow(0, 14, 100, 100,
+        &TextColor,
+        &COLOR_NES_BLACK,
+        &COLOR_NES_BLACK,
+        WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
+
+    // Draw the battle scene, aka the backdrop behind the monster.
     if (BattleScene != 0)
     {
         Blit32BppBitmapToBuffer(BattleScene, 
             (int16_t)((GAME_RES_WIDTH / 2) - (BattleScene->BitmapInfo.bmiHeader.biWidth / 2)), 
-            64, 
+            16, 
             BrightnessAdjustment);
     }
     else
@@ -138,13 +146,21 @@ void DrawBattle(void)
         ASSERT(FALSE, "BattleScene is NULL!");
     }
 
+    // Draw the monster.
     if (gCurrentMonster)
     {
         Blit32BppBitmapToBuffer(gCurrentMonster->Sprite, 
             (int16_t)((GAME_RES_WIDTH / 2) - (gCurrentMonster->Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
-            96, 
+            48, 
             BrightnessAdjustment);
-    }  
+    } 
+    
+    // Draw the window where the scrolling text buffer will go.
+    DrawWindow(0, 128, 256, 96,
+        &TextColor,
+        &COLOR_NES_BLACK,
+        &COLOR_NES_BLACK,
+        WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
 
     LocalFrameCounter++;
 
