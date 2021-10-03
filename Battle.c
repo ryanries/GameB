@@ -29,6 +29,11 @@ void GenerateMonster(void)
     
 
     //gCurrentMonster = 
+
+    if (gCurrentMonster == NULL)
+    {
+        ASSERT(FALSE, "No monster was generated!");
+    }
 }
 
 void PPI_Battle(void)
@@ -94,10 +99,7 @@ void DrawBattle(void)
         // archetypes themselves.
         GenerateMonster();
 
-        if (gCurrentMonster == NULL)
-        {
-            ASSERT(FALSE, "No monster was generated!");
-        }
+
     }
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
