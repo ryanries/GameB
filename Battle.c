@@ -2,13 +2,14 @@
 
 #include "Battle.h"
 
-MONSTER* gCurrentMonster = NULL;
+MONSTER gCurrentMonster = { 0 };
 
-MONSTER gSlime001 = { "Slime", &gMonsterSprite_Slime_001, 5, 0, 10 };
+const MONSTER gSlime001 = { "Slime", &gMonsterSprite_Slime_001, 5, 0, 10 };
 
-MONSTER gRat001 = { "Rat", &gMonsterSprite_Rat_001, 10, 0, 15 };
+const MONSTER gRat001 = { "Rat", &gMonsterSprite_Rat_001, 10, 0, 15 };
 
-MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
+const MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
+
 
 void GenerateMonster(void)
 {
@@ -16,7 +17,9 @@ void GenerateMonster(void)
 
     rand_s(&RandomValue);
 
-    gCurrentMonster = gOutdoorMonsters[RandomValue % _countof(gOutdoorMonsters)];
+    // Make a copy of the monster for the player to fight; don't modify the template monster.
+    memcpy(&gCurrentMonster, gOutdoorMonsters[RandomValue % _countof(gOutdoorMonsters)], sizeof(MONSTER));
+    
 
     // if standing on outdoor tile then select from pool of outdoor monsters
 
@@ -24,16 +27,7 @@ void GenerateMonster(void)
 
     // etc...
 
-
-
-    
-
-    //gCurrentMonster = 
-
-    if (gCurrentMonster == NULL)
-    {
-        ASSERT(FALSE, "No monster was generated!");
-    }
+  
 }
 
 void PPI_Battle(void)
@@ -65,7 +59,7 @@ void DrawBattle(void)
 
     static int16_t BrightnessAdjustment = -255;
 
-    GAMEBITMAP* BattleScene = NULL;
+    static GAMEBITMAP* BattleScene = NULL;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -83,6 +77,10 @@ void DrawBattle(void)
         gInputEnabled = FALSE;
     }
 
+    // TODO: THIS IS BROKEN because if the player encounters a monster,
+    // then hits escape to go back to the title screen, then goes back to the game,
+    // a new monster will be generated mid-fight! So we can't rely on LocalFrameCounter == 0
+    // Maybe we should just disable the escape key during battle?
     if (LocalFrameCounter == 0)
     {
         StopMusic();
@@ -90,16 +88,28 @@ void DrawBattle(void)
         PlayGameMusic(&gMusicBattleIntro01, FALSE, TRUE);
 
         PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
-
-        // TODO: THIS IS BROKEN because if the player encounters a monster,
-        // then hits escape to go back to the title screen, then goes back to the game,
-        // a new monster will be generated mid-fight! So we can't rely on LocalFrameCounter == 0
-
-        // TODO: ALSO we need to make copies of the random monsters we generate, not modify the 
-        // archetypes themselves.
+        
         GenerateMonster();
 
+        switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
+        {
+            case TILE_GRASS_01:
+            {
+                BattleScene = &gBattleScene_Grasslands01;
 
+                break;
+            }
+            case TILE_BRICK_01:
+            {
+                BattleScene = &gBattleScene_Dungeon01;
+
+                break;
+            }
+            default:
+            {
+                ASSERT(FALSE, "Random monster encountered on an unknown tile!");
+            }
+        }
     }
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
@@ -108,25 +118,7 @@ void DrawBattle(void)
 
 	//DrawWindow(0, 0, 96, 96, COLOR_NES_WHITE, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED | WINDOW_FLAG_BORDERED);
 
-    switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
-    {
-        case TILE_GRASS_01:
-        {
-            BattleScene = &gBattleScene_Grasslands01;
 
-            break;
-        }
-        case TILE_BRICK_01:
-        {
-            BattleScene = &gBattleScene_Dungeon01;
-
-            break;
-        }
-        default:
-        {
-            ASSERT(FALSE, "Random monster encountered on an unknown tile!");
-        }
-    }
 
     // Draw the border around the monster battle scene.
     DrawWindow(0, 14, 100, 100,
@@ -149,10 +141,10 @@ void DrawBattle(void)
     }
 
     // Draw the monster.
-    if (gCurrentMonster)
+    if (gCurrentMonster.Sprite->Memory != NULL)
     {
-        Blit32BppBitmapToBuffer(gCurrentMonster->Sprite, 
-            (int16_t)((GAME_RES_WIDTH / 2) - (gCurrentMonster->Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
+        Blit32BppBitmapToBuffer(gCurrentMonster.Sprite, 
+            (int16_t)((GAME_RES_WIDTH / 2) - (gCurrentMonster.Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
             48, 
             BrightnessAdjustment);
     } 

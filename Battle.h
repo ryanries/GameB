@@ -36,11 +36,11 @@ typedef struct MONSTER
 
 } MONSTER;
 
-extern MONSTER gSlime001;
+extern const MONSTER gSlime001;
 
-extern MONSTER gRat001;
+extern const MONSTER gRat001;
 
-extern MONSTER* gCurrentMonster;
+extern MONSTER gCurrentMonster;
 
 void GenerateMonster(void);
 

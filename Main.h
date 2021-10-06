@@ -37,6 +37,9 @@
 // header files over which we have no control.
 #pragma warning(push, 3)
 
+// For the __ud2 intrinsic.
+#include <intrin.h>
+
 // The Windows API.
 #include <Windows.h>
 

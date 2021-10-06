@@ -3359,23 +3359,39 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
 
     // Center the player's name depending on the name's length.
     // WindowWidth - 4 is to accomodate for the thick borders.
-    uint8_t PlayerNameOffset = 11 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2));
-    
-    // Draw the main player stats window.
-    DrawWindow(8, 8, WindowWidth, 96, FadeColor, &COLOR_NES_BLACK, &COLOR_NES_BLACK,
+    uint16_t PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 
+        (326 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2))) : 
+        (11 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2)));
+
+    // Draw the main player stats window top left, unless player is standing underneath that area,
+    // in which case draw it top right.
+    DrawWindow(
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8, 
+        8, 
+        WindowWidth, 
+        96, 
+        FadeColor, 
+        &COLOR_NES_BLACK, 
+        &COLOR_NES_BLACK,
         WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
     BlitStringToBuffer(gPlayer.Name, &g6x7Font, FadeColor, PlayerNameOffset, 11);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 11, 21);
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        21);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 11, 21 + (8 * 1));
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        21 + (8 * 1));
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 11, 21 + (8 * 2));
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        21 + (8 * 2));
 }
