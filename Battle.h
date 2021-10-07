@@ -20,7 +20,7 @@
 
 typedef struct MONSTER
 {
-	char Name[13];
+	const char Name[13];
 
 	GAMEBITMAP* Sprite;	
 
@@ -30,9 +30,9 @@ typedef struct MONSTER
 
 	int16_t BaseXP;
 
-	// TODO: A list of "sayings" that the monster can make...
+	int16_t BaseDamage;
 
-	// char* Sayings[] = { "Squeek squeek", "Scratch *sniff*", "R E D R U M", "etc." };
+	const char* Emotes[3];
 
 } MONSTER;
 

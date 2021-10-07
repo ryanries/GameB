@@ -22,10 +22,12 @@
 //
 // --- DONE ---
 // Migrated to Visual Studio 2022 (sorry.)
+// Now using VS-integrated Git instead of Github desktop client.
 // Wangjangled DrawWindow some more. Talk about the use of ternary operators and recursion.
 // Made a player stats hud that changes position if the player is standing beneath it.
 // Animated "type-writer" text during the battle scene.
 // Randomized battle text to add flavor.
+// Added a "surprise attack" chance
 // 
 // --- TODO ---
 // Move extern globals to their own header file?

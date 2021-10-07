@@ -5,9 +5,29 @@
 // This holds a copy of one of the monster templates.
 MONSTER gCurrentMonster = { 0 };
 
-const MONSTER gSlime001 = { "Slime", &gMonsterSprite_Slime_001, 5, 0, 10 };
+const MONSTER gSlime001 = { 
+    "Slime",                    // Name
+    &gMonsterSprite_Slime_001,  // Sprite
+    5,                          // BaseHP
+    0,                          // BaseMP
+    10,                         // BaseXP
+    1,                          // BaseDamage
+    { "*jiggles menacingly*",   // Emotes
+      "*spits and gurgles*",
+      "*thousand-yard stare*" }
+};
 
-const MONSTER gRat001 = { "Rat", &gMonsterSprite_Rat_001, 10, 0, 15 };
+const MONSTER gRat001 = { 
+    "Rat", 
+    &gMonsterSprite_Rat_001, 
+    10, 
+    0, 
+    15,
+    1,
+    { "*squeak squeak*",
+      "*whiskers twitching angrily*",
+      "*looks like it might have rabies*" }
+};
 
 const MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
 
@@ -17,7 +37,10 @@ char gBattleTextLine1[64];
 // The second line of text, whether this is a surprise attack or not.
 char gBattleTextLine2[64];
 
-// Is this a "surprise attack" where the monster gets the first move?
+// Third line of battle text, this is a randomly selected monster emote.
+char gBattleTextLine3[64];
+
+// Is this a "surprise attack" where the monster gets the first move.
 BOOL gMonsterGoesFirst;
 
 void GenerateMonster(void)
@@ -40,11 +63,9 @@ void GenerateMonster(void)
     // the following text messages would always be coupled to the type of monster 
     // we previous rolled. We want to mix-and-match as much as possible.
 
-    rand_s(&RandomValue);
+    rand_s(&RandomValue);    
 
-    RandomValue = RandomValue % 5;
-
-    switch (RandomValue)
+    switch (RandomValue % 5)
     {
         case 0:
         {
@@ -82,6 +103,9 @@ void GenerateMonster(void)
         }
     }
 
+    ASSERT(strlen(gBattleTextLine1) > 0, "Error generating battle text!")
+
+
     // Re-roll another random value to determine whether the monster
     // gets to attack first or not.
     rand_s(&RandomValue);
@@ -98,6 +122,18 @@ void GenerateMonster(void)
 
         sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are ready for battle.");
     }
+
+    ASSERT(strlen(gBattleTextLine2) > 0, "Error generating battle text!")
+
+    // Re-roll to select a random monster emote.
+    rand_s(&RandomValue);
+
+    sprintf_s(gBattleTextLine3, 
+        sizeof(gBattleTextLine3), 
+        "%s: %s", gCurrentMonster.Name, gCurrentMonster.Emotes[(RandomValue % 3)]);
+
+    ASSERT(strlen(gBattleTextLine3) > 0, "Error generating battle text!")
+    
 }
 
 void PPI_Battle(void)
@@ -131,13 +167,21 @@ void DrawBattle(void)
 
     static GAMEBITMAP* BattleScene = NULL;
 
+
+    // These strings are "scratch space" to display only portions
+    // of the full line of text. This is used to make a "typewriter" like animation.
+
     static uint16_t BattleTextLine1CharactersToShow = 0;
 
     static uint16_t BattleTextLine2CharactersToShow = 0;
 
-    char BattleTextLine1Scratch[64];
+    static uint16_t BattleTextLine3CharactersToShow = 0;
 
-    char BattleTextLine2Scratch[64];
+    char BattleTextLine1Scratch[64] = { 0 };
+
+    char BattleTextLine2Scratch[64] = { 0 };
+
+    char BattleTextLine3Scratch[64] = { 0 };
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -157,6 +201,8 @@ void DrawBattle(void)
         BattleTextLine1CharactersToShow = 0;
 
         BattleTextLine2CharactersToShow = 0;
+
+        BattleTextLine3CharactersToShow = 0;
     }
 
     // TODO: THIS IS BROKEN because if the player encounters a monster,
@@ -267,6 +313,27 @@ void DrawBattle(void)
 
         BlitStringToBuffer(BattleTextLine2Scratch, &g6x7Font, &TextColor, 67, 139);
     }
+
+    // Don't start drawing line 3 until line 2 is finished animating.
+    if (strlen(BattleTextLine2Scratch) == strlen(gBattleTextLine2))
+    {
+        // Old fashioned typewriter animation for the text.
+        if (LocalFrameCounter % 3 == 0)
+        {
+            if (BattleTextLine3CharactersToShow <= strlen(gBattleTextLine3))
+            {
+                BattleTextLine3CharactersToShow++;
+            }
+        }
+
+        snprintf(BattleTextLine3Scratch, BattleTextLine3CharactersToShow, "%s", gBattleTextLine3);
+
+        BlitStringToBuffer(BattleTextLine3Scratch, &g6x7Font, &TextColor, 67, 147);
+    }
+
+
+
+
 
     DrawPlayerStatsWindow(&TextColor);
 
