@@ -25,6 +25,7 @@
 // Wangjangled DrawWindow some more. Talk about the use of ternary operators and recursion.
 // Made a player stats hud that changes position if the player is standing beneath it.
 // Animated "type-writer" text during the battle scene.
+// Randomized battle text to add flavor.
 // 
 // --- TODO ---
 // Move extern globals to their own header file?

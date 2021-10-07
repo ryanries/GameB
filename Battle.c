@@ -2,6 +2,7 @@
 
 #include "Battle.h"
 
+// This holds a copy of one of the monster templates.
 MONSTER gCurrentMonster = { 0 };
 
 const MONSTER gSlime001 = { "Slime", &gMonsterSprite_Slime_001, 5, 0, 10 };
@@ -10,7 +11,14 @@ const MONSTER gRat001 = { "Rat", &gMonsterSprite_Rat_001, 10, 0, 15 };
 
 const MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
 
+// A random string like "A wild %s draws near!"
 char gBattleTextLine1[64];
+
+// The second line of text, whether this is a surprise attack or not.
+char gBattleTextLine2[64];
+
+// Is this a "surprise attack" where the monster gets the first move?
+BOOL gMonsterGoesFirst;
 
 void GenerateMonster(void)
 {
@@ -34,18 +42,62 @@ void GenerateMonster(void)
 
     rand_s(&RandomValue);
 
-    if (RandomValue % 2 == 0)
+    RandomValue = RandomValue % 5;
+
+    switch (RandomValue)
     {
-        sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A wild %s approaches!", gCurrentMonster.Name);
+        case 0:
+        {
+            sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A wild %s approaches!", gCurrentMonster.Name);
+
+            break;
+        }
+        case 1:
+        {
+            sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A %s crosses your path!", gCurrentMonster.Name);
+
+            break;
+        }
+        case 2:
+        {
+            sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A mean-looking %s lurches toward you!", gCurrentMonster.Name);
+
+            break;
+        }
+        case 3:
+        {
+            sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A %s is coming right at you!", gCurrentMonster.Name);
+
+            break;
+        }
+        case 4:
+        {
+            sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A %s jumps out at you!", gCurrentMonster.Name);
+
+            break;
+        }
+        default:
+        {
+            ASSERT(FALSE, "RandomValue mod X exceeded the number of random battle texts!");
+        }
     }
-    else if (RandomValue % 3 == 0)
+
+    // Re-roll another random value to determine whether the monster
+    // gets to attack first or not.
+    rand_s(&RandomValue);
+
+    if (RandomValue % 3 == 0)
     {
-        sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A %s crosses your path!", gCurrentMonster.Name);
+        gMonsterGoesFirst = TRUE;
+
+        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are caught off guard!");
     }
     else
     {
-        sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "A %s is coming right at you!", gCurrentMonster.Name);
-    }    
+        gMonsterGoesFirst = FALSE;
+
+        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are ready for battle.");
+    }
 }
 
 void PPI_Battle(void)
@@ -81,7 +133,11 @@ void DrawBattle(void)
 
     static uint16_t BattleTextLine1CharactersToShow = 0;
 
+    static uint16_t BattleTextLine2CharactersToShow = 0;
+
     char BattleTextLine1Scratch[64];
+
+    char BattleTextLine2Scratch[64];
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -99,6 +155,8 @@ void DrawBattle(void)
         gInputEnabled = FALSE;
 
         BattleTextLine1CharactersToShow = 0;
+
+        BattleTextLine2CharactersToShow = 0;
     }
 
     // TODO: THIS IS BROKEN because if the player encounters a monster,
@@ -181,7 +239,7 @@ void DrawBattle(void)
         WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
 
     // Old fashioned typewriter animation for the text.
-    if (LocalFrameCounter % 4 == 0)
+    if (LocalFrameCounter % 3 == 0)
     {
         if (BattleTextLine1CharactersToShow <= strlen(gBattleTextLine1))
         {
@@ -192,6 +250,23 @@ void DrawBattle(void)
     snprintf(BattleTextLine1Scratch, BattleTextLine1CharactersToShow, "%s", gBattleTextLine1);
 
     BlitStringToBuffer(BattleTextLine1Scratch, &g6x7Font, &TextColor, 67, 131);
+
+    // Don't start drawing line 2 until line 1 is finished animating.
+    if (strlen(BattleTextLine1Scratch) == strlen(gBattleTextLine1))
+    {
+        // Old fashioned typewriter animation for the text.
+        if (LocalFrameCounter % 3 == 0)
+        {
+            if (BattleTextLine2CharactersToShow <= strlen(gBattleTextLine2))
+            {
+                BattleTextLine2CharactersToShow++;
+            }
+        }
+
+        snprintf(BattleTextLine2Scratch, BattleTextLine2CharactersToShow, "%s", gBattleTextLine2);
+
+        BlitStringToBuffer(BattleTextLine2Scratch, &g6x7Font, &TextColor, 67, 139);
+    }
 
     DrawPlayerStatsWindow(&TextColor);
 
