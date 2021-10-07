@@ -20,6 +20,8 @@ Follow me on Twitter @JosephRyanRies
 
 ![YouTube_Screenshot4](YoutubeScreenshot4.png "YouTube_Screenshot4")
 
+![YouTube_Screenshot5](YoutubeScreenshot5.png "YouTube_Screenshot5")
+
 # Build Instructions
 --------------------
 The batch file named CopyAssets.bat creates a compressed archive of assets named Assets.dat using the assets
