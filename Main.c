@@ -21,7 +21,10 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
 // --- DONE ---
+// Migrated to Visual Studio 2022 (sorry.)
 // Wangjangled DrawWindow some more. Talk about the use of ternary operators and recursion.
+// Made a player stats hud that changes position if the player is standing beneath it.
+// Animated "type-writer" text during the battle scene.
 // 
 // --- TODO ---
 // Move extern globals to their own header file?
