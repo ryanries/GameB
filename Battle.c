@@ -5,28 +5,52 @@
 // This holds a copy of one of the monster templates.
 MONSTER gCurrentMonster = { 0 };
 
-const MONSTER gSlime001 = { 
-    "Slime",                    // Name
-    &gMonsterSprite_Slime_001,  // Sprite
-    5,                          // BaseHP
-    0,                          // BaseMP
-    10,                         // BaseXP
-    1,                          // BaseDamage
-    { "*jiggles menacingly*",   // Emotes
-      "*spits and gurgles*",
-      "*thousand-yard stare*" }
+const MONSTER gSlime001 = {
+    .Name = "Slime",
+    .Sprite = &gMonsterSprite_Slime_001,
+    .BaseHP = 5,
+    .BaseMP = 0,
+    .BaseXP = 10,
+    .BaseGP = 2,
+    .BaseDamage = 1,
+    .RegularAttackChance = 99,
+    .RegularCastSpellChance = 0,
+    .RegularRunChance = 1,
+    .LowHPAttackChance = 80,
+    .LowHPCastSpellChance = 0,
+    .LowHPRunChance = 20,
+    .LowHPThresholdPercent = 10,
+    .CriticalChance = 5,
+    .CriticalMultiplier = 2.0f,
+    .DodgeChance = 5,
+    .Armor = 0,
+    .RunSuccessChance = 25,
+    .Emotes = { "*jiggles menacingly*", "*spits and gurgles*", "*cold, dead-eyed stare*" },
+    .KnownSpells = { 0 }
 };
 
 const MONSTER gRat001 = { 
-    "Rat", 
-    &gMonsterSprite_Rat_001, 
-    10, 
-    0, 
-    15,
-    1,
-    { "*squeak squeak*",
-      "*whiskers twitching angrily*",
-      "*looks like it might have rabies*" }
+    .Name = "Rat", 
+    .Sprite = &gMonsterSprite_Rat_001, 
+    .BaseHP = 10, 
+    .BaseMP = 0, 
+    .BaseXP = 15,
+    .BaseGP = 1,
+    .BaseDamage = 1,
+    .RegularAttackChance = 99,
+    .RegularCastSpellChance = 0,
+    .RegularRunChance = 1,
+    .LowHPAttackChance = 80,
+    .LowHPCastSpellChance = 0,
+    .LowHPRunChance = 20,
+    .LowHPThresholdPercent = 10,
+    .CriticalChance = 5,
+    .CriticalMultiplier = 2.0f,
+    .DodgeChance = 5,
+    .Armor = 0,
+    .RunSuccessChance = 50,
+    .Emotes = { "*squeak squeak*", "*whiskers twitching angrily*", "*looks like it might have rabies*" },
+    .KnownSpells = { 0 } 
 };
 
 const MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
@@ -40,8 +64,27 @@ char gBattleTextLine2[64];
 // Third line of battle text, this is a randomly selected monster emote.
 char gBattleTextLine3[64];
 
-// Is this a "surprise attack" where the monster gets the first move.
-BOOL gMonsterGoesFirst;
+// Is a "surprise attack" if this is set to true during random monster generation.
+
+BOOL gMonstersTurn;
+
+MENUITEM gMI_PlayerBattleAction_Attack = { "Attack", (GAME_RES_WIDTH / 2) - ((6 * 6) / 2), 191, TRUE, MenuItem_PlayerBattleAction_Attack };
+
+MENUITEM gMI_PlayerBattleAction_Spell = { "Spell", 143, 200, TRUE, MenuItem_PlayerBattleAction_Spell };
+
+MENUITEM gMI_PlayerBattleAction_Run = { "Run", 232, 200, TRUE, MenuItem_PlayerBattleAction_Run };
+
+MENUITEM gMI_PlayerBattleAction_Wait = { "Wait", (GAME_RES_WIDTH / 2) - ((6 * 4) / 2), 210, TRUE, MenuItem_PlayerBattleAction_Wait};
+
+MENUITEM* gMI_PlayerBattleActionItems[] = { 
+    &gMI_PlayerBattleAction_Attack, 
+    &gMI_PlayerBattleAction_Spell,
+    &gMI_PlayerBattleAction_Run,
+    &gMI_PlayerBattleAction_Wait };
+
+MENU gMenu_PlayerBattleAction = { "Your action:", 0, _countof(gMI_PlayerBattleActionItems), gMI_PlayerBattleActionItems };
+
+BOOL gWaitingForPlayerInput;
 
 void GenerateMonster(void)
 {
@@ -112,13 +155,13 @@ void GenerateMonster(void)
 
     if (RandomValue % 3 == 0)
     {
-        gMonsterGoesFirst = TRUE;
+        gMonstersTurn = TRUE;
 
         sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are caught off guard!");
     }
     else
     {
-        gMonsterGoesFirst = FALSE;
+        gMonstersTurn = FALSE;
 
         sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are ready for battle.");
     }
@@ -138,6 +181,26 @@ void GenerateMonster(void)
 
 void PPI_Battle(void)
 {
+    if (gWaitingForPlayerInput)
+    {
+        if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
+        {
+            gMenu_PlayerBattleAction.SelectedItem = 1;
+        }
+        else if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
+        {
+            gMenu_PlayerBattleAction.SelectedItem = 0;
+        }
+        else if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
+        {
+            gMenu_PlayerBattleAction.SelectedItem = 3;
+        }
+        else if (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown)
+        {
+            gMenu_PlayerBattleAction.SelectedItem = 2;
+        }
+    }
+
 	if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
 	{
         ASSERT(gCurrentGameState == GAMESTATE_BATTLE, "Invalid game state!");        
@@ -166,7 +229,6 @@ void DrawBattle(void)
     static int16_t BrightnessAdjustment = -255;
 
     static GAMEBITMAP* BattleScene = NULL;
-
 
     // These strings are "scratch space" to display only portions
     // of the full line of text. This is used to make a "typewriter" like animation.
@@ -203,12 +265,10 @@ void DrawBattle(void)
         BattleTextLine2CharactersToShow = 0;
 
         BattleTextLine3CharactersToShow = 0;
+
+        gWaitingForPlayerInput = FALSE;
     }
 
-    // TODO: THIS IS BROKEN because if the player encounters a monster,
-    // then hits escape to go back to the title screen, then goes back to the game,
-    // a new monster will be generated mid-fight! So we can't rely on LocalFrameCounter == 0
-    // Maybe we should just disable the escape key during battle?
     if (LocalFrameCounter == 0)
     {
         StopMusic();
@@ -244,10 +304,6 @@ void DrawBattle(void)
     
     BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
 
-	//DrawWindow(0, 0, 96, 96, COLOR_NES_WHITE, WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_VERTICALLY_CENTERED | WINDOW_FLAG_BORDERED);
-
-
-
     // Draw the border around the monster battle scene.
     DrawWindow(0, 14, 100, 100,
         &TextColor,
@@ -277,7 +333,7 @@ void DrawBattle(void)
             BrightnessAdjustment);
     } 
     
-    // Draw the window where the scrolling text buffer will go.
+    // Draw the window where the battle text will go.
     DrawWindow(0, 128, 256, 96,
         &TextColor,
         &COLOR_NES_BLACK,
@@ -295,7 +351,7 @@ void DrawBattle(void)
     
     snprintf(BattleTextLine1Scratch, BattleTextLine1CharactersToShow, "%s", gBattleTextLine1);
 
-    BlitStringToBuffer(BattleTextLine1Scratch, &g6x7Font, &TextColor, 67, 131);
+    BlitStringToBuffer(BattleTextLine1Scratch, &g6x7Font, &TextColor, 67, 132);
 
     // Don't start drawing line 2 until line 1 is finished animating.
     if (strlen(BattleTextLine1Scratch) == strlen(gBattleTextLine1))
@@ -311,7 +367,7 @@ void DrawBattle(void)
 
         snprintf(BattleTextLine2Scratch, BattleTextLine2CharactersToShow, "%s", gBattleTextLine2);
 
-        BlitStringToBuffer(BattleTextLine2Scratch, &g6x7Font, &TextColor, 67, 139);
+        BlitStringToBuffer(BattleTextLine2Scratch, &g6x7Font, &TextColor, 67, 141);
     }
 
     // Don't start drawing line 3 until line 2 is finished animating.
@@ -328,9 +384,47 @@ void DrawBattle(void)
 
         snprintf(BattleTextLine3Scratch, BattleTextLine3CharactersToShow, "%s", gBattleTextLine3);
 
-        BlitStringToBuffer(BattleTextLine3Scratch, &g6x7Font, &TextColor, 67, 147);
+        BlitStringToBuffer(BattleTextLine3Scratch, &g6x7Font, &TextColor, 67, 150);
     }
 
+    // Once the third line of text's animation is complete, we are ready to start fighting.
+    if (strlen(BattleTextLine3Scratch) == strlen(gBattleTextLine3))
+    {
+        if (gMonstersTurn)
+        {
+            // Monster chooses an action
+            // Monster can try to hit player, cast a spell on player, or run away from player.
+
+        }
+        else
+        {
+            // Player chooses an action
+            // Player can try to hit monster, cast a spell on monster, or run away from monster.
+
+            gWaitingForPlayerInput = TRUE;
+
+            BlitStringToBuffer(gMenu_PlayerBattleAction.Name, &g6x7Font, &COLOR_NES_WHITE, 67, 175);
+
+            DrawWindow(0, 188, 120, 32, &COLOR_NES_WHITE, &COLOR_NES_BLACK, NULL, 
+                WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+
+            for (uint8_t Counter = 0; Counter < gMenu_PlayerBattleAction.ItemCount; Counter++)
+            {
+                BlitStringToBuffer(
+                    gMenu_PlayerBattleAction.Items[Counter]->Name,
+                    &g6x7Font,
+                    &COLOR_NES_WHITE,
+                    gMenu_PlayerBattleAction.Items[Counter]->x,
+                    gMenu_PlayerBattleAction.Items[Counter]->y);
+            }
+
+            BlitStringToBuffer("\xBB",
+                &g6x7Font,
+                &COLOR_NES_WHITE,
+                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->x - 6,
+                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->y);
+        }
+    }
 
 
 
@@ -340,4 +434,24 @@ void DrawBattle(void)
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
+}
+
+void MenuItem_PlayerBattleAction_Attack(void)
+{
+
+}
+
+void MenuItem_PlayerBattleAction_Spell(void)
+{
+
+}
+
+void MenuItem_PlayerBattleAction_Run(void)
+{
+
+}
+
+void MenuItem_PlayerBattleAction_Wait(void)
+{
+
 }

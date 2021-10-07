@@ -27,7 +27,8 @@
 // Made a player stats hud that changes position if the player is standing beneath it.
 // Animated "type-writer" text during the battle scene.
 // Randomized battle text to add flavor.
-// Added a "surprise attack" chance
+// Added a "surprise attack" chance.
+// Added random monster "emotes" for flavor.
 // 
 // --- TODO ---
 // Move extern globals to their own header file?
@@ -3356,6 +3357,8 @@ int64_t FileSizeA(_In_ const char* FileName)
     return(Size.QuadPart);
 }
 
+// Draw HUD at the top-left, unless the player is standing there, in
+// which case draw it at the top-right.
 void DrawPlayerStatsWindow(PIXEL32* FadeColor)
 {
     char TextBuffer[32] = { 0 };
