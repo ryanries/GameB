@@ -21,9 +21,6 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
 // --- DONE ---
-// Migrated to Visual Studio 2022 (sorry.)
-// Now using VS-integrated Git instead of Github desktop client.
-// Wangjangled DrawWindow some more. Talk about the use of ternary operators and recursion.
 // Made a player stats hud that changes position if the player is standing beneath it.
 // Animated "type-writer" text during the battle scene.
 // Randomized battle text to add flavor.
@@ -155,7 +152,7 @@ IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES] = { 0 };
 
 IXAudio2SourceVoice* gXAudioMusicSourceVoice = NULL;
 
-uint8_t gPassableTiles[3] = { 0 };
+uint8_t gPassableTiles[11] = { 0 };
 
 UPOINT gCamera = { 0 };
 
@@ -240,6 +237,13 @@ uint8_t gSFXSourceVoiceSelector;
 // The game's entry point.
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
 {
+
+
+
+
+
+
+
     UNREFERENCED_PARAMETER(Instance);
 
 	UNREFERENCED_PARAMETER(PreviousInstance);
@@ -1096,7 +1100,7 @@ void ResetEverythingForNewGame(void)
 
     gCamera.x = 0;
 
-    gCamera.y = 0;
+    gCamera.y = 592;
 
     gGameIsRunning = TRUE;
 
@@ -1107,6 +1111,24 @@ void ResetEverythingForNewGame(void)
     gPassableTiles[1] = TILE_PORTAL_01;
 
     gPassableTiles[2] = TILE_BRICK_01;
+
+    gPassableTiles[3] = TILE_SNOW_01;
+
+    gPassableTiles[4] = TILE_SAND_01;
+
+    gPassableTiles[5] = TILE_TREES_01;
+
+    gPassableTiles[6] = TILE_TREES_02;
+
+    gPassableTiles[7] = TILE_TREES_03;
+
+    gPassableTiles[8] = TILE_SWAMP_01;
+
+    gPassableTiles[9] = TILE_HOUSE_01;
+
+    gPassableTiles[10] = TILE_BRIDGE_01;
+
+
     
     gOverworldArea = (GAMEAREA)
     {
@@ -1166,20 +1188,20 @@ void ResetEverythingForNewGame(void)
     
     gPlayer.Money = 0;
 
-    gPlayer.ScreenPos.x = 192;
+    gPlayer.ScreenPos.x = 80;
 
-    gPlayer.ScreenPos.y = 64;
+    gPlayer.ScreenPos.y = 160;
 
-    gPlayer.WorldPos.x = 192;
+    gPlayer.WorldPos.x = 80;
 
-    gPlayer.WorldPos.y = 64;
+    gPlayer.WorldPos.y = 752;
 
     gPlayer.CurrentArmor = SUIT_0;
 
     gPlayer.Direction = DOWN;
 
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
-    gPlayer.RandomEncounterPercentage = 90;
+    gPlayer.RandomEncounterPercentage = 100;
 
     return;    
 }
@@ -3366,19 +3388,21 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
     // Exactly enough width to fit an 8-character name with 1-pixel padding on each side.
     uint8_t WindowWidth = 53;
 
+    uint8_t WindowHeight = 64;
+
     // Center the player's name depending on the name's length.
     // WindowWidth - 4 is to accomodate for the thick borders.
-    uint16_t PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 
+    uint16_t PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
         (326 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2))) : 
         (11 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2)));
 
     // Draw the main player stats window top left, unless player is standing underneath that area,
     // in which case draw it top right.
     DrawWindow(
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8, 
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8, 
         8, 
         WindowWidth, 
-        96, 
+        WindowHeight,
         FadeColor, 
         &COLOR_NES_BLACK, 
         &COLOR_NES_BLACK,
@@ -3389,18 +3413,18 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
     sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
 
     BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
 
     BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 1));
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
 
     BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor, 
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= 96) ? 326 : 11,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 2));
 }

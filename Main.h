@@ -643,7 +643,7 @@ extern IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES];
 extern IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 
 // These are tiles that the player can walk normally on. e.g. NOT water or lava or walls.
-extern uint8_t gPassableTiles[3];
+extern uint8_t gPassableTiles[11];
 
 // Imagine the camera is 50 feet up the sky looking straight down over the player.
 // Knowing the position of the camera is necessary to properly pan the overworld map as

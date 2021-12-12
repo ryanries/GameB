@@ -183,7 +183,7 @@ void DrawCharacterNaming(void)
         gInputEnabled = FALSE;        
     }
 
-    memset(gBackBuffer.Memory, 0x32, GAME_DRAWING_AREA_MEMORY_SIZE);
+    memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
     ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
 
@@ -193,27 +193,27 @@ void DrawCharacterNaming(void)
     
     // DrawWindow Tests ... dare I say unit tests?
 
-    DrawWindow(16, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE);
+    //DrawWindow(16, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE);
 
-    DrawWindow(34, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+    //DrawWindow(34, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
-    DrawWindow(52, 60, 16, 16, &TextColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+    //DrawWindow(52, 60, 16, 16, &TextColor, NULL, NULL, WINDOW_FLAG_BORDERED);
 
-    DrawWindow(70, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE);
+    //DrawWindow(70, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE);
 
-    DrawWindow(88, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+    //DrawWindow(88, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
-    DrawWindow(106, 60, 16, 16, NULL, &COLOR_NES_WHITE, &COLOR_NES_BLACK, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_SHADOW);
-    
-    DrawWindow(124, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+    //DrawWindow(106, 60, 16, 16, NULL, &COLOR_NES_WHITE, &COLOR_NES_BLACK, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_SHADOW);
+    //
+    //DrawWindow(124, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
 
-    DrawWindow(142, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
+    //DrawWindow(142, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
 
-    DrawWindow(160, 60, 16, 16, &COLOR_NES_WHITE, NULL, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK);
+    //DrawWindow(160, 60, 16, 16, &COLOR_NES_WHITE, NULL, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK);
 
-    DrawWindow(178, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW);
+    //DrawWindow(178, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW);
 
-    DrawWindow(196, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
+    //DrawWindow(196, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
 
     // End DrawWindow Tests
 
@@ -290,28 +290,28 @@ void PPI_CharacterNaming(void)
             switch ((char)gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name[0])
             {
                 case 'A':
-                case 'B':                
+                case 'B':   
+                case 'C':
                 {
                     gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;
 
                     break;
                 }
                 case 'L':
-                case 'M':                
+                case 'M':
+                case 'K':
                 {
                     gMenu_CharacterNaming.SelectedItem = OK_BUTTON;
 
                     break;
-                }
-                case 'C':
+                }                
                 case 'D':
                 case 'E': 
                 case 'F': 
                 case 'G': 
                 case 'H': 
                 case 'I': 
-                case 'J':
-                case 'K':
+                case 'J':                
                 {
                     gMenu_CharacterNaming.SelectedItem += (ROW_WIDTH * 3);
 
@@ -344,28 +344,28 @@ void PPI_CharacterNaming(void)
             switch ((char)gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name[0])
             {
                 case 'n':
-                case 'o':                
+                case 'o':
+                case 'p':
                 {
                     gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;
 
                     break;
-                }                
+                }      
+                case 'x':
                 case 'y':
                 case 'z':
                 {
                     gMenu_CharacterNaming.SelectedItem = OK_BUTTON;
 
                     break;
-                }
-                case 'p':
+                }                
                 case 'q':
                 case 'r':
                 case 's':
                 case 't':
                 case 'u':
                 case 'v':
-                case 'w':
-                case 'x':
+                case 'w':                
                 {
                     gMenu_CharacterNaming.SelectedItem -= (ROW_WIDTH * 3);
 

@@ -29,3 +29,18 @@
 
 #define TILE_PORTAL_01	5
 
+#define TILE_SAND_01	10
+
+#define TILE_SNOW_01	13
+
+#define TILE_TREES_01	16	// Temperate trees
+
+#define TILE_TREES_02	22	// Desert trees
+
+#define TILE_TREES_03	23	// Snowy trees
+
+#define TILE_SWAMP_01	19
+
+#define TILE_HOUSE_01	26
+
+#define TILE_BRIDGE_01	18
