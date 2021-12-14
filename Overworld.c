@@ -475,3 +475,53 @@ void RandomMonsterEncounter(void)
 
     LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
 }
+
+// Draw HUD at the top-left, unless the player is standing there, in
+// which case draw it at the top-right.
+void DrawPlayerStatsWindow(PIXEL32* FadeColor)
+{
+    char TextBuffer[32] = { 0 };
+
+    // Exactly enough width to fit an 8-character name with 1-pixel padding on each side.
+    uint8_t WindowWidth = 53;
+
+    uint8_t WindowHeight = 64;
+
+    // Center the player's name depending on the name's length.
+    // WindowWidth - 4 is to accomodate for the thick borders.
+    uint16_t PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
+        (326 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2))) :
+        (11 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2)));
+
+    // Draw the main player stats window top left, unless player is standing underneath that area,
+    // in which case draw it top right.
+    DrawWindow(
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8,
+        8,
+        WindowWidth,
+        WindowHeight,
+        FadeColor,
+        &COLOR_NES_BLACK,
+        &COLOR_NES_BLACK,
+        WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+
+    BlitStringToBuffer(gPlayer.Name, &g6x7Font, FadeColor, PlayerNameOffset, 11);
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
+
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21);
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
+
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21 + (8 * 1));
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
+
+    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21 + (8 * 2));
+}
