@@ -49,7 +49,7 @@ extern GAMEAREA gCurrentArea;
 
 extern GAMEAREA gOverworldArea;
 
-extern GAMEAREA gDungeon01Area;
+extern GAMEAREA gHomeGameArea;
 
 void PPI_Overworld(void);
 

@@ -25,7 +25,7 @@ GAMEAREA gCurrentArea = { 0 };
 
 GAMEAREA gOverworldArea = { 0 };
 
-GAMEAREA gDungeon01Area = { 0 };
+GAMEAREA gHomeGameArea = { 0 };
 
 PORTAL gPortal001 = { 0 };
 
@@ -85,6 +85,9 @@ void DrawOverworld(void)
     //DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_SHADOW_EFFECT | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
     
     DrawPlayerStatsWindow(&TextColor);
+
+    // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
+    //DrawNPCs();
 
     LocalFrameCounter++;
 
@@ -370,30 +373,38 @@ void PPI_Overworld(void)
 
                 // Is the player standing on a portal? (or door, or staircase, etc.?)
 
-                if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16] == TILE_PORTAL_01)
+                switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
                 {
-                    if (gPlayer.HasPlayerMovedSincePortal == TRUE)
+                    case TILE_PORTAL_01:                    
+                    case TILE_HOUSE_01:
                     {
-                        PortalHandler();
-                    }
-                }
-                else
-                {
-                    // Should we run into a random monster encounter?
-                    if ((gPlayer.StepsTaken - gPlayer.StepsSinceLastRandomMonsterEncounter) >= RANDOM_MONSTER_GRACE_PERIOD_STEPS)
-                    {
-                        DWORD Random = 0;
-
-                        rand_s((unsigned int*)&Random);
-
-                        Random = Random % 100;
-
-                        if (Random >= gPlayer.RandomEncounterPercentage)
+                        if (gPlayer.HasPlayerMovedSincePortal == TRUE)
                         {
-                            gPlayer.StepsSinceLastRandomMonsterEncounter = gPlayer.StepsTaken;
-
-                            RandomMonsterEncounter();
+                            PortalHandler();
                         }
+
+                        break;
+                    }
+                    default:
+                    {
+                        // This is not a portal tile. Check whether we should encounter a random monster.                                            
+                        if ((gPlayer.StepsTaken - gPlayer.StepsSinceLastRandomMonsterEncounter) >= RANDOM_MONSTER_GRACE_PERIOD_STEPS)
+                        {
+                            DWORD Random = 0;
+
+                            rand_s((unsigned int*)&Random);
+
+                            Random = Random % 100;
+
+                            if (Random >= gPlayer.RandomEncounterPercentage)
+                            {
+                                gPlayer.StepsSinceLastRandomMonsterEncounter = gPlayer.StepsTaken;
+
+                                RandomMonsterEncounter();
+                            }
+                        }
+
+                        break;
                     }
                 }
 

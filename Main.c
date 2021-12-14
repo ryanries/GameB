@@ -21,11 +21,8 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
 // --- DONE ---
-// Made a player stats hud that changes position if the player is standing beneath it.
-// Animated "type-writer" text during the battle scene.
-// Randomized battle text to add flavor.
-// Added a "surprise attack" chance.
-// Added random monster "emotes" for flavor.
+// Created the overworld!
+// Hold down Escape to fast-quit (debug build only) in ProcessPlayerInput.
 // 
 // --- TODO ---
 // Move extern globals to their own header file?
@@ -1006,6 +1003,27 @@ void ProcessPlayerInput(void)
         goto InputDisabled;
     }
 
+    // If holding down the escape key for one full second, fast-quit the game.
+#ifdef _DEBUG
+
+    static uint16_t EscapeKeyHeldDownFrames;
+
+    if (gGameInput.EscapeKeyIsDown && gGameInput.EscapeKeyWasDown)
+    {
+        if (++EscapeKeyHeldDownFrames > 60)
+        {
+            gGameIsRunning = FALSE; 
+
+            PostQuitMessage(0);
+        }
+    }
+    else
+    {
+        EscapeKeyHeldDownFrames = 0;
+    }
+
+#endif
+
     switch (gCurrentGameState)
     {
         case GAMESTATE_OPENINGSPLASHSCREEN:
@@ -1137,9 +1155,9 @@ void ResetEverythingForNewGame(void)
         .Music = &gMusicOverworld01
     };
 
-    gDungeon01Area = (GAMEAREA)
+    gHomeGameArea = (GAMEAREA)
     {
-        .Name = "Dungeon 01",
+        .Name = "HomeSweetHome",
         .Area = (RECT){.left = 3856, .top = 0, .right = 4240, .bottom = 240 },
         .Music = &gMusicDungeon01
     };
@@ -1147,20 +1165,27 @@ void ResetEverythingForNewGame(void)
     gCurrentArea = gOverworldArea;
 
 
+    // This is the player's house at the beginning of the game.
+    gPortal001 = (PORTAL)
+    {
+        .DestinationArea = gHomeGameArea,                   // The area you will be in after teleport
+        .CameraPos = (UPOINT){.x = 3856, .y = 0 },          // The camera's position after teleport
+        .ScreenDestination = (UPOINT){.x = 64, .y = 32 },   // Screen coords after teleport
+        .WorldDestination = (UPOINT){.x = 3920, .y = 32},   // Player's world position after teleport
+        .WorldPos = (UPOINT){ .x = 64, .y = 736 }           // The world position of the origin portal
+    };        
 
-    gPortal001 = (PORTAL){
-        .DestinationArea = gDungeon01Area,
-        .CameraPos = (UPOINT){.x = 3856, .y = 0 },
-        .ScreenDestination = (UPOINT){.x = 64, .y = 32 },
-        .WorldDestination = (UPOINT){.x = 3920, .y = 32},
-        .WorldPos = (UPOINT){.x = 272, .y = 80 } };
-
-    gPortal002 = (PORTAL){
+    // This is the door from the player's house back outside to the overworld.
+    gPortal002 = (PORTAL)
+    {
         .DestinationArea = gOverworldArea,
-        .CameraPos = (UPOINT){.x = 0, .y = 0 },
-        .ScreenDestination = (UPOINT){.x = 272, .y = 80 },
-        .WorldDestination = (UPOINT){.x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y},
-        .WorldPos = (UPOINT){.x = 3920, .y = 32 } };
+        .CameraPos = (UPOINT){ .x = 0, .y = 592 },
+        .ScreenDestination = (UPOINT){ .x = 64, .y = 144 },
+        .WorldDestination = (UPOINT){ .x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y },
+        .WorldPos = (UPOINT){ .x = 3920, .y = 32 } 
+    };
+
+    // Add all portals to an array.
 
     gPortals[0] = gPortal001;
 
