@@ -36,7 +36,6 @@
 // Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Does setting gPlayer.RandomEncounterPercentage to 90 really *feel* like 10%? (Does 80 really *feel* like 20%, etc.?)
 // Make the fade in and fade out on the overworld better.
-// (Holding the Escape key down for several seconds should fast-quit the game?)
 // Make gPortalTiles an array like gPassableTiles
 // Add a picture of an xbox gamepad to the "gamepadunplugged" screen
 // Create a windowing system
@@ -172,27 +171,7 @@ BOOL gMusicIsPaused = FALSE;
 // This critical section is used to synchronize LogMessageA between multiple threads.
 CRITICAL_SECTION gLogCritSec;
 
-// Map any char value to an offset dictated by the g6x7Font ordering.
-// 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
-// We use them as a cursor in menus.
-int32_t gFontCharacterPixelOffset[] = {
-    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-    //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
-        94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
-    //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
-        65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
-    //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
-        62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
-    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-    //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
-        93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
-    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
-        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
-};
+
 
 // Lookup table for fade in/out animations. 
 // Maps frame count to brightness adjustments.
@@ -235,13 +214,6 @@ uint8_t gSFXSourceVoiceSelector;
 // The game's entry point.
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
 {
-
-
-
-
-
-
-
     UNREFERENCED_PARAMETER(Instance);
 
 	UNREFERENCED_PARAMETER(PreviousInstance);
@@ -1234,6 +1206,28 @@ void ResetEverythingForNewGame(void)
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y)
 {
+    // Map any char value to an offset dictated by the g6x7Font ordering.
+    // 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
+    // We use them as a cursor in menus.
+    static int32_t FontCharacterPixelOffset[] = {
+     // .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+     //  !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
+        94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
+     //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
+        65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
+     //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
+        62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
+     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+     //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
+         93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
+     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
+         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
+    };
+
     uint16_t CharWidth = (uint16_t)FontSheet->BitmapInfo.bmiHeader.biWidth / FONT_SHEET_CHARACTERS_PER_ROW;
 
     uint16_t CharHeight = (uint16_t)FontSheet->BitmapInfo.bmiHeader.biHeight;
@@ -1267,7 +1261,7 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
         PIXEL32 FontSheetPixel = { 0 };
 
         StartingFontSheetPixel = (FontSheet->BitmapInfo.bmiHeader.biWidth * FontSheet->BitmapInfo.bmiHeader.biHeight) - \
-            FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * gFontCharacterPixelOffset[(uint8_t)String[Character]]);
+            FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * FontCharacterPixelOffset[(uint8_t)String[Character]]);
 
         for (int YPixel = 0; YPixel < CharHeight; YPixel++)
         {
@@ -2712,7 +2706,7 @@ BOOL MusicIsPlaying(void)
 // The asset file is a compressed zip archive. The asset file is created with a customized version of miniz.
 // The only difference is that some of the zip file metadata constants were changed so that tools such as 7-zip, WinRAR, etc., 
 // will not be able to recognize the file. The asset file currently does not support any directory structure.
-DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource)
+DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _Inout_ void* Resource)
 {
     DWORD Error = ERROR_SUCCESS;
 
@@ -2723,6 +2717,8 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
     size_t DecompressedSize = 0;
 
     BOOL FileFoundInArchive = FALSE;
+
+    char* FileExtension = NULL;
 
     if ((mz_zip_reader_init_file(&Archive, ArchiveName, 0)) == FALSE)
     {
@@ -2778,37 +2774,38 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
         goto Exit;
     }
 
-    switch (ResourceType)
+    /// birthdaycake.bmpx
+    for (int i = strlen(AssetFileName) - 1; i > 0; i--)
     {
-        case RESOURCE_TYPE_WAV:
-        {
-            Error = LoadWavFromMemory(DecompressedBuffer, Resource);
+        FileExtension = &AssetFileName[i];
 
-            break;
-        }
-        case RESOURCE_TYPE_OGG:
+        if (FileExtension[0] == '.')
         {
-            Error = LoadOggFromMemory(DecompressedBuffer, (uint32_t)DecompressedSize, Resource);
-
             break;
-        }
-        case RESOURCE_TYPE_TILEMAP:
-        {
-            Error = LoadTilemapFromMemory(DecompressedBuffer, (uint32_t)DecompressedSize, Resource);
-
-            break;
-        }
-        case RESOURCE_TYPE_BMPX:
-        {
-            Error = Load32BppBitmapFromMemory(DecompressedBuffer, Resource);
-
-            break;
-        }
-        default:
-        {
-            ASSERT(FALSE, "Unknown resource type!");
         }
     }
+
+    if (FileExtension && _stricmp(FileExtension, ".bmpx") == 0)
+    {
+        Error = Load32BppBitmapFromMemory(DecompressedBuffer, Resource);
+    }
+    else if (FileExtension && _stricmp(FileExtension, ".wav") == 0)
+    {
+        Error = LoadWavFromMemory(DecompressedBuffer, Resource);
+    }
+    else if (FileExtension && _stricmp(FileExtension, ".ogg") == 0)
+    {
+        Error = LoadOggFromMemory(DecompressedBuffer, (uint32_t)DecompressedSize, Resource);
+    }
+    else if (FileExtension && _stricmp(FileExtension, ".tmx") == 0)
+    {
+        Error = LoadTilemapFromMemory(DecompressedBuffer, (uint32_t)DecompressedSize, Resource);
+    }
+    else
+    {
+        ASSERT(FALSE, "Unknown file extension!");
+    }
+
 
 Exit:    
         
@@ -2827,198 +2824,62 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
     DWORD Error = ERROR_SUCCESS;
 
+    typedef struct ASSET
+    {
+        char* Name;
+
+        void* Destination;
+
+    } ASSET;
+
+    ASSET Assets[] = {
+        { "6x7font.bmpx", &g6x7Font },
+        { "SplashScreen.wav",  &gSoundSplashScreen }, // <-- set the gEssentialAssetsLoadedEvent event after loading this one
+        { "Overworld01.bmpx",  &gOverworld01.GameBitmap },
+        { "Overworld01.tmx",   &gOverworld01.TileMap },
+        { "MenuNavigate.wav",  &gSoundMenuNavigate },
+        { "MenuChoose.wav",    &gSoundMenuChoose },
+        { "Overworld01.ogg",   &gMusicOverworld01 },
+        { "Dungeon01.ogg",     &gMusicDungeon01 },
+        { "Battle01.ogg",      &gMusicBattle01 },
+        { "BattleIntro01.ogg", &gMusicBattleIntro01 },
+        { "Hero_Suit0_Down_Standing.bmpx",  &gPlayer.Sprite[SUIT_0][FACING_DOWN_0] },
+        { "Hero_Suit0_Down_Walk1.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_DOWN_1] },
+        { "Hero_Suit0_Down_Walk2.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_DOWN_2] },
+        { "Hero_Suit0_Left_Standing.bmpx",  &gPlayer.Sprite[SUIT_0][FACING_LEFT_0] },
+        { "Hero_Suit0_Left_Walk1.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_LEFT_1] },
+        { "Hero_Suit0_Left_Walk2.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_LEFT_2] },
+        { "Hero_Suit0_Right_Standing.bmpx", &gPlayer.Sprite[SUIT_0][FACING_RIGHT_0] },
+        { "Hero_Suit0_Right_Walk1.bmpx",    &gPlayer.Sprite[SUIT_0][FACING_RIGHT_1] },
+        { "Hero_Suit0_Right_Walk2.bmpx",    &gPlayer.Sprite[SUIT_0][FACING_RIGHT_2] },
+        { "Hero_Suit0_Up_Standing.bmpx",    &gPlayer.Sprite[SUIT_0][FACING_UPWARD_0] },
+        { "Hero_Suit0_Up_Walk1.bmpx",       &gPlayer.Sprite[SUIT_0][FACING_UPWARD_1] },
+        { "Hero_Suit0_Up_Walk2.bmpx",       &gPlayer.Sprite[SUIT_0][FACING_UPWARD_2] },
+        { "Grasslands01.bmpx", &gBattleScene_Grasslands01 },
+        { "Dungeon01.bmpx", &gBattleScene_Dungeon01 },
+        { "Slime001.bmpx", &gMonsterSprite_Slime_001 },
+        { "Rat001.bmpx", &gMonsterSprite_Rat_001 }
+    };
+
+    int FinalEssentialAssetIndex = 1;
+
     LogMessageA(LL_INFO, "[%s] Asset loading has begun.", __FUNCTION__);
 
-    // The following resources are considered "essential" assets. They need to be loaded
-    // first, as quickly as possible. Once the essential assets are loaded, set the event
-    // to let the main thread know that at least the essential assets have been loaded,
-    // even if we are not completely done loading all of the assets yet.
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "6x7Font.bmpx", RESOURCE_TYPE_BMPX, &g6x7Font)) != ERROR_SUCCESS)
+    for (int i = 0; i < _countof(Assets); i++)
     {
-        LogMessageA(LL_ERROR, "[%s] Loading 6x7font.bmpx failed with 0x%08lx!", __FUNCTION__, Error);        
+        if ((Error = LoadAssetFromArchive(ASSET_FILE, Assets[i].Name, Assets[i].Destination)) != ERROR_SUCCESS)
+        {
+            LogMessageA(LL_ERROR, "[%s] Loading %s failed with 0x%08lx!", __FUNCTION__, Assets[i].Name, Error);
 
-        goto Exit;
-    }
+            goto Exit;
+        }
 
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "SplashScreen.wav", RESOURCE_TYPE_WAV, &gSoundSplashScreen)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading SplashScreen.wav failed with 0x%08lx!", __FUNCTION__, Error);        
-
-        goto Exit;
-    }
-
-    // End of "essential" assets.
-    SetEvent(gEssentialAssetsLoadedEvent);
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.bmpx", RESOURCE_TYPE_BMPX, &gOverworld01.GameBitmap)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);        
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.tmx", RESOURCE_TYPE_TILEMAP, &gOverworld01.TileMap)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.tmx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "MenuNavigate.wav", RESOURCE_TYPE_WAV, &gSoundMenuNavigate)) != ERROR_SUCCESS)
-    {       
-        LogMessageA(LL_ERROR, "[%s] Loading MenuNavigate.wav failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "MenuChoose.wav", RESOURCE_TYPE_WAV, &gSoundMenuChoose)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading MenuChoose.wav failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Overworld01.ogg", RESOURCE_TYPE_OGG, &gMusicOverworld01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Overworld01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Dungeon01.ogg", RESOURCE_TYPE_OGG, &gMusicDungeon01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Dungeon01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Battle01.ogg", RESOURCE_TYPE_OGG, &gMusicBattle01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Battle01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "BattleIntro01.ogg", RESOURCE_TYPE_OGG, &gMusicBattleIntro01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading BattleIntro01.ogg failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_0])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_1])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Down_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_DOWN_2])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Down_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_0])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_1])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Left_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_LEFT_2])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Left_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_0])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_1])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Right_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_RIGHT_2])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Right_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Standing.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_0])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Standing.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Walk1.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_1])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Walk1.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Hero_Suit0_Up_Walk2.bmpx", RESOURCE_TYPE_BMPX, &gPlayer.Sprite[SUIT_0][FACING_UPWARD_2])) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Hero_Suit0_Up_Walk2.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }   
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Grasslands01.bmpx", RESOURCE_TYPE_BMPX, &gBattleScene_Grasslands01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Grasslands01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Dungeon01.bmpx", RESOURCE_TYPE_BMPX, &gBattleScene_Dungeon01)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Dungeon01.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Slime001.bmpx", RESOURCE_TYPE_BMPX, &gMonsterSprite_Slime_001)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Slime001.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    if ((Error = LoadAssetFromArchive(ASSET_FILE, "Rat001.bmpx", RESOURCE_TYPE_BMPX, &gMonsterSprite_Rat_001)) != ERROR_SUCCESS)
-    {
-        LogMessageA(LL_ERROR, "[%s] Loading Rat001.bmpx failed with 0x%08lx!", __FUNCTION__, Error);
-
-        goto Exit;
-    }
-
-    //
+        if (i == FinalEssentialAssetIndex)
+        {
+            // End of "essential" assets.
+            SetEvent(gEssentialAssetsLoadedEvent);
+        }
+    } 
 
 Exit:
 

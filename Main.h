@@ -264,21 +264,6 @@ typedef enum GAMESTATE
 
 } GAMESTATE;
 
-// These are the only supported types of assets that we can 
-// extract from the compressed assets archive file.
-// TODO: We probably don't even need this, we can just infer type from file extension.
-typedef enum RESOURCE_TYPE
-{
-	RESOURCE_TYPE_WAV,
-
-	RESOURCE_TYPE_OGG,
-
-	RESOURCE_TYPE_TILEMAP,
-
-	RESOURCE_TYPE_BMPX
-
-} RESOURCE_TYPE;
-
 // For use in the DrawWindow function.
 typedef enum WINDOW_FLAGS
 {
@@ -723,7 +708,7 @@ void StopMusic(void);
 
 BOOL MusicIsPlaying(void);
 
-DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource);
+DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _Inout_ void* Resource);
 
 DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
