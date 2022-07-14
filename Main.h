@@ -720,8 +720,8 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 // transparent and invisible. The window border will cut into the inside of the window area.
 
 void DrawWindow(
-	_In_opt_ uint16_t x,
-	_In_opt_ uint16_t y,
+	_In_ uint16_t x,
+	_In_ uint16_t y,
 	_In_ int16_t Width,
 	_In_ int16_t Height,
 	_In_opt_ PIXEL32* BorderColor,

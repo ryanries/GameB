@@ -2775,7 +2775,7 @@ DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* AssetFileName, _In
     }
 
     /// birthdaycake.bmpx
-    for (int i = strlen(AssetFileName) - 1; i > 0; i--)
+    for (int i = (int)strlen(AssetFileName) - 1; i > 0; i--)
     {
         FileExtension = &AssetFileName[i];
 
@@ -2832,9 +2832,17 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
     } ASSET;
 
-    ASSET Assets[] = {
+    // These are called "essential" assets because we need these to be loaded before we
+    // can begin to draw the opening splash screen. Once these have been loaded, we can
+    // set the event that signals to our main thread that it is OK to proceed with the 
+    // drawing of the splash screen. The rest of the entire game's assets can continue
+    // to load on this background thread while the opening splash screen plays.
+    ASSET EssentialAssets[] = {
         { "6x7font.bmpx", &g6x7Font },
-        { "SplashScreen.wav",  &gSoundSplashScreen }, // <-- set the gEssentialAssetsLoadedEvent event after loading this one
+        { "SplashScreen.wav",  &gSoundSplashScreen }
+    };
+
+    ASSET Assets[] = {
         { "Overworld01.bmpx",  &gOverworld01.GameBitmap },
         { "Overworld01.tmx",   &gOverworld01.TileMap },
         { "MenuNavigate.wav",  &gSoundMenuNavigate },
@@ -2859,11 +2867,21 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         { "Dungeon01.bmpx", &gBattleScene_Dungeon01 },
         { "Slime001.bmpx", &gMonsterSprite_Slime_001 },
         { "Rat001.bmpx", &gMonsterSprite_Rat_001 }
-    };
-
-    int FinalEssentialAssetIndex = 1;
+    };    
 
     LogMessageA(LL_INFO, "[%s] Asset loading has begun.", __FUNCTION__);
+
+    for (int i = 0; i < _countof(EssentialAssets); i++)
+    {
+        if ((Error = LoadAssetFromArchive(ASSET_FILE, EssentialAssets[i].Name, EssentialAssets[i].Destination)) != ERROR_SUCCESS)
+        {
+            LogMessageA(LL_ERROR, "[%s] Loading %s failed with 0x%08lx!", __FUNCTION__, EssentialAssets[i].Name, Error);
+
+            goto Exit;
+        }
+    }
+
+    SetEvent(gEssentialAssetsLoadedEvent);
 
     for (int i = 0; i < _countof(Assets); i++)
     {
@@ -2872,12 +2890,6 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
             LogMessageA(LL_ERROR, "[%s] Loading %s failed with 0x%08lx!", __FUNCTION__, Assets[i].Name, Error);
 
             goto Exit;
-        }
-
-        if (i == FinalEssentialAssetIndex)
-        {
-            // End of "essential" assets.
-            SetEvent(gEssentialAssetsLoadedEvent);
         }
     } 
 
@@ -2906,8 +2918,8 @@ Exit:
 // The window border will cut into the inside of the window area.
 
 void DrawWindow(
-    _In_opt_ uint16_t x,
-    _In_opt_ uint16_t y,
+    _In_ uint16_t x,
+    _In_ uint16_t y,
     _In_ int16_t Width,
     _In_ int16_t Height,
     _In_opt_ PIXEL32* BorderColor,
