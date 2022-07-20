@@ -444,6 +444,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     if ((AssetFileAttributes == INVALID_FILE_ATTRIBUTES) || (AssetFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
     {
+        ShowCursor(TRUE);
+
         LogMessageA(LL_ERROR, "[%s] The asset file %s was not found! It must reside in the same directory as the game executable.", __FUNCTION__, ASSET_FILE);
 
         MessageBoxA(NULL, "The asset file was not found! It must reside in the same directory as the game executable.", "Error!", MB_ICONERROR | MB_OK);
@@ -453,6 +455,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     if ((gAssetLoadingThreadHandle = CreateThread(NULL, 0, AssetLoadingThreadProc, NULL, 0, NULL)) == NULL)
     {
+        ShowCursor(TRUE);
+
         MessageBoxA(NULL, "CreateThread failed!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
@@ -460,6 +464,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     if (InitializeSoundEngine() != S_OK)
     {
+        ShowCursor(TRUE);
+
         MessageBoxA(NULL, "InitializeSoundEngine failed!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
@@ -489,6 +495,8 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
     if (gBackBuffer.Memory == NULL)
     {
+        ShowCursor(TRUE);
+
         LogMessageA(LL_ERROR, "[%s] Failed to allocate memory for drawing surface! Error 0x%08lx!", __FUNCTION__, ERROR_NOT_ENOUGH_MEMORY);
 
         MessageBoxA(NULL, "Failed to allocate memory for drawing surface!", "Error!", MB_ICONERROR | MB_OK);
@@ -2879,9 +2887,9 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
             goto Exit;
         }
-    }
+    }    
 
-    SetEvent(gEssentialAssetsLoadedEvent);
+    SetEvent(gEssentialAssetsLoadedEvent);    
 
     for (int i = 0; i < _countof(Assets); i++)
     {
