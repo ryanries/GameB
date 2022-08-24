@@ -563,6 +563,10 @@ extern GAMEBITMAP gBackBuffer;
 // The smallest, most basic font.
 extern GAMEBITMAP g6x7Font;
 
+extern GAMEBITMAP gPolePigLogo;
+
+extern GAMEBITMAP gLightning01;
+
 // Battle scenes are the 96x96 pictures that serve as the backdrop
 // for... battle scenes. We draw a monster over the top of the battle scene.
 extern GAMEBITMAP gBattleScene_Grasslands01;

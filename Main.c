@@ -133,6 +133,10 @@ GAMEBITMAP gBackBuffer = { 0 };
 
 GAMEBITMAP g6x7Font = { 0 };
 
+GAMEBITMAP gPolePigLogo = { 0 };
+
+GAMEBITMAP gLightning01 = { 0 };
+
 GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
 
 GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
@@ -2847,6 +2851,8 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
     // to load on this background thread while the opening splash screen plays.
     ASSET EssentialAssets[] = {
         { "6x7font.bmpx", &g6x7Font },
+        { "polepig03.bmpx", &gPolePigLogo },
+        { "lightning01.bmpx", &gLightning01 },
         { "SplashScreen.wav",  &gSoundSplashScreen }
     };
 
@@ -2889,7 +2895,7 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         }
     }    
 
-    SetEvent(gEssentialAssetsLoadedEvent);    
+    SetEvent(gEssentialAssetsLoadedEvent); 
 
     for (int i = 0; i < _countof(Assets); i++)
     {
@@ -2899,7 +2905,9 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
 
             goto Exit;
         }
-    } 
+    }
+
+    Sleep(5000);
 
 Exit:
 

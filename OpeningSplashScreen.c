@@ -50,15 +50,15 @@ void DrawOpeningSplashScreen(void)
     // LocalFrameCounter doesn't start counting until after this event is set.
     if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
     {
-        // It's been over 10 seconds and the essential assets have not finished
+        // It's been over 30 seconds and the essential assets have not finished
         // loading yet. Something is wrong.
-        if (gPerformanceData.TotalFramesRendered > 600)
+        if (gPerformanceData.TotalFramesRendered > (30*60))
         {
             gGameIsRunning = FALSE;
 
-            LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 10 seconds. Unable to continue!", __FUNCTION__);
+            LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 30 seconds. Unable to continue!", __FUNCTION__);
 
-            MessageBoxA(gGameWindow, "Essential assets not loaded yet after 10 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
+            MessageBoxA(gGameWindow, "Essential assets not loaded yet after 30 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
         }
 
         return;
@@ -121,17 +121,44 @@ void DrawOpeningSplashScreen(void)
             PlayGameSound(&gSoundSplashScreen);
         }
 
-        // Text pops in full white, then gradually fades to black.
-        if ((LocalFrameCounter >= 180 && LocalFrameCounter <= 210) && (LocalFrameCounter % 15 == 0))
+        // Show the splash screen logo.
+        Blit32BppBitmapToBuffer(
+            &gPolePigLogo,
+            (GAME_RES_WIDTH / 2) - (gPolePigLogo.BitmapInfo.bmiHeader.biWidth / 2),
+            50,
+            0);
+
+        // Show the lightning bolts as part of the splash screen logo,
+        // attempt to synchronize it with the lightning sound.
+        if ((LocalFrameCounter >= 120 && LocalFrameCounter < 130) ||
+            (LocalFrameCounter >= 180 && LocalFrameCounter < 190) ||
+            (LocalFrameCounter >= 260 && LocalFrameCounter < 270))
         {
-            TextColor.Colors.Red   -= 64;
-
-            TextColor.Colors.Green -= 64;
-
-            TextColor.Colors.Blue  -= 64;
+            Blit32BppBitmapToBuffer(
+                &gLightning01,
+                150,
+                55,
+                0);
         }
 
-        if (LocalFrameCounter == 225)
+        // Text pops in full white, then gradually fades to black.
+        switch (LocalFrameCounter)
+        {
+            case 300:
+            case 315:
+            case 330:            
+            {
+                TextColor.Colors.Red -= 64;
+
+                TextColor.Colors.Green -= 64;
+
+                TextColor.Colors.Blue -= 64;
+
+                break;
+            }
+        }
+
+        if (LocalFrameCounter == 345)
         {
             TextColor.Colors.Red   = 0;
 
@@ -142,7 +169,7 @@ void DrawOpeningSplashScreen(void)
 
         // Splash screen animation is done, but we will linger here until the asset loading
         // background thread is finished.
-        if (LocalFrameCounter >= 240)
+        if (LocalFrameCounter >= 360)
         {
             if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
             {
@@ -172,15 +199,15 @@ void DrawOpeningSplashScreen(void)
             }
         }
 
-        BlitStringToBuffer("-Game Studio-",
+        BlitStringToBuffer("POLE PIG PRODUCTIONS",
             &g6x7Font,
             &TextColor,
-            (GAME_RES_WIDTH / 2) - ((13 * 6) / 2), 100);
+            (GAME_RES_WIDTH / 2) - ((20 * 6) / 2), 150);
 
-        BlitStringToBuffer("Presents",
-            &g6x7Font,
-            &TextColor,
-            (GAME_RES_WIDTH / 2) - ((8 * 6) / 2), 115);
+        //BlitStringToBuffer("Presents",
+        //    &g6x7Font,
+        //    &TextColor,
+        //    (GAME_RES_WIDTH / 2) - ((8 * 6) / 2), 115);
     }
 
     LocalFrameCounter++;
