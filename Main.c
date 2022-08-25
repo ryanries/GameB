@@ -175,6 +175,8 @@ BOOL gMusicIsPaused = FALSE;
 // This critical section is used to synchronize LogMessageA between multiple threads.
 CRITICAL_SECTION gLogCritSec;
 
+int32_t gDebugKey = VK_F1;
+
 
 
 // Lookup table for fade in/out animations. 
@@ -927,11 +929,12 @@ BOOL GameIsAlreadyRunning(void)
 // input disabled and enabled states. For example, when the player enters a door, input is
 // disabled and the player is frozen while we transition from outdoors to indoors, but we don't
 // want the player to keep walking even though the player has taken their hands off the keys.
+// TODO: Rename this to "CollectPlayerInput?"
 void ProcessPlayerInput(void)
 {
     gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
 
-    gGameInput.DebugKeyIsDown  = GetAsyncKeyState(VK_F1);
+    gGameInput.DebugKeyIsDown  = GetAsyncKeyState(gDebugKey);
 
     gGameInput.LeftKeyIsDown   = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
 
@@ -1755,6 +1758,30 @@ DWORD LoadRegistryParameters(void)
     LogMessageA(LL_INFO, "[%s] MusicVolume is %.1f/%d.", __FUNCTION__, (float)(gRegistryParams.MusicVolume / 100.0f), gRegistryParams.MusicVolume);
 
     gMusicVolume = (float)(gRegistryParams.MusicVolume / 100.0f);
+
+    ////////
+
+    Result = RegGetValueA(RegKey, NULL, "DebugKey", RRF_RT_DWORD, NULL, (BYTE*)&gDebugKey, &RegBytesRead);
+
+    if (Result != ERROR_SUCCESS)
+    {
+        if (Result == ERROR_FILE_NOT_FOUND)
+        {
+            Result = ERROR_SUCCESS;
+
+            LogMessageA(LL_INFO, "[%s] Registry value 'DebugKey' not found. Using default of VK_F1.", __FUNCTION__);
+
+            gDebugKey = VK_F1;
+        }
+        else
+        {
+            LogMessageA(LL_ERROR, "[%s] Failed to read the 'DebugKey' registry value! Error 0x%08lx!", __FUNCTION__, Result);
+
+            goto Exit;
+        }
+    }
+
+    LogMessageA(LL_INFO, "[%s] DebugKey is %d.", __FUNCTION__, gDebugKey);
 
 Exit:
 
