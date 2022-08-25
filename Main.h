@@ -285,6 +285,13 @@ typedef enum WINDOW_FLAGS
 
 } WINDOW_FLAGS;
 
+typedef enum BLIT_FLAGS
+{
+	BLIT_FLAG_ALPHABLEND = 1
+
+} BLIT_FLAGS;
+
+
 /////////// END GLOBAL ENUMS /////////////
 
 /////////// BEGIN GLOBAL STRUCTS /////////////
@@ -567,6 +574,12 @@ extern GAMEBITMAP gPolePigLogo;
 
 extern GAMEBITMAP gLightning01;
 
+// REMOVE THESE
+
+extern GAMEBITMAP gBlueSquare;
+
+extern GAMEBITMAP gRedCircle;
+
 // Battle scenes are the 96x96 pictures that serve as the backdrop
 // for... battle scenes. We draw a monster over the top of the battle scene.
 extern GAMEBITMAP gBattleScene_Grasslands01;
@@ -675,6 +688,16 @@ void ProcessPlayerInput(void);
 void ResetEverythingForNewGame(void);
 
 void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment);
+
+void Blit32BppBitmapToBufferEx(
+	_In_ GAMEBITMAP* GameBitmap,
+	_In_ int_fast16_t x,
+	_In_ int_fast16_t y,
+	_In_ int_fast16_t BlueAdjust,
+	_In_ int_fast16_t GreenAdjust,
+	_In_ int_fast16_t RedAdjust,
+	_In_ int_fast16_t AlphaAdjust,
+	DWORD Flags);
 
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment);
 

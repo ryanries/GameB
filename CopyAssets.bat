@@ -2,6 +2,8 @@ del Assets.dat
 del CopyAssets.log
 
 REM --- BITMAPS ---
+MyMiniz.exe Assets.dat + .\Assets\BlueSquare.bmpx >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\RedCircle.bmpx >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\polepig03.bmpx >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\lightning01.bmpx >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\6x7font.bmpx >> CopyAssets.log

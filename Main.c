@@ -137,6 +137,12 @@ GAMEBITMAP gPolePigLogo = { 0 };
 
 GAMEBITMAP gLightning01 = { 0 };
 
+// TODO: REMOVE THESE TWO
+
+GAMEBITMAP gBlueSquare = { 0 };
+
+GAMEBITMAP gRedCircle = { 0 };
+
 GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
 
 GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
@@ -1402,6 +1408,79 @@ void RenderFrameGraphics(void)
         SRCCOPY);
 
     ReleaseDC(gGameWindow, DeviceContext);
+}
+
+// TODO: What Flags do we need here?
+void Blit32BppBitmapToBufferEx(
+    _In_ GAMEBITMAP* GameBitmap, 
+    _In_ int_fast16_t x, 
+    _In_ int_fast16_t y,
+    _In_ int_fast16_t BlueAdjust,
+    _In_ int_fast16_t GreenAdjust,
+    _In_ int_fast16_t RedAdjust,
+    _In_ int_fast16_t AlphaAdjust,
+    DWORD Flags)
+{
+    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+
+    int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
+        GameBitmap->BitmapInfo.bmiHeader.biWidth);
+
+    int32_t MemoryOffset = 0;
+
+    int32_t BitmapOffset = 0;
+
+    PIXEL32 BitmapPixel = { 0 };
+
+    PIXEL32 BackgroundPixel = { 0 };
+
+    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
+    {
+        for (int16_t XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
+        {
+            // Calculate the offset into the backbuffer where this pixel will be drawn.
+            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
+
+            // Calculate the offset into the bitmap image that we are drawing to the backbuffer.
+            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+            // Load the single pixel from the bitmap image.
+            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
+
+            // Clamp between 0 and 255 // min(upper, max(x, lower))            
+            BitmapPixel.Colors.Red = (uint8_t)min(255, max((BitmapPixel.Colors.Red + RedAdjust), 0));
+
+            BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + GreenAdjust), 0));
+
+            BitmapPixel.Colors.Blue = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BlueAdjust), 0));
+
+            BitmapPixel.Colors.Alpha = (uint8_t)min(255, max((BitmapPixel.Colors.Alpha + AlphaAdjust), 0));
+
+            if (Flags & BLIT_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy_s(&BackgroundPixel, sizeof(PIXEL32), (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue  = BitmapPixel.Colors.Blue * BitmapPixel.Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BitmapPixel.Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = BitmapPixel.Colors.Green * BitmapPixel.Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BitmapPixel.Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red   = BitmapPixel.Colors.Red * BitmapPixel.Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BitmapPixel.Colors.Alpha) / 255;
+
+                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                if (BitmapPixel.Colors.Alpha == 255)
+                {
+                    memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
+                }
+            }
+        }
+    }
 }
 
 // This function draws any sized bitmap onto the global backbuffer. Sprites, text strings, etc.
@@ -2907,7 +2986,10 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         { "Grasslands01.bmpx", &gBattleScene_Grasslands01 },
         { "Dungeon01.bmpx", &gBattleScene_Dungeon01 },
         { "Slime001.bmpx", &gMonsterSprite_Slime_001 },
-        { "Rat001.bmpx", &gMonsterSprite_Rat_001 }
+        { "Rat001.bmpx", &gMonsterSprite_Rat_001 },
+        // TODO: REMOVE THESE TWO
+        { "BlueSquare.bmpx", &gBlueSquare },
+        { "RedCircle.bmpx", &gRedCircle }
     };    
 
     LogMessageA(LL_INFO, "[%s] Asset loading has begun.", __FUNCTION__);

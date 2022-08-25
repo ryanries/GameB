@@ -70,7 +70,17 @@ void DrawTitleScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);    
+    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
+
+
+    ///////  TODO: TESTING REMOVE THIS LATER
+
+    Blit32BppBitmapToBufferEx(&gRedCircle, 8, 8, 0, 0, 0, 0, BLIT_FLAG_ALPHABLEND);
+
+    Blit32BppBitmapToBufferEx(&gBlueSquare, 10, 10, 0, 0, 0, -127, BLIT_FLAG_ALPHABLEND);
+        
+
+    /////////////////
 
     //    AARRGGBB ?
     //__stosd(gBackBuffer.Memory, 0xFF0000FF, GAME_DRAWING_AREA_MEMORY_SIZE / sizeof(PIXEL32));
