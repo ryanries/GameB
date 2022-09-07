@@ -21,19 +21,14 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
 // --- DONE ---
-// Created the overworld!
-// Hold down Escape to fast-quit (debug build only) in ProcessPlayerInput.
-// Moved DrawPlayerStatsWindow to Overworld.c, since that's the only gamestate you should ever see it in.
+// 
 // 
 // --- TODO ---
-// Move extern globals to their own header file?
-// Should BlitBackgroundToBuffer be in overworld.c instead of main.c?
-// Shadow effect for text
+// Get rid of stdint.h?
 // Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
 // sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
 // slightly better when in multiples of word size too.
 // 
-// Add Flags to the BlitString function similar to what we did for the DrawWindow function.
 // Does setting gPlayer.RandomEncounterPercentage to 90 really *feel* like 10%? (Does 80 really *feel* like 20%, etc.?)
 // Make the fade in and fade out on the overworld better.
 // Make gPortalTiles an array like gPassableTiles
@@ -41,8 +36,6 @@
 // Create a windowing system
 // enhance Blit32BppBitmap function so that it can alter the color of bitmaps at run time?
 // maybe a new MAP data structure for map GAMEBITMAP plus TILEMAP together? (plus default GAMESOUND too?)
-// talk about the scope of #define precompiler directives
-// gradient effect for text?
 // should we enhance BlitStringToBuffer to support varargs?
 // Optimization: String caching?
 // Optimization: Should we defer the loading of some assets or just load them all as soon as the game is launched?
@@ -95,22 +88,52 @@
 // tools such as 7zip, WinRAR, etc.
 #include "miniz.h"
 
+/////////// BEGIN GLOBAL EXTERN VARIABLES /////////////
+// 
+// Every global variable that will be shared among multiple compilation units/*.c files
+// needs the extern keyword. When using the extern keyword, the global variable must
+// also be assigned a value at the beginning of one and only one *.c file. For these
+// variables that will of course be Main.c. Unfortunately simultaneous declaration and
+// assignment is not sufficient. (e.g. extern int gVar = 0;)
 
-/////////// BEGIN INITIALIZATION OF EXTERN GLOBALS ///////////
+// Contains data such as number of frames rendered, memory usage, etc.
+GAMEPERFDATA gPerformanceData = { 0 };
 
-// These global variables need to be initialized to an arbitrary value because they are declared
-// using the extern keyword in Main.h.
+// The "drawing surface" which we blit to the screen once per frame, 60 times per second.
+GAMEBITMAP gBackBuffer = { 0 };
 
-GAMEINPUT gGameInput = { 0 };
+// The smallest, most basic font.
+GAMEBITMAP g6x7Font = { 0 };
 
+GAMEBITMAP gPolePigLogo = { 0 };
+
+GAMEBITMAP gLightning01 = { 0 };
+
+// Battle scenes are the 96x96 pictures that serve as the backdrop
+// for... battle scenes. We draw a monster over the top of the battle scene.
+GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
+
+GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
+
+GAMEBITMAP gMonsterSprite_Slime_001 = { 0 };
+
+GAMEBITMAP gMonsterSprite_Rat_001 = { 0 };
+
+// Consists of both the massive overworld bitmap and also the tilemap.
+GAMEMAP gOverworld01 = { 0 };
+
+// Used to track the current and previous game states. The game can only 
+// be in one gamestate at a time.
 GAMESTATE gCurrentGameState = GAMESTATE_OPENINGSPLASHSCREEN;
 
 GAMESTATE gPreviousGameState = GAMESTATE_OPENINGSPLASHSCREEN;
 
-GAMEPERFDATA gPerformanceData = { 0 };
+// Holds the current state of all keyboard and gamepad input, as well as the 
+// previous state of input from the last frame. This is used to tell whether
+// the player is holding the button(s) down or not.
+GAMEINPUT gGameInput = { 0 };
 
-BOOL gInputEnabled = TRUE;
-
+// Noises and music.
 GAMESOUND gSoundSplashScreen = { 0 };
 
 GAMESOUND gSoundMenuNavigate = { 0 };
@@ -125,81 +148,66 @@ GAMESOUND gMusicBattle01 = { 0 };
 
 GAMESOUND gMusicBattleIntro01 = { 0 };
 
-GAMEMAP gOverworld01 = { 0 };
-
+// Yours truly.
 HERO gPlayer = { 0 };
 
-GAMEBITMAP gBackBuffer = { 0 };
+// Sound effects and music volume.
+float gSFXVolume = 0.5f;
 
-GAMEBITMAP g6x7Font = { 0 };
-
-GAMEBITMAP gPolePigLogo = { 0 };
-
-GAMEBITMAP gLightning01 = { 0 };
-
-// TODO: REMOVE THESE TWO
-
-GAMEBITMAP gBlueSquare = { 0 };
-
-GAMEBITMAP gRedCircle = { 0 };
-
-GAMEBITMAP gBattleScene_Grasslands01 = { 0 };
-
-GAMEBITMAP gBattleScene_Dungeon01 = { 0 };
-
-GAMEBITMAP gMonsterSprite_Slime_001 = { 0 };
-
-GAMEBITMAP gMonsterSprite_Rat_001 = { 0 };
-
-int8_t gGamepadID = -1;
-
-HWND gGameWindow = NULL;
-
-IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES] = { 0 };
-
-IXAudio2SourceVoice* gXAudioMusicSourceVoice = NULL;
-
-uint8_t gPassableTiles[11] = { 0 };
-
-UPOINT gCamera = { 0 };
-
-HANDLE gAssetLoadingThreadHandle = INVALID_HANDLE_VALUE;
-
-HANDLE gEssentialAssetsLoadedEvent = INVALID_HANDLE_VALUE;
-
-_NtQueryTimerResolution NtQueryTimerResolution = NULL;
-
-BOOL gGameIsRunning = TRUE;
-
-float gSFXVolume = 0.0f;
-
-float gMusicVolume = 0.0f;
+float gMusicVolume = 0.5f;
 
 BOOL gMusicIsPaused = FALSE;
- 
+
+// This will be -1 if there is no gamepad plugged in. It will
+// be 0 if a gamepad is plugged into the first port.
+int8_t gGamepadID = -1;
+
+// A global handle to the game window.
+HWND gGameWindow = NULL;
+
+// COM interfaces for the XAudio2 library.
+// Having 4 source voices for sound effects means we can play up to 
+// 4 sound effects simultaneously.
+IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_OF_SFX_SOURCE_VOICES] = { 0 };
+
+// We only need 1 source voice for music because we never play overlapping music tracks.
+IXAudio2SourceVoice* gXAudioMusicSourceVoice = { 0 };
+
+// These are tiles that the player can walk normally on. e.g. NOT water or lava or walls.
+uint8_t gPassableTiles[11] = { 0 };
+
+// Imagine the camera is 50 feet up the sky looking straight down over the player.
+// Knowing the position of the camera is necessary to properly pan the overworld map as
+// the player walks.
+UPOINT gCamera = { 0 };
+
+// The background thread that loads assets from the compressed archive during the splash screen.
+HANDLE gAssetLoadingThreadHandle = NULL;
+
+// Input is briefly disabled during scene transitions, and also when the main game 
+// window is out of focus.
+BOOL gInputEnabled = FALSE;
+
+// This event gets signalled/set after the most essential assets have been loaded.
+// "Essential" means the assets required to render the splash screen, which is
+// the basic font and the weird noise that plays at the beginning of the splash screen.
+HANDLE gEssentialAssetsLoadedEvent = NULL;
+
+// Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
+BOOL gGameIsRunning = TRUE;
+
+////////////// END EXTERN GLOBAL INITIALIZATION /////////////////
+
+// These are globals that are used only in Main.c. These are all automatically initialized to 0.
 
 // This critical section is used to synchronize LogMessageA between multiple threads.
 CRITICAL_SECTION gLogCritSec;
 
-int32_t gDebugKey = VK_F1;
-
-
-
-// Lookup table for fade in/out animations. 
-// Maps frame count to brightness adjustments.
-const int16_t gFadeBrightnessGradient[] = {
-    -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
-    -192, -192, -192, -192, -192, -192, -192, -192, -192, -192,
-    -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
-     -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,
-     -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
-};
+// Any values that are read from and stored in Windows registry go in this struct.
+REGISTRYPARAMS gRegistryParams;
 
 // If the game window does not have focus, then do not process player input.
 BOOL gWindowHasFocus;
-
-// Any values that are read from and stored in Windows registry go in this struct.
-REGISTRYPARAMS gRegistryParams;
 
 // Holds the state of the Xbox360 gamepad, e.g., is the X button currently pushed or not?
 XINPUT_STATE gGamepadState;
@@ -222,6 +230,17 @@ IXAudio2MasteringVoice* gXAudioMasteringVoice;
 // up to 4 sound effects simultaneously.
 uint8_t gSFXSourceVoiceSelector;
 
+_NtQueryTimerResolution NtQueryTimerResolution = NULL;
+
+// Lookup table for fade in/out animations. 
+// Maps frame count to brightness adjustments.
+const int16_t gFadeBrightnessGradient[] = {
+    -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
+    -192, -192, -192, -192, -192, -192, -192, -192, -192, -192,
+    -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
+     -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,
+     -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
+};
 
 // The game's entry point.
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
@@ -303,6 +322,10 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
         goto Exit;
     }
+
+    gSFXVolume = (float)gRegistryParams.SFXVolume / 100.0f;
+
+    gMusicVolume = (float)gRegistryParams.MusicVolume / 100.0f;
 
     LogMessageA(LL_INFO, "[%s] %s %s is starting.", __FUNCTION__, GAME_NAME, GAME_VER);
 
@@ -448,6 +471,15 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
         LogMessageA(LL_ERROR, "[%s] CreateMainGameWindow failed!", __FUNCTION__);
 
         MessageBoxA(NULL, "Failed to create game window!", "Error!", MB_ICONERROR | MB_OK);
+
+        goto Exit;
+    }
+
+    if (InitializeOpenGL() != ERROR_SUCCESS)
+    {
+        LogMessageA(LL_ERROR, "[%s] InitializeOpenGL failed!", __FUNCTION__);
+
+        MessageBoxA(NULL, "Failed to initialize OpenGL!", "Error!", MB_ICONERROR | MB_OK);
 
         goto Exit;
     }
@@ -744,6 +776,80 @@ LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ 
 //    return(Result);
 //}
 
+DWORD InitializeOpenGL(void)
+{
+#ifdef _WIN32
+
+    DWORD Result = ERROR_SUCCESS;
+
+    HDC WindowDC = GetDC(gGameWindow);
+
+    HGLRC OpenGLRenderContext = NULL;
+
+    int PixelFormatIndex = 0;
+
+    PIXELFORMATDESCRIPTOR PixelFormat = { sizeof(PIXELFORMATDESCRIPTOR) };
+
+    PixelFormat.nVersion = 1;
+
+    PixelFormat.iPixelType = PFD_TYPE_RGBA;
+
+    PixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+
+    PixelFormat.cColorBits = 32;
+
+    PixelFormat.cAlphaBits = 8;
+
+    PixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+    PixelFormatIndex = ChoosePixelFormat(WindowDC, &PixelFormat);
+
+    if (PixelFormatIndex == 0)
+    {
+        Result = GetLastError();
+
+        goto Exit;
+    }
+
+    DescribePixelFormat(WindowDC, PixelFormatIndex, sizeof(PIXELFORMATDESCRIPTOR), &PixelFormat);
+
+    SetPixelFormat(WindowDC, PixelFormatIndex, &PixelFormat);
+
+    OpenGLRenderContext = wglCreateContext(WindowDC);
+
+    if (OpenGLRenderContext == NULL)
+    {
+        Result = GetLastError();
+
+        goto Exit;
+    }
+
+    if (wglMakeCurrent(WindowDC, OpenGLRenderContext) == FALSE)
+    {
+        Result = GetLastError();
+
+        goto Exit;
+    }
+
+    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
+
+Exit:
+
+    if (WindowDC)
+    {
+        ReleaseDC(gGameWindow, WindowDC);
+    }
+
+    return(Result);
+
+#else
+    // LINUX
+
+
+#endif
+}
+
+
 // TODO: Consider non-16:9 displays. E.g., ultra-wide monitors will have to have black bars on the sides, 
 // with the game center screen. The game itself has a 16:10 aspect ratio (resolution 384x240.)
 DWORD CreateMainGameWindow(void)
@@ -940,7 +1046,7 @@ void ProcessPlayerInput(void)
 {
     gGameInput.EscapeKeyIsDown = GetAsyncKeyState(VK_ESCAPE);
 
-    gGameInput.DebugKeyIsDown  = GetAsyncKeyState(gDebugKey);
+    gGameInput.DebugKeyIsDown  = GetAsyncKeyState(gRegistryParams.DebugKey);
 
     gGameInput.LeftKeyIsDown   = GetAsyncKeyState(VK_LEFT) | GetAsyncKeyState('A');
 
@@ -1225,6 +1331,118 @@ void ResetEverythingForNewGame(void)
     return;    
 }
 
+void BlitStringToBufferEx(
+    _In_ char* String,
+    _In_ GAMEBITMAP* FontSheet,
+    _In_ int x,
+    _In_ int y,
+    _In_ int BlueAdjust,
+    _In_ int GreenAdjust,
+    _In_ int RedAdjust,
+    _In_ int AlphaAdjust,
+    DWORD Flags)
+{
+    // Map any char value to an offset dictated by the g6x7Font ordering.
+    // 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
+    // We use them as a cursor in menus.
+    static int FontCharacterPixelOffset[] = {
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
+        94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
+    //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
+        65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
+    //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
+        62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
+    };
+
+    int CharWidth = FontSheet->BitmapInfo.bmiHeader.biWidth / FONT_SHEET_CHARACTERS_PER_ROW;
+
+    int CharHeight = FontSheet->BitmapInfo.bmiHeader.biHeight;
+
+    int BytesPerCharacter = (CharWidth * CharHeight * (FontSheet->BitmapInfo.bmiHeader.biBitCount / 8));
+
+    int StringLength = (int)strlen(String);
+
+    GAMEBITMAP StringBitmap = { 0 };
+
+    StringBitmap.BitmapInfo.bmiHeader.biBitCount = GAME_BPP;
+
+    StringBitmap.BitmapInfo.bmiHeader.biHeight = CharHeight;
+
+    StringBitmap.BitmapInfo.bmiHeader.biWidth = CharWidth * StringLength;
+
+    StringBitmap.BitmapInfo.bmiHeader.biPlanes = 1;
+
+    StringBitmap.BitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+    StringBitmap.Memory = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, ((size_t)BytesPerCharacter * (size_t)StringLength));
+
+    for (int Character = 0; Character < StringLength; Character++)
+    {
+        int StartingFontSheetPixel = 0;
+
+        int FontSheetOffset = 0;
+
+        int StringBitmapOffset = 0;
+
+        PIXEL32 FontSheetPixel = { 0 };
+
+        StartingFontSheetPixel = (FontSheet->BitmapInfo.bmiHeader.biWidth * FontSheet->BitmapInfo.bmiHeader.biHeight) - \
+            FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * FontCharacterPixelOffset[(uint8_t)String[Character]]);
+
+        for (int YPixel = 0; YPixel < CharHeight; YPixel++)
+        {
+            for (int XPixel = 0; XPixel < CharWidth; XPixel++)
+            {
+                FontSheetOffset = StartingFontSheetPixel + XPixel - (FontSheet->BitmapInfo.bmiHeader.biWidth * YPixel);
+
+                StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.BitmapInfo.bmiHeader.biWidth * StringBitmap.BitmapInfo.bmiHeader.biHeight) - \
+                    StringBitmap.BitmapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.BitmapInfo.bmiHeader.biWidth) * YPixel;
+
+
+                // NOTE: memcpy_s is safer but is much slower.
+                //memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
+                memcpy(&FontSheetPixel, (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
+                
+                if (FontSheetPixel.Colors.Alpha > 0)
+                {                    
+                    //memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));                    
+                    memcpy((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, &FontSheetPixel, sizeof(PIXEL32));
+                }                
+            }
+        }
+    }
+
+    if (Flags & BLIT_FLAG_TEXT_SHADOW)
+    {
+        Blit32BppBitmapToBufferEx(
+            &StringBitmap, 
+            x, 
+            y + 1, 
+            BlueAdjust, 
+            GreenAdjust, 
+            RedAdjust, 
+            AlphaAdjust - 192, 
+            Flags ^ BLIT_FLAG_TEXT_SHADOW);
+    }
+
+    Blit32BppBitmapToBufferEx(&StringBitmap, x, y, BlueAdjust, GreenAdjust, RedAdjust, AlphaAdjust, Flags);
+
+    if (StringBitmap.Memory)
+    {
+        HeapFree(GetProcessHeap(), 0, StringBitmap.Memory);
+    }
+}
+
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y)
 {
     // Map any char value to an offset dictated by the g6x7Font ordering.
@@ -1314,7 +1532,7 @@ void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXE
         }
     }
 
-    Blit32BppBitmapToBuffer(&StringBitmap, x, y, 0); // TODO: Make BrightnessAdjustment useful here?
+    Blit32BppBitmapToBuffer(&StringBitmap, x, y, 0);
 
     if (StringBitmap.Memory)
     {
@@ -1393,6 +1611,63 @@ void RenderFrameGraphics(void)
 
     HDC DeviceContext = GetDC(gGameWindow);
 
+#ifdef OPENGL
+    glViewport(
+        ((gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left) / 2) - ((GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor) / 2),
+        ((gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top) / 2) - ((GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor) / 2),
+        GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor,
+        GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor);    
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GAME_RES_WIDTH, GAME_RES_HEIGHT, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, gBackBuffer.Memory);
+      
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glEnable(GL_TEXTURE_2D);
+
+    glBegin(GL_TRIANGLES);
+
+    // bottom triangle
+
+    glTexCoord2f(0.0f, 0.0f);
+
+    glVertex2i(-1, -1);    
+
+    glTexCoord2f(1.0f, 0.0f);
+
+    glVertex2i(1, -1);    
+
+    glTexCoord2f(1.0f, 1.0f);
+
+    glVertex2i(1, 1);    
+
+    // top triangle
+
+    glTexCoord2f(0.0f, 0.0f);
+
+    glVertex2i(-1, -1);
+
+    glTexCoord2f(1.0f, 1.0f);
+
+    glVertex2i(1, 1);
+
+    glTexCoord2f(0.0f, 1.0f);
+
+    glVertex2i(-1, 1);
+
+    glEnd();
+
+    SwapBuffers(DeviceContext);
+
+#else   
+
     StretchDIBits(DeviceContext, 
         ((gPerformanceData.MonitorInfo.rcMonitor.right - gPerformanceData.MonitorInfo.rcMonitor.left) / 2) - ((GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor) / 2),
         ((gPerformanceData.MonitorInfo.rcMonitor.bottom - gPerformanceData.MonitorInfo.rcMonitor.top) / 2) - ((GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor) / 2),
@@ -1405,7 +1680,9 @@ void RenderFrameGraphics(void)
         gBackBuffer.Memory, 
         &gBackBuffer.BitmapInfo, 
         DIB_RGB_COLORS, 
-        SRCCOPY);
+        SRCCOPY);    
+
+#endif
 
     ReleaseDC(gGameWindow, DeviceContext);
 }
@@ -1413,12 +1690,12 @@ void RenderFrameGraphics(void)
 // TODO: What Flags do we need here?
 void Blit32BppBitmapToBufferEx(
     _In_ GAMEBITMAP* GameBitmap, 
-    _In_ int_fast16_t x, 
-    _In_ int_fast16_t y,
-    _In_ int_fast16_t BlueAdjust,
-    _In_ int_fast16_t GreenAdjust,
-    _In_ int_fast16_t RedAdjust,
-    _In_ int_fast16_t AlphaAdjust,
+    _In_ int x,
+    _In_ int y,
+    _In_ int BlueAdjust,
+    _In_ int GreenAdjust,
+    _In_ int RedAdjust,
+    _In_ int AlphaAdjust,
     DWORD Flags)
 {
     int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
@@ -1720,9 +1997,28 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
 #endif
 }
 
+// Currently only supports DWORD registry values.
 DWORD LoadRegistryParameters(void)
 {
     DWORD Result = ERROR_SUCCESS;
+
+    typedef struct REGSETTING
+    {
+        char* Name;
+
+        DWORD* Destination;
+
+        DWORD Default;
+
+    } REGSETTING;
+
+    REGSETTING RegSettings[] = {
+        { "LogLevel",    &gRegistryParams.LogLevel,    LL_NONE },
+        { "ScaleFactor", &gRegistryParams.ScaleFactor, 0 },
+        { "SFXVolume",   &gRegistryParams.SFXVolume,   50 },
+        { "MusicVolume", &gRegistryParams.MusicVolume, 50 },
+        { "DebugKey",    &gRegistryParams.DebugKey,    VK_F1 }
+    }; 
 
     HKEY RegKey = NULL;
 
@@ -1748,119 +2044,28 @@ DWORD LoadRegistryParameters(void)
         LogMessageA(LL_INFO, "[%s] Opened existing registry key HCKU\\SOFTWARE\\%s", __FUNCTION__, GAME_NAME);
     }
 
-    Result = RegGetValueA(RegKey, NULL, "LogLevel", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.LogLevel, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
+    for (int i = 0; i < _countof(RegSettings); i++)
     {
-        if (Result == ERROR_FILE_NOT_FOUND)
+        Result = RegGetValueA(RegKey, NULL, RegSettings[i].Name, RRF_RT_DWORD, NULL, (BYTE*)RegSettings[i].Destination, &RegBytesRead);
+
+        if (Result != ERROR_SUCCESS)
         {
-            Result = ERROR_SUCCESS;
+            if (Result == ERROR_FILE_NOT_FOUND)
+            {
+                Result = ERROR_SUCCESS;
 
-            LogMessageA(LL_INFO, "[%s] Registry value 'LogLevel' not found. Using default of 0. (LOG_LEVEL_NONE)", __FUNCTION__);
+                LogMessageA(LL_INFO, "[%s] Registry value '%s' not found. Using default of %d.", __FUNCTION__, RegSettings[i].Name, RegSettings[i].Default);
 
-            gRegistryParams.LogLevel = LL_NONE;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'LogLevel' registry value! Error 0x%08lx!", __FUNCTION__, Result);
+                *(RegSettings[i].Destination) = RegSettings[i].Default;                                
+            }
+            else
+            {
+                LogMessageA(LL_ERROR, "[%s] Failed to read the '%s' registry value! Error 0x%08lx!", __FUNCTION__, RegSettings[i].Name, Result);
 
-            goto Exit;
+                goto Exit;
+            }
         }
     }
-
-    Result = RegGetValueA(RegKey, NULL, "ScaleFactor", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.ScaleFactor, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
-    {
-        if (Result == ERROR_FILE_NOT_FOUND)
-        {
-            Result = ERROR_SUCCESS;
-
-            LogMessageA(LL_INFO, "[%s] Registry value 'ScaleFactor' not found. Using default of 0.", __FUNCTION__);
-
-            gRegistryParams.ScaleFactor = 0;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'ScaleFactor' registry value! Error 0x%08lx!", __FUNCTION__, Result);
-
-            goto Exit;
-        }
-    }
-
-    LogMessageA(LL_INFO, "[%s] ScaleFactor is %d.", __FUNCTION__, gRegistryParams.ScaleFactor);    
-
-    Result = RegGetValueA(RegKey, NULL, "SFXVolume", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.SFXVolume, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
-    {
-        if (Result == ERROR_FILE_NOT_FOUND)
-        {
-            Result = ERROR_SUCCESS;
-
-            LogMessageA(LL_INFO, "[%s] Registry value 'SFXVolume' not found. Using default of 0.5/50.", __FUNCTION__);
-
-            gRegistryParams.SFXVolume = 50;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'SFXVolume' registry value! Error 0x%08lx!", __FUNCTION__, Result);
-
-            goto Exit;
-        }
-    }
-
-    LogMessageA(LL_INFO, "[%s] SFXVolume is %.1f/%d.", __FUNCTION__, (float)(gRegistryParams.SFXVolume / 100.0f), gRegistryParams.SFXVolume);
-
-    gSFXVolume = (float)(gRegistryParams.SFXVolume / 100.0f);
-
-    Result = RegGetValueA(RegKey, NULL, "MusicVolume", RRF_RT_DWORD, NULL, (BYTE*)&gRegistryParams.MusicVolume, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
-    {
-        if (Result == ERROR_FILE_NOT_FOUND)
-        {
-            Result = ERROR_SUCCESS;
-
-            LogMessageA(LL_INFO, "[%s] Registry value 'MusicVolume' not found. Using default of 0.5/50.", __FUNCTION__);
-
-            gRegistryParams.MusicVolume = 50;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'MusicVolume' registry value! Error 0x%08lx!", __FUNCTION__, Result);
-
-            goto Exit;
-        }
-    }
-
-    LogMessageA(LL_INFO, "[%s] MusicVolume is %.1f/%d.", __FUNCTION__, (float)(gRegistryParams.MusicVolume / 100.0f), gRegistryParams.MusicVolume);
-
-    gMusicVolume = (float)(gRegistryParams.MusicVolume / 100.0f);
-
-    ////////
-
-    Result = RegGetValueA(RegKey, NULL, "DebugKey", RRF_RT_DWORD, NULL, (BYTE*)&gDebugKey, &RegBytesRead);
-
-    if (Result != ERROR_SUCCESS)
-    {
-        if (Result == ERROR_FILE_NOT_FOUND)
-        {
-            Result = ERROR_SUCCESS;
-
-            LogMessageA(LL_INFO, "[%s] Registry value 'DebugKey' not found. Using default of VK_F1.", __FUNCTION__);
-
-            gDebugKey = VK_F1;
-        }
-        else
-        {
-            LogMessageA(LL_ERROR, "[%s] Failed to read the 'DebugKey' registry value! Error 0x%08lx!", __FUNCTION__, Result);
-
-            goto Exit;
-        }
-    }
-
-    LogMessageA(LL_INFO, "[%s] DebugKey is %d.", __FUNCTION__, gDebugKey);
 
 Exit:
 
@@ -2045,6 +2250,16 @@ void LogMessageA(_In_ LOGLEVEL LogLevel, _In_ char* Message, _In_ ...)
 __forceinline void DrawDebugInfo(void)
 {
     char DebugTextBuffer[64] = { 0 };
+
+    DrawWindow(
+        0, 
+        0, 
+        144, 
+        88,
+        NULL, 
+        &(COLOR_NES_BLACK), 
+        NULL, 
+        WINDOW_FLAG_OPAQUE);
 
     sprintf_s(DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
@@ -2756,6 +2971,16 @@ void PlayGameSound(_In_ GAMESOUND* GameSound)
     }
 }
 
+void StopAllGameSounds(void)
+{
+    for (int i = 0; i < NUMBER_OF_SFX_SOURCE_VOICES; i++)
+    {
+        gXAudioSFXSourceVoice[i]->lpVtbl->Stop(gXAudioSFXSourceVoice[i], 0, 0);
+
+        gXAudioSFXSourceVoice[i]->lpVtbl->FlushSourceBuffers(gXAudioSFXSourceVoice[i]);
+    }
+}
+
 void PauseMusic(void)
 {
     gXAudioMusicSourceVoice->lpVtbl->Stop(gXAudioMusicSourceVoice, 0, 0);
@@ -2987,9 +3212,6 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         { "Dungeon01.bmpx", &gBattleScene_Dungeon01 },
         { "Slime001.bmpx", &gMonsterSprite_Slime_001 },
         { "Rat001.bmpx", &gMonsterSprite_Rat_001 },
-        // TODO: REMOVE THESE TWO
-        { "BlueSquare.bmpx", &gBlueSquare },
-        { "RedCircle.bmpx", &gRedCircle }
     };    
 
     LogMessageA(LL_INFO, "[%s] Asset loading has begun.", __FUNCTION__);
@@ -3016,8 +3238,6 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         }
     }
 
-    Sleep(5000);
-
 Exit:
 
     if (Error == ERROR_SUCCESS)
@@ -3043,10 +3263,10 @@ Exit:
 // The window border will cut into the inside of the window area.
 
 void DrawWindow(
-    _In_ uint16_t x,
-    _In_ uint16_t y,
-    _In_ int16_t Width,
-    _In_ int16_t Height,
+    _In_ int x,
+    _In_ int y,
+    _In_ int Width,
+    _In_ int Height,
     _In_opt_ PIXEL32* BorderColor,
     _In_opt_ PIXEL32* BackgroundColor,
     _In_opt_ PIXEL32* ShadowColor,

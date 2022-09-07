@@ -37,7 +37,7 @@ void DrawOptionsScreen(void)
 
     static uint64_t LastFrameSeen = 0;
 
-    static PIXEL32 TextColor;
+    static int AlphaAdjust = -256;
 
     char ScreenSizeString[64] = { 0 };
 
@@ -54,52 +54,118 @@ void DrawOptionsScreen(void)
 
         gMenu_OptionsScreen.SelectedItem = 0;
 
+        AlphaAdjust = -256;
+
         gInputEnabled = FALSE;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
+#ifdef SMOOTH_MENU_FADES
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
 
-    for (uint8_t MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
+    }
+
+#else
+    // Here is an easy, "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
+
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
+
+    for (int MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
     {
         if (gMenu_OptionsScreen.Items[MenuItem]->Enabled == TRUE)
         {
-            BlitStringToBuffer(gMenu_OptionsScreen.Items[MenuItem]->Name,
-                &g6x7Font,
-                &TextColor,
+            BlitStringToBufferEx(
+                gMenu_OptionsScreen.Items[MenuItem]->Name,
+                &g6x7Font,                
                 gMenu_OptionsScreen.Items[MenuItem]->x,
-                gMenu_OptionsScreen.Items[MenuItem]->y);
+                gMenu_OptionsScreen.Items[MenuItem]->y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-    for (uint8_t Volume = 0; Volume < 10; Volume++)
+    for (int Volume = 0; Volume < 10; Volume++)
     {
-        if (Volume >= (uint8_t)(gSFXVolume * 10))
+        if (Volume >= (int)(gSFXVolume * 10))
         {
-            if (LocalFrameCounter > FADE_DURATION_FRAMES)
-            {
-                BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
-            }
+            BlitStringToBufferEx(
+                "\xf2", 
+                &g6x7Font,                
+                224 + (Volume * 6), 
+                gMI_OptionsScreen_SFXVolume.y,
+                32,
+                32,
+                32,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
         else
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &TextColor, 224 + (Volume * 6), gMI_OptionsScreen_SFXVolume.y);
+            BlitStringToBufferEx(
+                "\xf2", 
+                &g6x7Font,                
+                224 + (Volume * 6), 
+                gMI_OptionsScreen_SFXVolume.y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-    for (uint8_t Volume = 0; Volume < 10; Volume++)
+    for (int Volume = 0; Volume < 10; Volume++)
     {
-        if (Volume >= (uint8_t)(gMusicVolume * 10))
+        if (Volume >= (int)(gMusicVolume * 10))
         {
-            if (LocalFrameCounter > FADE_DURATION_FRAMES)
-            {
-                BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
-            }
+            BlitStringToBufferEx(
+                "\xf2", 
+                &g6x7Font,                
+                224 + (Volume * 6), 
+                gMI_OptionsScreen_MusicVolume.y,
+                32,
+                32,
+                32,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);  
         }
         else
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &TextColor, 224 + (Volume * 6), gMI_OptionsScreen_MusicVolume.y);
+            BlitStringToBufferEx(
+                "\xf2", 
+                &g6x7Font, 
+                224 + (Volume * 6), 
+                gMI_OptionsScreen_MusicVolume.y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
@@ -109,13 +175,27 @@ void DrawOptionsScreen(void)
         GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor,
         GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor);
 
-    BlitStringToBuffer(ScreenSizeString, &g6x7Font, &TextColor, 224, gMI_OptionsScreen_ScreenSize.y);
+    BlitStringToBufferEx(
+        ScreenSizeString, 
+        &g6x7Font, 
+        224, 
+        gMI_OptionsScreen_ScreenSize.y,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBuffer("\xBB",
-        &g6x7Font,
-        &TextColor,
+    BlitStringToBufferEx(
+        "\xBB",
+        &g6x7Font,        
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->x - 6,
-        gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->y);
+        gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->y,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     LocalFrameCounter++;
 

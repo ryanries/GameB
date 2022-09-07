@@ -21,6 +21,8 @@
 // For rand_s().
 #define _CRT_RAND_S
 
+#define OPENGL
+
 // Disable warning about structure padding.
 #pragma warning(disable: 4820)
 
@@ -42,6 +44,15 @@
 
 // The Windows API.
 #include <Windows.h>
+
+// OpenGL 1.1, like it's 1996!
+#ifdef OPENGL
+
+#include <gl/GL.h>
+
+#pragma comment(lib, "OpenGL32.lib")
+
+#endif
 
 // Audio library.
 #include <xaudio2.h>
@@ -140,6 +151,16 @@
 // This allows us to play up to 4 sound effects simultaneously
 // using the XAudio2 library. 
 #define NUMBER_OF_SFX_SOURCE_VOICES			4
+
+// If smooth fades are enabled, the menu transitions will look nicer. Otherwise, we will use more "clunky" fade-ins,
+// the kind of fade-ins that are more aesthetically reminiscent of the kind you might see on the classic NES or any
+// old system with a more limited color palette. We will have to decide later which we prefer -- 
+// the kind that look nicer, or the kind that are more "retro."
+#define SMOOTH_MENU_FADES
+
+// We have to temporarily disable input when transitioning from one menu to another, from one gamestate to another,
+// but if we don't reenable the input rather quickly after that, it will not feel good for the player.
+#define REENABLE_INPUT_AFTER_X_FRAMES_DELAY	10
 
 // The player will have different sets of armor, so he needs
 // sprites for each direction and animation for each suit.
@@ -287,7 +308,9 @@ typedef enum WINDOW_FLAGS
 
 typedef enum BLIT_FLAGS
 {
-	BLIT_FLAG_ALPHABLEND = 1
+	BLIT_FLAG_ALPHABLEND = 1,
+
+	BLIT_FLAG_TEXT_SHADOW = 2
 
 } BLIT_FLAGS;
 
@@ -518,7 +541,9 @@ typedef struct REGISTRYPARAMS
 
 	DWORD MusicVolume;
 
-	DWORD ScaleFactor;	
+	DWORD ScaleFactor;
+
+	DWORD DebugKey;
 
 } REGISTRYPARAMS;
 
@@ -553,8 +578,8 @@ typedef struct MENU
 
 /////////// END GLOBAL STRUCTS /////////////
 
-/////////// BEGIN GLOBAL VARIABLE DECLARATIONS ///////////
-
+/////////// BEGIN GLOBAL EXTERN VARIABLES /////////////
+// 
 // Every global variable that will be shared among multiple compilation units/*.c files
 // needs the extern keyword. When using the extern keyword, the global variable must
 // also be assigned a value at the beginning of one and only one *.c file. For these
@@ -573,12 +598,6 @@ extern GAMEBITMAP g6x7Font;
 extern GAMEBITMAP gPolePigLogo;
 
 extern GAMEBITMAP gLightning01;
-
-// REMOVE THESE
-
-extern GAMEBITMAP gBlueSquare;
-
-extern GAMEBITMAP gRedCircle;
 
 // Battle scenes are the 96x96 pictures that serve as the backdrop
 // for... battle scenes. We draw a monster over the top of the battle scene.
@@ -634,7 +653,7 @@ extern BOOL gMusicIsPaused;
 extern int8_t gGamepadID;
 
 // A global handle to the game window.
-extern HWND gGameWindow;                   
+extern HWND gGameWindow;
 
 // COM interfaces for the XAudio2 library.
 // Having 4 source voices for sound effects means we can play up to 
@@ -667,7 +686,8 @@ extern HANDLE gEssentialAssetsLoadedEvent;
 // Set this to FALSE to exit the game immediately. This controls the main game loop in WinMain.
 extern BOOL gGameIsRunning;
 
-/////////// END GLOBAL VARIABLE DECLARATIONS ///////////
+/////////// END GLOBAL EXTERN VARIABLES /////////////
+
 
 /////////// BEGIN FUNCTION DELCARATIONS /////////////
 
@@ -678,6 +698,8 @@ typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT 
 extern _NtQueryTimerResolution NtQueryTimerResolution;
 
 LRESULT CALLBACK MainWindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPARAM WParam, _In_ LPARAM LParam);
+
+DWORD InitializeOpenGL(void);
 
 DWORD CreateMainGameWindow(void);
 
@@ -691,15 +713,26 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
 void Blit32BppBitmapToBufferEx(
 	_In_ GAMEBITMAP* GameBitmap,
-	_In_ int_fast16_t x,
-	_In_ int_fast16_t y,
-	_In_ int_fast16_t BlueAdjust,
-	_In_ int_fast16_t GreenAdjust,
-	_In_ int_fast16_t RedAdjust,
-	_In_ int_fast16_t AlphaAdjust,
+	_In_ int x,
+	_In_ int y,
+	_In_ int BlueAdjust,
+	_In_ int GreenAdjust,
+	_In_ int RedAdjust,
+	_In_ int AlphaAdjust,
 	DWORD Flags);
 
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment);
+
+void BlitStringToBufferEx(
+	_In_ char* String,
+	_In_ GAMEBITMAP* FontSheet,
+	_In_ int x,
+	_In_ int y,
+	_In_ int BlueAdjust,
+	_In_ int GreenAdjust,
+	_In_ int RedAdjust,
+	_In_ int AlphaAdjust,
+	DWORD Flags);
 
 void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 
@@ -729,6 +762,8 @@ void PlayGameSound(_In_ GAMESOUND* GameSound);
 
 void PlayGameMusic(_In_ GAMESOUND* GameSound, _In_ BOOL Loop, _In_ BOOL Immediate);
 
+void StopAllGameSounds(void);
+
 void PauseMusic(void);
 
 void StopMusic(void);
@@ -747,10 +782,10 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 // transparent and invisible. The window border will cut into the inside of the window area.
 
 void DrawWindow(
-	_In_ uint16_t x,
-	_In_ uint16_t y,
-	_In_ int16_t Width,
-	_In_ int16_t Height,
+	_In_ int x,
+	_In_ int y,
+	_In_ int Width,
+	_In_ int Height,
 	_In_opt_ PIXEL32* BorderColor,
 	_In_opt_ PIXEL32* BackgroundColor,
 	_In_opt_ PIXEL32* ShadowColor,

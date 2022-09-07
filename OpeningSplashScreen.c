@@ -30,19 +30,18 @@ void DrawOpeningSplashScreen(void)
     // This is primarily used to control when things happen such as animations and text fade effects.
     static uint64_t LocalFrameCounter;
 
-    // The last frame we observed in this game state. This is equal to the global frame counter
+    // The last frame we observed in this game state. This is in step with the global frame counter
     // as long as we are in this game state. If we leave this game state and come 
     // back to it later, we will know that because LastFrameSeen will be less than the 
     // global total number of frames rendered. We can use that fact to then reset any
-    // local state for this gamestate so we can replay animations, reset text color, etc.
+    // local state for this gamestate so we can replay animations, reset text color, reset menus, etc.
     static uint64_t LastFrameSeen = 0;
 
-    // TextColor is used to create the fade in and fade out effect for the text.
-    static PIXEL32 TextColor;
+    // AlphaAdjust is used to create a fade-out over time effect.
+    static int AlphaAdjust = 0;
 
     // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
-    // corner of the splash screen which lets us know that the assets are still loading in the
-    // background.
+    // corner of the splash screen which lets us know that the assets are still loading in the background.
     static BOOL Blink = FALSE;
 
     // If we are not finished loading "essential" assets such as basic font and splash
@@ -64,7 +63,6 @@ void DrawOpeningSplashScreen(void)
         return;
     }
 
-
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
     // or we have left this gamestate previously and have just come back to it.
@@ -76,8 +74,8 @@ void DrawOpeningSplashScreen(void)
         gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
-
-        memcpy(&TextColor, (void*)&COLOR_NES_WHITE, sizeof(PIXEL32));
+        
+        AlphaAdjust = 0;
 
         gInputEnabled = FALSE;
     }
@@ -90,18 +88,39 @@ void DrawOpeningSplashScreen(void)
     // that we are still busy loading assets in the background.
     if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
     {
-        BlitStringToBuffer("Loading...", &g6x7Font, &COLOR_GRAY_0,
-            (GAME_RES_WIDTH - (6 * 11)), (GAME_RES_HEIGHT - 7));
+        BlitStringToBufferEx(
+            "Loading...", 
+            &g6x7Font,             
+            (GAME_RES_WIDTH - (6 * 11)), 
+            (GAME_RES_HEIGHT - 7),
+            32,
+            32,
+            32,
+            0,
+            0);
 
         if (Blink)
         {
-            BlitStringToBuffer("\xf2", &g6x7Font, &COLOR_GRAY_0,
-                (GAME_RES_WIDTH - 6), (GAME_RES_HEIGHT - 7));
+            BlitStringToBufferEx(
+                "\xf2", 
+                &g6x7Font,
+                (GAME_RES_WIDTH - 6), 
+                (GAME_RES_HEIGHT - 7),
+                32,
+                32,
+                32,
+                0,
+                0);
         }
     }
     else
     {
-        gInputEnabled = TRUE;
+        if (gInputEnabled == FALSE) 
+        {
+            // This allows the user to hit the Esc key to skip the rest of the 
+            // opening splash screen, if they want.
+            gInputEnabled = TRUE; 
+        }
     }
 
     // Alternate the "loading blinky cursor" every 0.5 seconds or 30 frames.
@@ -112,59 +131,46 @@ void DrawOpeningSplashScreen(void)
 
     // LocalFrameCounter is only incremented after the "essential" assets are loaded, i.e. after
     // the gEssentialAssetsLoadedEvent event is set. So none of the following will happen until
-    // 120 frames after gEssentialAssetsLoadedEvent is set.
-    if (LocalFrameCounter >= 120)
+    // 90 frames after gEssentialAssetsLoadedEvent is set.
+    if (LocalFrameCounter >= 90)
     {
         // Play the opening splash screen sound exactly once.
-        if (LocalFrameCounter == 120)
+        if (LocalFrameCounter == 130)
         {
             PlayGameSound(&gSoundSplashScreen);
         }
 
         // Show the splash screen logo.
-        Blit32BppBitmapToBuffer(
+        Blit32BppBitmapToBufferEx(
             &gPolePigLogo,
             (GAME_RES_WIDTH / 2) - (gPolePigLogo.BitmapInfo.bmiHeader.biWidth / 2),
             50,
-            0);
+            0,
+            0,
+            0,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND);
 
         // Show the lightning bolts as part of the splash screen logo,
         // attempt to synchronize it with the lightning sound.
-        if ((LocalFrameCounter >= 120 && LocalFrameCounter < 130) ||
-            (LocalFrameCounter >= 180 && LocalFrameCounter < 190) ||
-            (LocalFrameCounter >= 260 && LocalFrameCounter < 270))
+        if ((LocalFrameCounter >= 130 && LocalFrameCounter < 140) ||
+            (LocalFrameCounter >= 190 && LocalFrameCounter < 200) ||
+            (LocalFrameCounter >= 270 && LocalFrameCounter < 280))
         {
-            Blit32BppBitmapToBuffer(
+            Blit32BppBitmapToBufferEx(
                 &gLightning01,
                 150,
                 55,
+                0,
+                0,
+                0,
+                0,
                 0);
         }
 
-        // Text pops in full white, then gradually fades to black.
-        switch (LocalFrameCounter)
+        if (LocalFrameCounter > 280)
         {
-            case 300:
-            case 315:
-            case 330:            
-            {
-                TextColor.Colors.Red -= 64;
-
-                TextColor.Colors.Green -= 64;
-
-                TextColor.Colors.Blue -= 64;
-
-                break;
-            }
-        }
-
-        if (LocalFrameCounter == 345)
-        {
-            TextColor.Colors.Red   = 0;
-
-            TextColor.Colors.Green = 0;
-
-            TextColor.Colors.Blue  = 0;
+            AlphaAdjust -= 4;
         }
 
         // Splash screen animation is done, but we will linger here until the asset loading
@@ -199,15 +205,16 @@ void DrawOpeningSplashScreen(void)
             }
         }
 
-        BlitStringToBuffer("POLE PIG PRODUCTIONS",
-            &g6x7Font,
-            &TextColor,
-            (GAME_RES_WIDTH / 2) - ((20 * 6) / 2), 150);
-
-        //BlitStringToBuffer("Presents",
-        //    &g6x7Font,
-        //    &TextColor,
-        //    (GAME_RES_WIDTH / 2) - ((8 * 6) / 2), 115);
+        BlitStringToBufferEx(
+            "POLE PIG PRODUCTIONS",
+            &g6x7Font,            
+            (GAME_RES_WIDTH / 2) - ((20 * 6) / 2), 
+            150,
+            255,
+            255,
+            255,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
     }
 
     LocalFrameCounter++;
@@ -230,14 +237,22 @@ void PPI_OpeningSplashScreen(void)
 
             if (ThreadExitCode == ERROR_SUCCESS)
             {
+                StopAllGameSounds();
+
                 gPreviousGameState = gCurrentGameState;
 
-                gCurrentGameState = GAMESTATE_TITLESCREEN;
+                gCurrentGameState = GAMESTATE_TITLESCREEN;                
 
                 LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d. Player pressed Escape to skip splash screen, and asset loading is complete.",
                     __FUNCTION__,
                     gPreviousGameState,
                     gCurrentGameState);
+            }
+            else
+            {
+                gGameIsRunning = FALSE;
+
+                LogMessageA(LL_ERROR, "[%s] Asset loading thread failed with error code 0x%08lx!", __FUNCTION__, ThreadExitCode);
             }
         }
     }

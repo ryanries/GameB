@@ -38,8 +38,9 @@ void DrawTitleScreen(void)
     static uint64_t LocalFrameCounter;
 
     static uint64_t LastFrameSeen = 0;
-    
-    static PIXEL32 TextColor;
+
+    // AlphaAdjust is used to create a fade-out over time effect.
+    static int AlphaAdjust = -256;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -51,6 +52,8 @@ void DrawTitleScreen(void)
     if (gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
         LocalFrameCounter = 0;
+
+        AlphaAdjust = -256;
 
         if (gPlayer.Active == TRUE)
         {
@@ -70,41 +73,79 @@ void DrawTitleScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
+#ifdef SMOOTH_MENU_FADES
 
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
 
-    ///////  TODO: TESTING REMOVE THIS LATER
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
+    }
+#else
+    // Here is a "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
 
-    Blit32BppBitmapToBufferEx(&gRedCircle, 8, 8, 0, 0, 0, 0, BLIT_FLAG_ALPHABLEND);
-
-    Blit32BppBitmapToBufferEx(&gBlueSquare, 10, 10, 0, 0, 0, -127, BLIT_FLAG_ALPHABLEND);
-        
-
-    /////////////////
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
 
     //    AARRGGBB ?
     //__stosd(gBackBuffer.Memory, 0xFF0000FF, GAME_DRAWING_AREA_MEMORY_SIZE / sizeof(PIXEL32));
 
-    BlitStringToBuffer(GAME_NAME, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(GAME_NAME) * 6) / 2), 60);
+    BlitStringToBufferEx(
+        GAME_NAME, 
+        &g6x7Font, 
+        (GAME_RES_WIDTH / 2) - ((int)(strlen(GAME_NAME) * 6) / 2), 
+        60,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_TitleScreen.ItemCount; MenuItem++)
     {
         if (gMenu_TitleScreen.Items[MenuItem]->Enabled == TRUE)
         {
-            BlitStringToBuffer(gMenu_TitleScreen.Items[MenuItem]->Name,
-                &g6x7Font,
-                &TextColor,
+            BlitStringToBufferEx(
+                gMenu_TitleScreen.Items[MenuItem]->Name,
+                &g6x7Font,                
                 gMenu_TitleScreen.Items[MenuItem]->x,
-                gMenu_TitleScreen.Items[MenuItem]->y);
+                gMenu_TitleScreen.Items[MenuItem]->y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
         }
     }
 
-    BlitStringToBuffer("\xBB",
-        &g6x7Font,
-        &TextColor,
+    BlitStringToBufferEx(
+        "\xBB",
+        &g6x7Font,        
         gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->x - 6,
-        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->y);
+        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->y,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     LocalFrameCounter++;
 
@@ -115,6 +156,8 @@ void PPI_TitleScreen(void)
 {
     if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
     {
+        PlayGameSound(&gSoundMenuNavigate);
+
         if (gMenu_TitleScreen.SelectedItem < gMenu_TitleScreen.ItemCount - 1)
         {
             gMenu_TitleScreen.SelectedItem++;            
@@ -132,15 +175,15 @@ void PPI_TitleScreen(void)
             {
                 gMenu_TitleScreen.SelectedItem = 1;
             }
-        }
-
-        PlayGameSound(&gSoundMenuNavigate);
+        }        
     }
 
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
         // If we're at the top of the menu, wrap around to the bottom.
         // The Resume button only appears if a game is in progress.        
+
+        PlayGameSound(&gSoundMenuNavigate);
 
         if (gMenu_TitleScreen.SelectedItem == 0)
         {
@@ -162,16 +205,14 @@ void PPI_TitleScreen(void)
         else
         {
             gMenu_TitleScreen.SelectedItem--;
-        }
-
-        PlayGameSound(&gSoundMenuNavigate);
+        }        
     }
 
     if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
     {
-        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->Action();
-
         PlayGameSound(&gSoundMenuChoose);
+
+        gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->Action();        
     }
 }
 
