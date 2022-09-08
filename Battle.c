@@ -267,6 +267,37 @@ void DrawBattle(void)
         gWaitingForPlayerInput = FALSE;
     }
 
+#ifdef SMOOTH_FADES
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
+
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
+    }
+
+#else
+    // Here is an easy, "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
+
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
+
     if (LocalFrameCounter == 0)
     {
         StopMusic();
@@ -278,7 +309,9 @@ void DrawBattle(void)
         GenerateMonster();
 
         switch (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16])
-        {
+        {        
+            case TILE_SAND_01:
+            case TILE_SWAMP_01:
             case TILE_GRASS_01:
             {
                 BattleScene = &gBattleScene_Grasslands01;
@@ -298,13 +331,9 @@ void DrawBattle(void)
         }
     }    
     
-    BlitBackgroundEx(
-        &gOverworld01.GameBitmap,
-        0,
-        0,
-        0,
-        AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND);
+    BlitBackground(
+        &gOverworld01.GameBitmap,        
+        AlphaAdjust);
 
     // Draw the border around the monster battle scene.
     DrawWindow(0, 14, 100, 100,
@@ -316,7 +345,7 @@ void DrawBattle(void)
     // Draw the battle scene, aka the backdrop behind the monster.
     if (BattleScene != 0)
     {
-        Blit32BppBitmapToBufferEx(
+        Blit32BppBitmapEx(
             BattleScene, 
             ((GAME_RES_WIDTH / 2) - (BattleScene->BitmapInfo.bmiHeader.biWidth / 2)), 
             16, 
@@ -334,7 +363,7 @@ void DrawBattle(void)
     // Draw the monster.
     if (gCurrentMonster.Sprite->Memory != NULL)
     {
-        Blit32BppBitmapToBufferEx(
+        Blit32BppBitmapEx(
             gCurrentMonster.Sprite, 
             ((GAME_RES_WIDTH / 2) - (gCurrentMonster.Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
             48, 

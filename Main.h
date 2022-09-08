@@ -151,7 +151,7 @@
 // the kind of fade-ins that are more aesthetically reminiscent of the kind you might see on the classic NES or any
 // old system with a more limited color palette. We will have to decide later which we prefer -- 
 // the kind that look nicer, or the kind that are more "retro."
-//#define SMOOTH_FADES
+#define SMOOTH_FADES
 
 // We have to temporarily disable input when transitioning from one menu to another, from one gamestate to another,
 // but if we don't reenable the input rather quickly after that, it will not feel good for the player.
@@ -200,16 +200,10 @@
 // encounter before another random monster encounter can take place.
 #define RANDOM_MONSTER_GRACE_PERIOD_STEPS 3
 
-// The number of frames taken by the fade animation.
-// This involves using shades of grey that aren't in the NES color palette,
-// but it looks nicer.
-//#define FADE_DURATION_FRAMES 50
-
 // Some pixel colors that conform to the original NES color palette.
 #define COLOR_NES_WHITE	(PIXEL32) { .Bytes = 0xFFFCFCFC }
 
 #define COLOR_NES_BLACK	(PIXEL32) { .Bytes = 0xFF000000 }
-
 
 // Some pixel colors that are handy but didn't exist in the NES color palette.
 
@@ -297,7 +291,9 @@ typedef enum WINDOW_FLAGS
 
 	WINDOW_FLAG_ROUNDED_CORNERS = 64,		// 1 << 6, 0b01000000
 
-	WINDOW_FLAG_THICK = 128					// 1 << 7, 0b10000000
+	WINDOW_FLAG_THICK = 128,				// 1 << 7, 0b10000000
+
+	WINDOW_FLAG_ALPHABLEND = 256			// 1 << 8, 0b1 00000000
 
 } WINDOW_FLAGS;
 
@@ -313,15 +309,6 @@ typedef enum BLIT_FLAGS
 /////////// END GLOBAL ENUMS /////////////
 
 /////////// BEGIN GLOBAL STRUCTS /////////////
-
-// Just like a POINT data structure, but unsigned.
-typedef struct UPOINT
-{
-	uint16_t x;
-
-	uint16_t y;
-
-} UPOINT;
 
 // Stores the current state of all player keyboard+gamepad input,
 // as well as the previous state from the last frame, so we can tell
@@ -485,9 +472,9 @@ typedef struct HERO
 
 	GAMEBITMAP Sprite[3][12];	// 3 suits of armor, 12 sprites for each armor set.	
 
-	UPOINT ScreenPos;			// Note screen position and world position are two different things.
+	POINT ScreenPos;			// Note screen position and world position are two different things.
 
-	UPOINT WorldPos;
+	POINT WorldPos;
 
 	// This will be non-zero when the player is in motion. If 0, player is standing still.
 	uint8_t MovementRemaining;	
@@ -664,7 +651,7 @@ extern uint8_t gPassableTiles[11];
 // Imagine the camera is 50 feet up the sky looking straight down over the player.
 // Knowing the position of the camera is necessary to properly pan the overworld map as
 // the player walks.
-extern UPOINT gCamera;
+extern POINT gCamera;
 
 // The background thread that loads assets from the compressed archive during the splash screen.
 extern HANDLE gAssetLoadingThreadHandle;
@@ -704,7 +691,7 @@ void ProcessPlayerInput(void);
 
 void ResetEverythingForNewGame(void);
 
-void Blit32BppBitmapToBufferEx(
+void Blit32BppBitmapEx(
 	_In_ GAMEBITMAP* GameBitmap,
 	_In_ int x,
 	_In_ int y,
@@ -713,16 +700,6 @@ void Blit32BppBitmapToBufferEx(
 	_In_ int RedAdjust,
 	_In_ int AlphaAdjust,
 	DWORD Flags);
-
-void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment);
-
-void BlitBackgroundEx(
-	_In_ GAMEBITMAP* GameBitmap,
-	_In_ int BlueAdjust,
-	_In_ int GreenAdjust,
-	_In_ int RedAdjust,
-	_In_ int AlphaAdjust,
-	_In_ DWORD Flags);
 
 void BlitStringEx(
 	_In_ char* String,
@@ -792,4 +769,7 @@ void DrawWindow(
 
 int64_t FileSizeA(_In_ const char* FileName);
 
-void DrawPlayerStatsWindow(PIXEL32* FadeColor);
+// These go in Main.h because these functions are shared among multiple states, overworld, battle, inventory...
+void DrawPlayerStatsWindow(_In_ int AlphaAdjust);
+
+void BlitBackground(_In_ GAMEBITMAP* GameBitmap, _In_ int ColorAdjust);

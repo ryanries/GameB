@@ -141,7 +141,18 @@ void DrawOpeningSplashScreen(void)
         }
 
         // Show the splash screen logo.
-        Blit32BppBitmapToBufferEx(
+
+        Blit32BppBitmapEx( // The shadow
+            &gPolePigLogo,
+            (GAME_RES_WIDTH / 2) - (gPolePigLogo.BitmapInfo.bmiHeader.biWidth / 2),
+            50 + 1,
+            -192,
+            -192,
+            -192,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND);
+
+        Blit32BppBitmapEx(
             &gPolePigLogo,
             (GAME_RES_WIDTH / 2) - (gPolePigLogo.BitmapInfo.bmiHeader.biWidth / 2),
             50,
@@ -157,7 +168,7 @@ void DrawOpeningSplashScreen(void)
             (LocalFrameCounter >= 190 && LocalFrameCounter < 200) ||
             (LocalFrameCounter >= 270 && LocalFrameCounter < 280))
         {
-            Blit32BppBitmapToBufferEx(
+            Blit32BppBitmapEx(
                 &gLightning01,
                 150,
                 55,

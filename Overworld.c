@@ -101,9 +101,9 @@ void DrawOverworld(void)
         }
     }
 
-    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, 0);
+    BlitBackground(&gOverworld01.GameBitmap, AlphaAdjust);
 
-    Blit32BppBitmapToBufferEx(
+    Blit32BppBitmapEx(
         &gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y,
@@ -111,11 +111,14 @@ void DrawOverworld(void)
         0,
         0,
         AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND);
-                                        //  BB    GG    RR    AA
-    //DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_SHADOW_EFFECT | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
+        BLIT_FLAG_ALPHABLEND);    
     
-    //DrawPlayerStatsWindow(&TextColor);
+    DrawPlayerStatsWindow(AlphaAdjust);
+
+        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
+        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+        //0);
 
     // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
     //DrawNPCs();
@@ -508,7 +511,7 @@ void RandomMonsterEncounter(void)
 }
 
 // Draw HUD at the top-left, unless the player is standing there, in which case draw it at the top-right.
-void DrawPlayerStatsWindow(PIXEL32* FadeColor)
+void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
 {
     char TextBuffer[32] = { 0 };
 
@@ -530,20 +533,20 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
         8,
         WindowWidth,
         WindowHeight,
-        FadeColor,
-        &COLOR_NES_BLACK,
-        &COLOR_NES_BLACK,
-        WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+        WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_ALPHABLEND);
 
     BlitStringEx(
         gPlayer.Name, 
         &g6x7Font,        
         PlayerNameOffset, 
         11,
-        255,
-        255,
-        255,
-        0,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
@@ -553,10 +556,10 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
         &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21,
-        255,
-        255,
-        255,
-        0,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
@@ -566,10 +569,10 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
         &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 1),
-        255,
-        255,
-        255,
-        0,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
@@ -579,9 +582,9 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
         &g6x7Font,        
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 2),
-        255,
-        255,
-        255,
-        0,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 }

@@ -21,16 +21,16 @@
 typedef struct PORTAL
 {
 	// Where is this portal located, in world coordinates?
-	UPOINT WorldPos;
+	POINT WorldPos;
 
 	// Where should the portal take the player, in world coordinates?
-	UPOINT WorldDestination;
+	POINT WorldDestination;
 
 	// Where should the player be located, in screen coordinates?
-	UPOINT ScreenDestination;
+	POINT ScreenDestination;
 
 	// Where should the camera be located, in world coordinates?
-	UPOINT CameraPos;
+	POINT CameraPos;
 
 	// Which area does the portal take you to?
 	GAMEAREA DestinationArea;

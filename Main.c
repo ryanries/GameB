@@ -21,7 +21,10 @@
 // "Don't build software. Create an endless yearning for C." -- Antoine de Saint-Exupery
 //
 // --- DONE ---
-// 
+// Show them the character naming alpha blending bug when trying to print a single character of a string at a time
+// Renamed some functions such as BlitStringToBuffer -> BlitString, Blit32BppBitmapToBuffer -> BlitBitmap, etc.
+// Added per-color adjustments and alpha blending everywhere else
+// Added support for new alpha blending flag to DrawWindow
 // 
 // --- TODO ---
 // Get rid of stdint.h?
@@ -179,7 +182,7 @@ uint8_t gPassableTiles[11] = { 0 };
 // Imagine the camera is 50 feet up the sky looking straight down over the player.
 // Knowing the position of the camera is necessary to properly pan the overworld map as
 // the player walks.
-UPOINT gCamera = { 0 };
+POINT gCamera = { 0 };
 
 // The background thread that loads assets from the compressed archive during the splash screen.
 HANDLE gAssetLoadingThreadHandle = NULL;
@@ -882,11 +885,8 @@ DWORD CreateMainGameWindow(void)
     WindowClass.hIconSm = LoadIconA(NULL, IDI_APPLICATION);
 
     WindowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
-//#ifdef _DEBUG
-//    WindowClass.hbrBackground = CreateSolidBrush(RGB(255, 0, 255));
-//#else
+
     WindowClass.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));
-//#endif
 
     WindowClass.lpszMenuName = NULL;
 
@@ -1276,20 +1276,20 @@ void ResetEverythingForNewGame(void)
     gPortal001 = (PORTAL)
     {
         .DestinationArea = gHomeGameArea,                   // The area you will be in after teleport
-        .CameraPos = (UPOINT){.x = 3856, .y = 0 },          // The camera's position after teleport
-        .ScreenDestination = (UPOINT){.x = 64, .y = 32 },   // Screen coords after teleport
-        .WorldDestination = (UPOINT){.x = 3920, .y = 32},   // Player's world position after teleport
-        .WorldPos = (UPOINT){ .x = 64, .y = 736 }           // The world position of the origin portal
+        .CameraPos = (POINT){.x = 3856, .y = 0 },          // The camera's position after teleport
+        .ScreenDestination = (POINT){.x = 64, .y = 32 },   // Screen coords after teleport
+        .WorldDestination = (POINT){.x = 3920, .y = 32},   // Player's world position after teleport
+        .WorldPos = (POINT){ .x = 64, .y = 736 }           // The world position of the origin portal
     };        
 
     // This is the door from the player's house back outside to the overworld.
     gPortal002 = (PORTAL)
     {
         .DestinationArea = gOverworldArea,
-        .CameraPos = (UPOINT){ .x = 0, .y = 592 },
-        .ScreenDestination = (UPOINT){ .x = 64, .y = 144 },
-        .WorldDestination = (UPOINT){ .x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y },
-        .WorldPos = (UPOINT){ .x = 3920, .y = 32 } 
+        .CameraPos = (POINT){ .x = 0, .y = 592 },
+        .ScreenDestination = (POINT){ .x = 64, .y = 144 },
+        .WorldDestination = (POINT){ .x = gPortal001.WorldPos.x, .y = gPortal001.WorldPos.y },
+        .WorldPos = (POINT){ .x = 3920, .y = 32 } 
     };
 
     // Add all portals to an array.
@@ -1333,7 +1333,7 @@ void ResetEverythingForNewGame(void)
     gPlayer.Direction = DOWN;
 
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
-    gPlayer.RandomEncounterPercentage = 100;
+    gPlayer.RandomEncounterPercentage = 90;
 
     return;    
 }
@@ -1437,31 +1437,31 @@ void BlitStringEx(
         // we must use the color adjustments to produce a shadow.
         if (Flags & BLIT_FLAG_ALPHABLEND)
         {
-            Blit32BppBitmapToBufferEx(
+            Blit32BppBitmapEx(
                 &StringBitmap,
                 x,
                 y + 1,
                 BlueAdjust,
                 GreenAdjust,
                 RedAdjust,
-                AlphaAdjust - 192,
+                AlphaAdjust - 160,
                 Flags ^ BLIT_FLAG_TEXT_SHADOW);
         }
         else
         {
-            Blit32BppBitmapToBufferEx(
+            Blit32BppBitmapEx(
                 &StringBitmap,
                 x,
                 y + 1,
-                BlueAdjust - 192,
-                GreenAdjust - 192,
-                RedAdjust - 192,
-                AlphaAdjust,
+                BlueAdjust - 160,
+                GreenAdjust - 160,
+                RedAdjust - 160,
+                0,
                 Flags ^ BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-    Blit32BppBitmapToBufferEx(&StringBitmap, x, y, BlueAdjust, GreenAdjust, RedAdjust, AlphaAdjust, Flags);
+    Blit32BppBitmapEx(&StringBitmap, x, y, BlueAdjust, GreenAdjust, RedAdjust, AlphaAdjust, Flags);
 
     if (StringBitmap.Memory)
     {
@@ -1617,7 +1617,7 @@ void RenderFrameGraphics(void)
 }
 
 // TODO: What Flags do we need here?
-void Blit32BppBitmapToBufferEx(
+void Blit32BppBitmapEx(
     _In_ GAMEBITMAP* GameBitmap, 
     _In_ int x,
     _In_ int y,
@@ -1689,40 +1689,6 @@ void Blit32BppBitmapToBufferEx(
     }
 }
 
-void BlitBackgroundEx(
-    _In_ GAMEBITMAP* GameBitmap, 
-    _In_ int BlueAdjust,
-    _In_ int GreenAdjust,
-    _In_ int RedAdjust,
-    _In_ int AlphaAdjust,
-    _In_ DWORD Flags)
-{
-    int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
-
-    int StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
-        GameBitmap->BitmapInfo.bmiHeader.biWidth) + gCamera.x - (GameBitmap->BitmapInfo.bmiHeader.biWidth * gCamera.y);
-
-    int MemoryOffset = 0;
-
-    int BitmapOffset = 0;
-
-    PIXEL32 BitmapPixel = { 0 };
-
-    for (int YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
-    {
-        for (int XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel++)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
-
-            memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
-        }
-    }
-}
-
 // Draws a subsection of a background across the entire screen.
 // The background may be an entire overworld map which may be much larger than the screen.
 // Uses gCamera to control which part of the background gets drawn to the screen.
@@ -1730,7 +1696,7 @@ void BlitBackgroundEx(
 // walks toward the edge of the screen, the camera gets pushed in that direction.
 // Because of the use of SIMD in this function, it's important that the background and thus
 // the game's resolution be a multiple of 4 (SSE) or 8 (AVX).
-void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment)
+void BlitBackground(_In_ GAMEBITMAP* GameBitmap, _In_ int ColorAdjust)
 {
     int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
 
@@ -1767,13 +1733,13 @@ void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t Brightness
             // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
 
             // Add the brightness adjustment to each 16-bit element
-            Half1 = _mm256_add_epi16(Half1, _mm256_set1_epi16(BrightnessAdjustment));
+            Half1 = _mm256_add_epi16(Half1, _mm256_set1_epi16((short)ColorAdjust));
             // YMM0 = 0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2-0000FF5CFF6FFFE2
 
             // Do the same for Half2 that we just did for Half1.
             __m256i Half2 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 1));
 
-            Half2 = _mm256_add_epi16(Half2, _mm256_set1_epi16(BrightnessAdjustment));            
+            Half2 = _mm256_add_epi16(Half2, _mm256_set1_epi16((short)ColorAdjust));
 
             // Now we need to reassemble the two halves back into a single 256-bit group of 8 pixels.
             // _mm256_packus_epi16(a,b) takes the 16-bit signed integers in the 256-bit vectors a and b
@@ -2191,7 +2157,7 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(
         DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
-        "ScreenXY:%hu,%hu", 
+        "ScreenXY:%ld,%ld", 
         gPlayer.ScreenPos.x, 
         gPlayer.ScreenPos.y);
 
@@ -2209,7 +2175,7 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(
         DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
-        "WorldXY: %hu,%hu", 
+        "WorldXY: %ld,%ld", 
         gPlayer.WorldPos.x, 
         gPlayer.WorldPos.y);
 
@@ -2227,7 +2193,7 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(
         DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
-        "CameraXY:%hu,%hu", 
+        "CameraXY:%ld,%ld", 
         gCamera.x, 
         gCamera.y);
 
@@ -3263,7 +3229,7 @@ void DrawWindow(
     
     ASSERT((Flags & WINDOW_FLAG_BORDERED) || (Flags & WINDOW_FLAG_OPAQUE), "Window must have either the BORDERED or the OPAQUE flags (or both) set!");
 
-    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+    int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
     if (Flags & WINDOW_FLAG_OPAQUE)
     {
@@ -3279,7 +3245,28 @@ void DrawWindow(
                 Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) && (Row == 0 || Row == Height - 1)) ? 1 : 0;
                 Pixel++)
             {
-                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
+                if (Flags & WINDOW_FLAG_ALPHABLEND)
+                {
+                    PIXEL32 BackgroundPixel = { 0 };
+
+                    PIXEL32 BlendedPixel = { 0 };
+
+                    // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                    memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, sizeof(PIXEL32));
+
+                    // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                    BlendedPixel.Colors.Blue = BackgroundColor->Colors.Blue * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BackgroundColor->Colors.Alpha) / 255;
+
+                    BlendedPixel.Colors.Green = BackgroundColor->Colors.Green * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BackgroundColor->Colors.Alpha) / 255;
+
+                    BlendedPixel.Colors.Red = BackgroundColor->Colors.Red * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BackgroundColor->Colors.Alpha) / 255;
+
+                    memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
+                }
+                else
+                {
+                    memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BackgroundColor, sizeof(PIXEL32));
+                }
             }            
         }
     }
@@ -3295,7 +3282,28 @@ void DrawWindow(
             Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
             Pixel++)
         {
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
+
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = BorderColor->Colors.Green * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+            }
         }
 
         // Draw the bottom of the border.
@@ -3305,26 +3313,91 @@ void DrawWindow(
             Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
             Pixel++)
         {
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
+
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = BorderColor->Colors.Green * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, BorderColor, sizeof(PIXEL32));
+            }            
         }
 
         // Draw one pixel on the left side and the right for each row of the border, from the top down.
         for (int Row = 1; Row < Height - 1; Row++)
         {
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
 
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+                PIXEL32 BlendedPixel = { 0 };
 
-            MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+                MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
 
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = BorderColor->Colors.Green * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, &BlendedPixel, sizeof(PIXEL32));
+
+                MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = BorderColor->Colors.Green * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BorderColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row);
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+
+                MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + (Width - 1);
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, BorderColor, sizeof(PIXEL32));
+            }
         }
         
         // Recursion ahead!
         // If the user wants a thick window, just draw a smaller concentric bordered window inside the existing window.
         if (Flags & WINDOW_FLAG_THICK)
         {
-            DrawWindow(x + 1, y + 1, Width - 2, Height - 2, BorderColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                DrawWindow(x + 1, y + 1, Width - 2, Height - 2, BorderColor, NULL, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_ALPHABLEND);
+            }
+            else
+            {
+                DrawWindow(x + 1, y + 1, Width - 2, Height - 2, BorderColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+            }
         }
     }
 
@@ -3341,7 +3414,28 @@ void DrawWindow(
             Pixel < Width + ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 0 : 1); 
             Pixel++)
         {
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, ShadowColor, sizeof(PIXEL32));
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
+
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = ShadowColor->Colors.Blue * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = ShadowColor->Colors.Green * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = ShadowColor->Colors.Red * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, ShadowColor, sizeof(PIXEL32));
+            }            
         }
 
         // Draw one pixel on the right side for each row of the border, from the top down.
@@ -3349,7 +3443,28 @@ void DrawWindow(
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
 
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
+
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = ShadowColor->Colors.Blue * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = ShadowColor->Colors.Green * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = ShadowColor->Colors.Red * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+            }
         }
 
         // Draw one shadow pixel in the bottom-right corner to compensate for rounded corner.
@@ -3357,7 +3472,28 @@ void DrawWindow(
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1)) + (Width - 1);
 
-            memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            {
+                PIXEL32 BackgroundPixel = { 0 };
+
+                PIXEL32 BlendedPixel = { 0 };
+
+                // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
+                memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32));
+
+                // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
+                BlendedPixel.Colors.Blue = ShadowColor->Colors.Blue * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Green = ShadowColor->Colors.Green * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                BlendedPixel.Colors.Red = ShadowColor->Colors.Red * ShadowColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - ShadowColor->Colors.Alpha) / 255;
+
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, &BlendedPixel, sizeof(PIXEL32));
+            }
+            else
+            {
+                memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset, ShadowColor, sizeof(PIXEL32));
+            }
         }
     }
 }
