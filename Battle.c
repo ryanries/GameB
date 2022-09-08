@@ -222,22 +222,20 @@ void DrawBattle(void)
 {
     static uint64_t LocalFrameCounter;
 
-    static uint64_t LastFrameSeen;
+    static uint64_t LastFrameSeen;    
 
-    static PIXEL32 TextColor;    
-
-    static int16_t BrightnessAdjustment = -255;
+    static int AlphaAdjust = -256;
 
     static GAMEBITMAP* BattleScene = NULL;
 
     // These strings are "scratch space" to display only portions
     // of the full line of text. This is used to make a "typewriter" like animation.
 
-    static uint16_t BattleTextLine1CharactersToShow = 0;
+    static unsigned int BattleTextLine1CharactersToShow = 0;
 
-    static uint16_t BattleTextLine2CharactersToShow = 0;
+    static unsigned int BattleTextLine2CharactersToShow = 0;
 
-    static uint16_t BattleTextLine3CharactersToShow = 0;
+    static unsigned int BattleTextLine3CharactersToShow = 0;
 
     char BattleTextLine1Scratch[64] = { 0 };
 
@@ -256,7 +254,7 @@ void DrawBattle(void)
     {
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
+        AlphaAdjust = -256;
 
         gInputEnabled = FALSE;
 
@@ -298,15 +296,19 @@ void DrawBattle(void)
                 ASSERT(FALSE, "Random monster encountered on an unknown tile!");
             }
         }
-    }
-
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
+    }    
     
-    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
+    BlitBackgroundEx(
+        &gOverworld01.GameBitmap,
+        0,
+        0,
+        0,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND);
 
     // Draw the border around the monster battle scene.
     DrawWindow(0, 14, 100, 100,
-        &TextColor,
+        &COLOR_NES_WHITE,
         &COLOR_NES_BLACK,
         &COLOR_NES_BLACK,
         WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
@@ -314,10 +316,15 @@ void DrawBattle(void)
     // Draw the battle scene, aka the backdrop behind the monster.
     if (BattleScene != 0)
     {
-        Blit32BppBitmapToBuffer(BattleScene, 
-            (int16_t)((GAME_RES_WIDTH / 2) - (BattleScene->BitmapInfo.bmiHeader.biWidth / 2)), 
+        Blit32BppBitmapToBufferEx(
+            BattleScene, 
+            ((GAME_RES_WIDTH / 2) - (BattleScene->BitmapInfo.bmiHeader.biWidth / 2)), 
             16, 
-            BrightnessAdjustment);
+            0,
+            0,
+            0,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND);
     }
     else
     {
@@ -327,15 +334,20 @@ void DrawBattle(void)
     // Draw the monster.
     if (gCurrentMonster.Sprite->Memory != NULL)
     {
-        Blit32BppBitmapToBuffer(gCurrentMonster.Sprite, 
-            (int16_t)((GAME_RES_WIDTH / 2) - (gCurrentMonster.Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
+        Blit32BppBitmapToBufferEx(
+            gCurrentMonster.Sprite, 
+            ((GAME_RES_WIDTH / 2) - (gCurrentMonster.Sprite->BitmapInfo.bmiHeader.biWidth / 2)), 
             48, 
-            BrightnessAdjustment);
+            0,
+            0,
+            0,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND);
     } 
     
     // Draw the window where the battle text will go.
     DrawWindow(0, 128, 256, 96,
-        &TextColor,
+        &COLOR_NES_WHITE,
         &COLOR_NES_BLACK,
         &COLOR_NES_BLACK,
         WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_THICK | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_SHADOW);
@@ -351,7 +363,16 @@ void DrawBattle(void)
     
     snprintf(BattleTextLine1Scratch, BattleTextLine1CharactersToShow, "%s", gBattleTextLine1);
 
-    BlitStringToBuffer(BattleTextLine1Scratch, &g6x7Font, &TextColor, 67, 132);
+    BlitStringEx(
+        BattleTextLine1Scratch, 
+        &g6x7Font,        
+        67, 
+        132,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     // Don't start drawing line 2 until line 1 is finished animating.
     if (strlen(BattleTextLine1Scratch) == strlen(gBattleTextLine1))
@@ -367,7 +388,16 @@ void DrawBattle(void)
 
         snprintf(BattleTextLine2Scratch, BattleTextLine2CharactersToShow, "%s", gBattleTextLine2);
 
-        BlitStringToBuffer(BattleTextLine2Scratch, &g6x7Font, &TextColor, 67, 141);
+        BlitStringEx(
+            BattleTextLine2Scratch, 
+            &g6x7Font, 
+            67, 
+            141,
+            255,
+            255,
+            255,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
     }
 
     // Don't start drawing line 3 until line 2 is finished animating.
@@ -384,7 +414,16 @@ void DrawBattle(void)
 
         snprintf(BattleTextLine3Scratch, BattleTextLine3CharactersToShow, "%s", gBattleTextLine3);
 
-        BlitStringToBuffer(BattleTextLine3Scratch, &g6x7Font, &TextColor, 67, 150);
+        BlitStringEx(
+            BattleTextLine3Scratch, 
+            &g6x7Font,
+            67, 
+            150,
+            255,
+            255,
+            255,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
     }
 
     // Once the third line of text's animation is complete, we are ready to start fighting.
@@ -403,33 +442,48 @@ void DrawBattle(void)
 
             gWaitingForPlayerInput = TRUE;
 
-            BlitStringToBuffer(gMenu_PlayerBattleAction.Name, &g6x7Font, &COLOR_NES_WHITE, 67, 175);
+            BlitStringEx(
+                gMenu_PlayerBattleAction.Name, 
+                &g6x7Font, 
+                67, 
+                175,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
             DrawWindow(0, 188, 120, 32, &COLOR_NES_WHITE, &COLOR_NES_BLACK, NULL, 
                 WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
-            for (uint8_t Counter = 0; Counter < gMenu_PlayerBattleAction.ItemCount; Counter++)
+            for (int Counter = 0; Counter < gMenu_PlayerBattleAction.ItemCount; Counter++)
             {
-                BlitStringToBuffer(
+                BlitStringEx(
                     gMenu_PlayerBattleAction.Items[Counter]->Name,
-                    &g6x7Font,
-                    &COLOR_NES_WHITE,
+                    &g6x7Font,                    
                     gMenu_PlayerBattleAction.Items[Counter]->x,
-                    gMenu_PlayerBattleAction.Items[Counter]->y);
+                    gMenu_PlayerBattleAction.Items[Counter]->y,
+                    255,
+                    255,
+                    255,
+                    AlphaAdjust,
+                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
             }
 
-            BlitStringToBuffer("\xBB",
-                &g6x7Font,
-                &COLOR_NES_WHITE,
+            BlitStringEx(
+                "\xBB",
+                &g6x7Font,                
                 gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->x - 6,
-                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->y);
+                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-
-
-
-    DrawPlayerStatsWindow(&TextColor);
+    //DrawPlayerStatsWindow(&TextColor);
 
     LocalFrameCounter++;
 

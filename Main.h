@@ -35,11 +35,7 @@
 // Disable warning about function being inlined.
 #pragma warning(disable: 4711)
 
-// Temporarily reduce warning level while including external 
-// header files over which we have no control.
-#pragma warning(push, 3)
-
-// For the __ud2 intrinsic.
+// Intrinsics such as __ud2.
 #include <intrin.h>
 
 // The Windows API.
@@ -90,8 +86,7 @@
 
 #endif
 
-// Restore warning level to /Wall.
-#pragma warning(pop)
+
 
 // Maps the tiles in our overworld map to their numerical equivalents
 // so we can decide which tiles we're allowed to walk on and which
@@ -156,7 +151,7 @@
 // the kind of fade-ins that are more aesthetically reminiscent of the kind you might see on the classic NES or any
 // old system with a more limited color palette. We will have to decide later which we prefer -- 
 // the kind that look nicer, or the kind that are more "retro."
-#define SMOOTH_MENU_FADES
+//#define SMOOTH_FADES
 
 // We have to temporarily disable input when transitioning from one menu to another, from one gamestate to another,
 // but if we don't reenable the input rather quickly after that, it will not feel good for the player.
@@ -208,7 +203,7 @@
 // The number of frames taken by the fade animation.
 // This involves using shades of grey that aren't in the NES color palette,
 // but it looks nicer.
-#define FADE_DURATION_FRAMES 50
+//#define FADE_DURATION_FRAMES 50
 
 // Some pixel colors that conform to the original NES color palette.
 #define COLOR_NES_WHITE	(PIXEL32) { .Bytes = 0xFFFCFCFC }
@@ -709,8 +704,6 @@ void ProcessPlayerInput(void);
 
 void ResetEverythingForNewGame(void);
 
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment);
-
 void Blit32BppBitmapToBufferEx(
 	_In_ GAMEBITMAP* GameBitmap,
 	_In_ int x,
@@ -723,7 +716,15 @@ void Blit32BppBitmapToBufferEx(
 
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment);
 
-void BlitStringToBufferEx(
+void BlitBackgroundEx(
+	_In_ GAMEBITMAP* GameBitmap,
+	_In_ int BlueAdjust,
+	_In_ int GreenAdjust,
+	_In_ int RedAdjust,
+	_In_ int AlphaAdjust,
+	_In_ DWORD Flags);
+
+void BlitStringEx(
 	_In_ char* String,
 	_In_ GAMEBITMAP* FontSheet,
 	_In_ int x,
@@ -733,8 +734,6 @@ void BlitStringToBufferEx(
 	_In_ int RedAdjust,
 	_In_ int AlphaAdjust,
 	DWORD Flags);
-
-void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 
 void RenderFrameGraphics(void);
 
@@ -790,12 +789,6 @@ void DrawWindow(
 	_In_opt_ PIXEL32* BackgroundColor,
 	_In_opt_ PIXEL32* ShadowColor,
 	_In_ DWORD Flags);
-
-void ApplyFadeIn(
-	_In_ uint64_t FrameCounter, 
-	_In_ PIXEL32 DefaultTextColor, 
-	_Inout_ PIXEL32* TextColor, 
-	_Inout_opt_ int16_t* BrightnessAdjustment);
 
 int64_t FileSizeA(_In_ const char* FileName);
 

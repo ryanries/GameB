@@ -61,7 +61,7 @@ void DrawOptionsScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-#ifdef SMOOTH_MENU_FADES
+#ifdef SMOOTH_FADES
     // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
     // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
 
@@ -96,7 +96,7 @@ void DrawOptionsScreen(void)
     {
         if (gMenu_OptionsScreen.Items[MenuItem]->Enabled == TRUE)
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 gMenu_OptionsScreen.Items[MenuItem]->Name,
                 &g6x7Font,                
                 gMenu_OptionsScreen.Items[MenuItem]->x,
@@ -113,7 +113,7 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (int)(gSFXVolume * 10))
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 "\xf2", 
                 &g6x7Font,                
                 224 + (Volume * 6), 
@@ -126,7 +126,7 @@ void DrawOptionsScreen(void)
         }
         else
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 "\xf2", 
                 &g6x7Font,                
                 224 + (Volume * 6), 
@@ -143,7 +143,7 @@ void DrawOptionsScreen(void)
     {
         if (Volume >= (int)(gMusicVolume * 10))
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 "\xf2", 
                 &g6x7Font,                
                 224 + (Volume * 6), 
@@ -156,7 +156,7 @@ void DrawOptionsScreen(void)
         }
         else
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 "\xf2", 
                 &g6x7Font, 
                 224 + (Volume * 6), 
@@ -175,7 +175,7 @@ void DrawOptionsScreen(void)
         GAME_RES_WIDTH * gPerformanceData.CurrentScaleFactor,
         GAME_RES_HEIGHT * gPerformanceData.CurrentScaleFactor);
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         ScreenSizeString, 
         &g6x7Font, 
         224, 
@@ -186,7 +186,7 @@ void DrawOptionsScreen(void)
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         "\xBB",
         &g6x7Font,        
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->x - 6,

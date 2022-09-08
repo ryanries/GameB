@@ -159,9 +159,9 @@ void DrawCharacterNaming(void)
 
     static uint64_t LastFrameSeen = 0;
 
-    static PIXEL32 TextColor;
+    static int AlphaAdjust = -256;
 
-    static int16_t BrightnessAdjustment = -255;
+    //static int16_t BrightnessAdjustment = -255;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -174,9 +174,7 @@ void DrawCharacterNaming(void)
     {
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
-
-        BrightnessAdjustment = -255;
+        AlphaAdjust = -256;        
 
         gMenu_CharacterNaming.SelectedItem = 0;
 
@@ -185,68 +183,119 @@ void DrawCharacterNaming(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
+#ifdef SMOOTH_FADES
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
 
-    DrawWindow(108, 11, 166, 18, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK);
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
+    }
 
-    DrawWindow(108, 105, 166, 60, &TextColor, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+#else
+    // Here is an easy, "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
+
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
+
     
-    // DrawWindow Tests ... dare I say unit tests?
 
-    //DrawWindow(16, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE);
+    DrawWindow(108, 11, 166, 18, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK);
 
-    //DrawWindow(34, 60, 16, 16, NULL, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+    DrawWindow(108, 105, 166, 60, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
+    
 
-    //DrawWindow(52, 60, 16, 16, &TextColor, NULL, NULL, WINDOW_FLAG_BORDERED);
+    BlitStringEx(
+        gMenu_CharacterNaming.Name, 
+        &g6x7Font, 
+        (GAME_RES_WIDTH / 2) - ((int)(strlen(gMenu_CharacterNaming.Name) * 6) / 2), 
+        16,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    //DrawWindow(70, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE);
+    Blit32BppBitmapToBufferEx(
+        &gPlayer.Sprite[SUIT_0][FACING_DOWN_0], 
+        153, 
+        80, 
+        0,
+        0,
+        0,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND);
 
-    //DrawWindow(88, 60, 16, 16, &TextColor, &COLOR_NES_BLACK, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
-
-    //DrawWindow(106, 60, 16, 16, NULL, &COLOR_NES_WHITE, &COLOR_NES_BLACK, WINDOW_FLAG_OPAQUE | WINDOW_FLAG_SHADOW);
-    //
-    //DrawWindow(124, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW);
-
-    //DrawWindow(142, 60, 16, 16, &COLOR_NES_WHITE, &COLOR_NES_BLACK, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
-
-    //DrawWindow(160, 60, 16, 16, &COLOR_NES_WHITE, NULL, NULL, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK);
-
-    //DrawWindow(178, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW);
-
-    //DrawWindow(196, 60, 16, 16, &COLOR_NES_WHITE, NULL, &COLOR_NES_BLACK, WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS);
-
-    // End DrawWindow Tests
-
-    BlitStringToBuffer(gMenu_CharacterNaming.Name, &g6x7Font, &TextColor, (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(gMenu_CharacterNaming.Name) * 6) / 2), 16);
-
-    Blit32BppBitmapToBuffer(&gPlayer.Sprite[SUIT_0][FACING_DOWN_0], 153, 80, BrightnessAdjustment);
-
-    for (uint8_t Letter = 0; Letter < _countof(gPlayer.Name) - 1; Letter++)
+    for (int Letter = 0; Letter < _countof(gPlayer.Name) - 1; Letter++)
     {
         if (gPlayer.Name[Letter] == '\0')
         {
-            BlitStringToBuffer("_", &g6x7Font, &TextColor, 173 + (Letter * 6), 89);
+            BlitStringEx(
+                "_", 
+                &g6x7Font, 
+                173 + (Letter * 6), 
+                89,
+                255,
+                255,
+                255,
+                AlphaAdjust, 
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
         else
         {
-            BlitStringToBuffer(&gPlayer.Name[Letter], &g6x7Font, &TextColor, 173 + (Letter * 6), 89);
+            BlitStringEx(
+                &gPlayer.Name[Letter], 
+                &g6x7Font, 
+                173 + (Letter * 6), 
+                89,
+                255,
+                255,
+                255,
+                AlphaAdjust, 
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-    for (uint8_t Counter = 0; Counter < gMenu_CharacterNaming.ItemCount; Counter++)
+    for (int Counter = 0; Counter < gMenu_CharacterNaming.ItemCount; Counter++)
     {
-        BlitStringToBuffer(gMenu_CharacterNaming.Items[Counter]->Name,
-            &g6x7Font,
-            &TextColor,
+        BlitStringEx(
+            gMenu_CharacterNaming.Items[Counter]->Name,
+            &g6x7Font,            
             gMenu_CharacterNaming.Items[Counter]->x,
-            gMenu_CharacterNaming.Items[Counter]->y);
+            gMenu_CharacterNaming.Items[Counter]->y,
+            255,
+            255,
+            255,
+            AlphaAdjust,
+            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
     }
 
-    BlitStringToBuffer("\xBB",
-        &g6x7Font,
-        &TextColor,
+    BlitStringEx(
+        "\xBB",
+        &g6x7Font,        
         gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->x - 6,
-        gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->y);
+        gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->y,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     LocalFrameCounter++;
 

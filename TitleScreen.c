@@ -73,7 +73,7 @@ void DrawTitleScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-#ifdef SMOOTH_MENU_FADES
+#ifdef SMOOTH_FADES
 
     // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
     // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
@@ -107,7 +107,7 @@ void DrawTitleScreen(void)
     //    AARRGGBB ?
     //__stosd(gBackBuffer.Memory, 0xFF0000FF, GAME_DRAWING_AREA_MEMORY_SIZE / sizeof(PIXEL32));
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         GAME_NAME, 
         &g6x7Font, 
         (GAME_RES_WIDTH / 2) - ((int)(strlen(GAME_NAME) * 6) / 2), 
@@ -122,7 +122,7 @@ void DrawTitleScreen(void)
     {
         if (gMenu_TitleScreen.Items[MenuItem]->Enabled == TRUE)
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 gMenu_TitleScreen.Items[MenuItem]->Name,
                 &g6x7Font,                
                 gMenu_TitleScreen.Items[MenuItem]->x,
@@ -136,7 +136,7 @@ void DrawTitleScreen(void)
         }
     }
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         "\xBB",
         &g6x7Font,        
         gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->x - 6,

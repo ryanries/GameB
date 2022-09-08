@@ -232,15 +232,7 @@ uint8_t gSFXSourceVoiceSelector;
 
 _NtQueryTimerResolution NtQueryTimerResolution = NULL;
 
-// Lookup table for fade in/out animations. 
-// Maps frame count to brightness adjustments.
-const int16_t gFadeBrightnessGradient[] = {
-    -255, -255, -255, -255, -255, -255, -255, -255, -255, -255,
-    -192, -192, -192, -192, -192, -192, -192, -192, -192, -192,
-    -128, -128, -128, -128, -128, -128, -128, -128, -128, -128,
-     -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,  -64,
-     -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
-};
+
 
 // The game's entry point.
 int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ PSTR CommandLine, _In_ INT CmdShow)
@@ -831,13 +823,28 @@ DWORD InitializeOpenGL(void)
         goto Exit;
     }
 
-    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
+    // Try to enable v-sync. But if we can't don't fail. The player might have just disabled v-sync
+    // in their video card driver settings, and that's OK, that shouldn't prevent them from playing the game.
+    // We prefer v-sync but it's not required.
+    if (((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1) == 0)
+    {
+        LogMessageA(LL_WARNING, "[%s] V-Sync was NOT enabled!", __FUNCTION__);
+    }
+    else
+    {
+        LogMessageA(LL_INFO, "[%s] V-Sync enabled.", __FUNCTION__);
+    }
 
 Exit:
 
     if (WindowDC)
     {
         ReleaseDC(gGameWindow, WindowDC);
+    }
+
+    if (Result == ERROR_SUCCESS)
+    {
+        LogMessageA(LL_INFO, "[%s] OpenGL successfully initialized.", __FUNCTION__);
     }
 
     return(Result);
@@ -1331,7 +1338,7 @@ void ResetEverythingForNewGame(void)
     return;    
 }
 
-void BlitStringToBufferEx(
+void BlitStringEx(
     _In_ char* String,
     _In_ GAMEBITMAP* FontSheet,
     _In_ int x,
@@ -1424,115 +1431,37 @@ void BlitStringToBufferEx(
 
     if (Flags & BLIT_FLAG_TEXT_SHADOW)
     {
-        Blit32BppBitmapToBufferEx(
-            &StringBitmap, 
-            x, 
-            y + 1, 
-            BlueAdjust, 
-            GreenAdjust, 
-            RedAdjust, 
-            AlphaAdjust - 192, 
-            Flags ^ BLIT_FLAG_TEXT_SHADOW);
-    }
-
-    Blit32BppBitmapToBufferEx(&StringBitmap, x, y, BlueAdjust, GreenAdjust, RedAdjust, AlphaAdjust, Flags);
-
-    if (StringBitmap.Memory)
-    {
-        HeapFree(GetProcessHeap(), 0, StringBitmap.Memory);
-    }
-}
-
-void BlitStringToBuffer(_In_ char* String, _In_ GAMEBITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y)
-{
-    // Map any char value to an offset dictated by the g6x7Font ordering.
-    // 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
-    // We use them as a cursor in menus.
-    static int32_t FontCharacterPixelOffset[] = {
-     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-     //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
-         94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
-     //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
-         65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
-     //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
-         62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
-     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-     //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
-         93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
-     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
-         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
-     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
-         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
-    };
-
-    uint16_t CharWidth = (uint16_t)FontSheet->BitmapInfo.bmiHeader.biWidth / FONT_SHEET_CHARACTERS_PER_ROW;
-
-    uint16_t CharHeight = (uint16_t)FontSheet->BitmapInfo.bmiHeader.biHeight;
-
-    uint16_t BytesPerCharacter = (CharWidth * CharHeight * (FontSheet->BitmapInfo.bmiHeader.biBitCount / 8));
-
-    uint16_t StringLength = (uint16_t)strlen(String);
-
-    GAMEBITMAP StringBitmap = { 0 };
-
-    StringBitmap.BitmapInfo.bmiHeader.biBitCount = GAME_BPP;
-
-    StringBitmap.BitmapInfo.bmiHeader.biHeight = CharHeight;
-
-    StringBitmap.BitmapInfo.bmiHeader.biWidth = CharWidth * StringLength;
-
-    StringBitmap.BitmapInfo.bmiHeader.biPlanes = 1;
-
-    StringBitmap.BitmapInfo.bmiHeader.biCompression = BI_RGB;
-
-    StringBitmap.Memory = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, ((size_t)BytesPerCharacter * (size_t)StringLength));
-
-    for (int Character = 0; Character < StringLength; Character++)
-    {
-        int StartingFontSheetPixel = 0;
-
-        int FontSheetOffset = 0;
-
-        int StringBitmapOffset = 0;
-
-        PIXEL32 FontSheetPixel = { 0 };
-
-        StartingFontSheetPixel = (FontSheet->BitmapInfo.bmiHeader.biWidth * FontSheet->BitmapInfo.bmiHeader.biHeight) - \
-            FontSheet->BitmapInfo.bmiHeader.biWidth + (CharWidth * FontCharacterPixelOffset[(uint8_t)String[Character]]);
-
-        for (int YPixel = 0; YPixel < CharHeight; YPixel++)
+        // If alpha blending was requested, we can perform the shadow effect
+        // using the alpha channel.
+        // If the caller requested a text shadow but no alpha blending,
+        // we must use the color adjustments to produce a shadow.
+        if (Flags & BLIT_FLAG_ALPHABLEND)
         {
-            for (int XPixel = 0; XPixel < CharWidth; XPixel++)
-            {
-                FontSheetOffset = StartingFontSheetPixel + XPixel - (FontSheet->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-                StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.BitmapInfo.bmiHeader.biWidth * StringBitmap.BitmapInfo.bmiHeader.biHeight) - \
-                    StringBitmap.BitmapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.BitmapInfo.bmiHeader.biWidth) * YPixel;
-                
-
-                // NOTE: memcpy_s is safer but is much slower.
-                //memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
-                memcpy(&FontSheetPixel, (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
-
-                if (FontSheetPixel.Colors.Alpha == 255)
-                {
-                    FontSheetPixel.Colors.Red   = Color->Colors.Red;
-
-                    FontSheetPixel.Colors.Green = Color->Colors.Green;
-
-                    FontSheetPixel.Colors.Blue  = Color->Colors.Blue;
-
-                    // NOTE: memcpy_s is safer but is much slower.
-                    //memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));                    
-                    memcpy((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, &FontSheetPixel, sizeof(PIXEL32));
-                }                
-            }
+            Blit32BppBitmapToBufferEx(
+                &StringBitmap,
+                x,
+                y + 1,
+                BlueAdjust,
+                GreenAdjust,
+                RedAdjust,
+                AlphaAdjust - 192,
+                Flags ^ BLIT_FLAG_TEXT_SHADOW);
+        }
+        else
+        {
+            Blit32BppBitmapToBufferEx(
+                &StringBitmap,
+                x,
+                y + 1,
+                BlueAdjust - 192,
+                GreenAdjust - 192,
+                RedAdjust - 192,
+                AlphaAdjust,
+                Flags ^ BLIT_FLAG_TEXT_SHADOW);
         }
     }
 
-    Blit32BppBitmapToBuffer(&StringBitmap, x, y, 0);
+    Blit32BppBitmapToBufferEx(&StringBitmap, x, y, BlueAdjust, GreenAdjust, RedAdjust, AlphaAdjust, Flags);
 
     if (StringBitmap.Memory)
     {
@@ -1698,22 +1627,20 @@ void Blit32BppBitmapToBufferEx(
     _In_ int AlphaAdjust,
     DWORD Flags)
 {
-    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+    int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
 
-    int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
+    int StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
         GameBitmap->BitmapInfo.bmiHeader.biWidth);
 
-    int32_t MemoryOffset = 0;
+    int MemoryOffset = 0;
 
-    int32_t BitmapOffset = 0;
+    int BitmapOffset = 0;
 
-    PIXEL32 BitmapPixel = { 0 };
+    PIXEL32 BitmapPixel = { 0 };    
 
-    PIXEL32 BackgroundPixel = { 0 };
-
-    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
+    for (int YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
     {
-        for (int16_t XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
+        for (int XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
         {
             // Calculate the offset into the backbuffer where this pixel will be drawn.
             MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
@@ -1735,6 +1662,8 @@ void Blit32BppBitmapToBufferEx(
 
             if (Flags & BLIT_FLAG_ALPHABLEND)
             {
+                PIXEL32 BackgroundPixel = { 0 };
+
                 PIXEL32 BlendedPixel = { 0 };
 
                 // If we are alpha blending, pick up the background pixel first so we know what color we are blending with.
@@ -1751,7 +1680,7 @@ void Blit32BppBitmapToBufferEx(
             }
             else
             {
-                if (BitmapPixel.Colors.Alpha == 255)
+                if (BitmapPixel.Colors.Alpha > 0)
                 {
                     memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
                 }
@@ -1760,94 +1689,28 @@ void Blit32BppBitmapToBufferEx(
     }
 }
 
-// This function draws any sized bitmap onto the global backbuffer. Sprites, text strings, etc.
-// WARNING: Currently there is no safeguard preventing you from trying to draw pixels outside
-// of the screen area, and attempting to do so will crash the game if the area to be
-// drawn to falls outside of valid gBackBuffer memory!
-void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ int16_t y, _In_ int16_t BrightnessAdjustment)
-{    
-    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH) - (GAME_RES_WIDTH * y) + x;
+void BlitBackgroundEx(
+    _In_ GAMEBITMAP* GameBitmap, 
+    _In_ int BlueAdjust,
+    _In_ int GreenAdjust,
+    _In_ int RedAdjust,
+    _In_ int AlphaAdjust,
+    _In_ DWORD Flags)
+{
+    int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
 
-    int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
-        GameBitmap->BitmapInfo.bmiHeader.biWidth);
+    int StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
+        GameBitmap->BitmapInfo.bmiHeader.biWidth) + gCamera.x - (GameBitmap->BitmapInfo.bmiHeader.biWidth * gCamera.y);
 
-    int32_t MemoryOffset = 0;
+    int MemoryOffset = 0;
 
-    int32_t BitmapOffset = 0;
+    int BitmapOffset = 0;
 
     PIXEL32 BitmapPixel = { 0 };
 
-#ifdef __AVX2__
-    // We go 8 pixels at a time SIMD-style, until there are fewer than 8 pixels left 
-    // on the current row, then finish the remainder of the row one pixel at a time.
-
-    __m256i BitmapOctoPixel;
-
-    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
+    for (int YPixel = 0; YPixel < GAME_RES_HEIGHT; YPixel++)
     {
-        int16_t PixelsRemainingOnThisRow = (int16_t)GameBitmap->BitmapInfo.bmiHeader.biWidth;
-
-        int16_t XPixel = 0;
-
-        while (PixelsRemainingOnThisRow >= 8)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            // Load 256 bits (8 pixels) from memory into register YMMx
-			// WARNING: The buffer MUST be 32-byte aligned or else this intrinsic will crash the program!
-			// If unable to guarantee 32-byte alignment, use _mm256_loadu_si256 instead.
-            BitmapOctoPixel = _mm256_load_si256((const __m256i*)((PIXEL32*)GameBitmap->Memory + BitmapOffset));
-            //        AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB-AARRGGBBAARRGGBB
-            // YMM0 = FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1-FF5B6EE1FF5B6EE1
-
-            // Blow the 256-bit vector apart into two separate 256-bit vectors Half1 and Half2, 
-            // each containing 4 pixels, where each pixel is now 16 bits instead of 8.            
-
-            __m256i Half1 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 0));
-            //        AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB-AAAARRRRGGGGBBBB
-            // YMM0 = 00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1-00FF005B006E00E1
-
-            // Add the brightness adjustment to each 16-bit element, except alpha.
-            Half1 = _mm256_add_epi16(Half1, _mm256_set_epi16(
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));            
-
-            // Do the same for Half2 that we just did for Half1.
-            __m256i Half2 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(BitmapOctoPixel, 1));
-
-            Half2 = _mm256_add_epi16(Half2, _mm256_set_epi16(
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment,
-                0, BrightnessAdjustment, BrightnessAdjustment, BrightnessAdjustment));
-
-            // Now we need to reassemble the two halves back into a single 256-bit group of 8 pixels.
-            // _mm256_packus_epi16(a,b) takes the 16-bit signed integers in the 256-bit vectors a and b
-            // and converts them to a 256-bit vector of 8-bit unsigned integers. The result contains the
-            // first 8 integers from a, followed by the first 8 integers from b, followed by the last 8
-            // integers from a, followed by the last 8 integers from b.
-            // Values that are out of range are set to 0 or 255.
-            __m256i Recombined = _mm256_packus_epi16(Half1, Half2);
-
-            BitmapOctoPixel = _mm256_permute4x64_epi64(Recombined, _MM_SHUFFLE(3, 1, 2, 0));
-
-            // Create a mask that selects only the pixels that have an Alpha == 255.
-            __m256i Mask = _mm256_cmpeq_epi8(BitmapOctoPixel, _mm256_set1_epi8(-1));
-            
-            // Conditionally store the result to the global back buffer, based on the mask
-            // we just created that selects only the pixels where Alpha == 255.
-            _mm256_maskstore_epi32((int*)((PIXEL32*)gBackBuffer.Memory + MemoryOffset), Mask, BitmapOctoPixel);            
-
-            PixelsRemainingOnThisRow -= 8;
-
-            XPixel += 8;
-        }
-
-        while (PixelsRemainingOnThisRow > 0)
+        for (int XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel++)
         {
             MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
 
@@ -1855,50 +1718,9 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 
             memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
 
-            if (BitmapPixel.Colors.Alpha == 255)
-            {
-                // Clamp between 0 and 255
-                // min(upper, max(x, lower))
-                BitmapPixel.Colors.Red   = (uint8_t)min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
-
-                BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
-
-                BitmapPixel.Colors.Blue  = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
-
-                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
-            }
-
-            PixelsRemainingOnThisRow--;
-
-            XPixel++;
+            memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
         }
     }
-#else
-    for (int16_t YPixel = 0; YPixel < GameBitmap->BitmapInfo.bmiHeader.biHeight; YPixel++)
-    {
-        for (int16_t XPixel = 0; XPixel < GameBitmap->BitmapInfo.bmiHeader.biWidth; XPixel++)
-        {
-            MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
-
-            BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->BitmapInfo.bmiHeader.biWidth * YPixel);
-
-            memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
-
-            if (BitmapPixel.Colors.Alpha == 255)
-            {
-                // Clamp between 0 and 255
-                // min(upper, max(x, lower))
-                BitmapPixel.Colors.Red   = (uint8_t)min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
-
-                BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
-
-                BitmapPixel.Colors.Blue  = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
-
-                memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
-            }
-        }
-    }
-#endif
 }
 
 // Draws a subsection of a background across the entire screen.
@@ -1910,14 +1732,14 @@ void Blit32BppBitmapToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t x, _In_ i
 // the game's resolution be a multiple of 4 (SSE) or 8 (AVX).
 void BlitBackgroundToBuffer(_In_ GAMEBITMAP* GameBitmap, _In_ int16_t BrightnessAdjustment)
 {
-    int32_t StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
+    int StartingScreenPixel = ((GAME_RES_WIDTH * GAME_RES_HEIGHT) - GAME_RES_WIDTH);
 
-    int32_t StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
+    int StartingBitmapPixel = ((GameBitmap->BitmapInfo.bmiHeader.biWidth * GameBitmap->BitmapInfo.bmiHeader.biHeight) - \
         GameBitmap->BitmapInfo.bmiHeader.biWidth) + gCamera.x - (GameBitmap->BitmapInfo.bmiHeader.biWidth * gCamera.y);
 
-    int32_t MemoryOffset = 0;
+    int MemoryOffset = 0;
 
-    int32_t BitmapOffset = 0;
+    int BitmapOffset = 0;
 
 #ifdef __AVX2__
     // We go 8 pixels at a time, SIMD-style.    
@@ -2261,88 +2083,198 @@ __forceinline void DrawDebugInfo(void)
         NULL, 
         WINDOW_FLAG_OPAQUE);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "FPS:     %.01f (%.01f)", 
         gPerformanceData.CookedFPSAverage, 
         gPerformanceData.RawFPSAverage);  
     
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 0));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 0),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "Timer:   %.02f/%.02f/%.02f", 
         (gPerformanceData.MinimumTimerResolution / 10000.0f),
         (gPerformanceData.MaximumTimerResolution / 10000.0f),
         (gPerformanceData.CurrentTimerResolution / 10000.0f));
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 1));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font,        
+        0, 
+        (8 * 1),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "Handles: %lu", 
         gPerformanceData.HandleCount);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 2));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 2),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "Memory:  %zu KB", 
         gPerformanceData.MemInfo.PrivateUsage / 1024);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 3));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 3),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "CPU:     %.02f%%", 
         gPerformanceData.CPUPercent);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 4));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 4),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "FramesT: %llu", 
         gPerformanceData.TotalFramesRendered);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 5));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 5),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "ScreenXY:%hu,%hu", 
         gPlayer.ScreenPos.x, 
         gPlayer.ScreenPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 6));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 6),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "WorldXY: %hu,%hu", 
         gPlayer.WorldPos.x, 
         gPlayer.WorldPos.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 7));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 7),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "CameraXY:%hu,%hu", 
         gCamera.x, 
         gCamera.y);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 8));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 8),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "Movement:%u", 
         gPlayer.MovementRemaining);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 9));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 9),
+        255,
+        255,
+        255,
+        0,
+        0);
 
-    sprintf_s(DebugTextBuffer, 
+    sprintf_s(
+        DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
         "Steps:   %llu", 
         gPlayer.StepsTaken);
 
-    BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), 0, (8 * 10));
+    BlitStringEx(
+        DebugTextBuffer, 
+        &g6x7Font, 
+        0, 
+        (8 * 10),
+        255,
+        255,
+        255,
+        0,
+        0);
 
     // Draw the tile values around the player so we can verify which tiles we should be and should not be allowed to walk on.
  
@@ -2351,14 +2283,32 @@ __forceinline void DrawDebugInfo(void)
         // What is the value of the tile that the player is currently standing on?
         _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-        BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, gPlayer.ScreenPos.y + 4);
+        BlitStringEx(
+            DebugTextBuffer, 
+            &g6x7Font, 
+            gPlayer.ScreenPos.x + 5, 
+            gPlayer.ScreenPos.y + 4,
+            255,
+            255,
+            255,
+            0,
+            BLIT_FLAG_TEXT_SHADOW);
 
         if (gPlayer.ScreenPos.y >= 16)
         {
             // What is the value of the tile above the player?
             _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y - 16) + 4);
+            BlitStringEx(
+                DebugTextBuffer, 
+                &g6x7Font, 
+                gPlayer.ScreenPos.x + 5, 
+                (gPlayer.ScreenPos.y - 16) + 4,
+                255,
+                255,
+                255,
+                0,
+                BLIT_FLAG_TEXT_SHADOW);
         }
 
         if (gPlayer.ScreenPos.x < (GAME_RES_WIDTH - 16))
@@ -2366,7 +2316,16 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile to the right of the player?
             _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), (gPlayer.ScreenPos.x + 16) + 5, gPlayer.ScreenPos.y + 4);
+            BlitStringEx(
+                DebugTextBuffer, 
+                &g6x7Font, 
+                (gPlayer.ScreenPos.x + 16) + 5, 
+                gPlayer.ScreenPos.y + 4,                
+                255,
+                255,
+                255,
+                0,
+                BLIT_FLAG_TEXT_SHADOW);
         }
 
         if (gPlayer.ScreenPos.x >= 16)
@@ -2374,7 +2333,16 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile to left of the player?
             _itoa_s(gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), (gPlayer.ScreenPos.x - 16) + 5, gPlayer.ScreenPos.y + 4);
+            BlitStringEx(
+                DebugTextBuffer, 
+                &g6x7Font, 
+                (gPlayer.ScreenPos.x - 16) + 5, 
+                gPlayer.ScreenPos.y + 4,
+                255,
+                255,
+                255,
+                0,
+                BLIT_FLAG_TEXT_SHADOW);
         }
 
         if (gPlayer.ScreenPos.y <= GAME_RES_HEIGHT - 32)
@@ -2382,7 +2350,16 @@ __forceinline void DrawDebugInfo(void)
             // What is the value of the tile below the player?
             _itoa_s(gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16], DebugTextBuffer, sizeof(DebugTextBuffer), 10);
 
-            BlitStringToBuffer(DebugTextBuffer, &g6x7Font, &(COLOR_NES_WHITE), gPlayer.ScreenPos.x + 5, (gPlayer.ScreenPos.y + 16) + 4);
+            BlitStringEx(
+                DebugTextBuffer, 
+                &g6x7Font,
+                gPlayer.ScreenPos.x + 5, 
+                (gPlayer.ScreenPos.y + 16) + 4,
+                255,
+                255,
+                255,
+                0,
+                BLIT_FLAG_TEXT_SHADOW);
         }
     }
 }
@@ -3554,47 +3531,6 @@ void DrawWindow(
 //        }
 //    }
 //}
-
-void ApplyFadeIn(
-    _In_ uint64_t FrameCounter, 
-    _In_ PIXEL32 DefaultTextColor, 
-    _Inout_ PIXEL32* TextColor, 
-    _Inout_opt_ int16_t* BrightnessAdjustment)
-{
-    #pragma warning(suppress: 4127)
-    ASSERT(_countof(gFadeBrightnessGradient) == FADE_DURATION_FRAMES, "gFadeBrightnessGradient has too few elements!");
-
-    int16_t LocalBrightnessAdjustment;
-
-    if (FrameCounter > FADE_DURATION_FRAMES)
-    {
-        return;
-    }
-
-    if (FrameCounter == FADE_DURATION_FRAMES)
-    {
-        gInputEnabled = TRUE;
-
-        LocalBrightnessAdjustment = 0;
-    }
-    else
-    {
-        gInputEnabled = FALSE;
-
-        LocalBrightnessAdjustment = gFadeBrightnessGradient[FrameCounter];
-    }
-
-    if (BrightnessAdjustment != NULL)
-    {
-        *BrightnessAdjustment = LocalBrightnessAdjustment;
-    }
-
-    TextColor->Colors.Red   = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Red + LocalBrightnessAdjustment)));
-
-    TextColor->Colors.Blue  = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Blue + LocalBrightnessAdjustment)));
-
-    TextColor->Colors.Green = (uint8_t)(min(255, max(0, DefaultTextColor.Colors.Green + LocalBrightnessAdjustment)));
-}
 
 int64_t FileSizeA(_In_ const char* FileName)
 {

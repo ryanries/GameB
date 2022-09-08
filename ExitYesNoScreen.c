@@ -53,7 +53,7 @@ void DrawExitYesNoScreen(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-#ifdef SMOOTH_MENU_FADES
+#ifdef SMOOTH_FADES
     // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
     // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
 
@@ -84,7 +84,7 @@ void DrawExitYesNoScreen(void)
     }
     
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         gMenu_ExitYesNo.Name,
         &g6x7Font,
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Name) * 6) / 2),
@@ -95,7 +95,7 @@ void DrawExitYesNoScreen(void)
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         gMenu_ExitYesNo.Items[0]->Name,
         &g6x7Font,        
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Items[0]->Name) * 6) / 2),
@@ -106,7 +106,7 @@ void DrawExitYesNoScreen(void)
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         gMenu_ExitYesNo.Items[1]->Name,
         &g6x7Font,        
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_ExitYesNo.Items[1]->Name) * 6) / 2),
@@ -117,7 +117,7 @@ void DrawExitYesNoScreen(void)
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBufferEx(
+    BlitStringEx(
         "\xBB",
         &g6x7Font,        
         gMenu_ExitYesNo.Items[gMenu_ExitYesNo.SelectedItem]->x - 6,
@@ -137,21 +137,29 @@ void PPI_ExitYesNo(void)
 {
     if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
     {
+        PlayGameSound(&gSoundMenuNavigate);
+
         if (gMenu_ExitYesNo.SelectedItem < gMenu_ExitYesNo.ItemCount - 1)
         {
-            PlayGameSound(&gSoundMenuNavigate);
-
             gMenu_ExitYesNo.SelectedItem++;            
+        }
+        else
+        {
+            gMenu_ExitYesNo.SelectedItem = 0;
         }
     }
 
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
+        PlayGameSound(&gSoundMenuNavigate);
+
         if (gMenu_ExitYesNo.SelectedItem > 0)
         {
-            PlayGameSound(&gSoundMenuNavigate);
-
             gMenu_ExitYesNo.SelectedItem--;            
+        }
+        else
+        {
+            gMenu_ExitYesNo.SelectedItem = gMenu_ExitYesNo.ItemCount - 1;
         }
     }
 

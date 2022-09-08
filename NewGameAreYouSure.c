@@ -33,7 +33,7 @@ void DrawNewGameAreYouSure(void)
 
     static uint64_t LastFrameSeen = 0;
 
-    static PIXEL32 TextColor;
+    static int AlphaAdjust = -256;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -46,7 +46,7 @@ void DrawNewGameAreYouSure(void)
     {
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
+        AlphaAdjust = -256;
 
         gInputEnabled = FALSE;
 
@@ -55,39 +55,93 @@ void DrawNewGameAreYouSure(void)
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, NULL);
+#ifdef SMOOTH_FADES
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
+
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
+    }
+
+#else
+    // Here is an easy, "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
+
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
     
-    BlitStringToBuffer(gMenu_NewGameAreYouSure.Name,
-        &g6x7Font,
-        &TextColor,
+    BlitStringEx(
+        gMenu_NewGameAreYouSure.Name,
+        &g6x7Font,        
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_NewGameAreYouSure.Name) * 6) / 2),
-        60);
+        60,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
 #define PROGRESSWILLBELOSTSTRING "All unsaved progress will be lost!"
 
-    BlitStringToBuffer(PROGRESSWILLBELOSTSTRING,
-        &g6x7Font,
-        &TextColor,
+    BlitStringEx(
+        PROGRESSWILLBELOSTSTRING,
+        &g6x7Font,        
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(PROGRESSWILLBELOSTSTRING) * 6) / 2),
-        75);
+        75,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBuffer(gMenu_NewGameAreYouSure.Items[0]->Name,
+    BlitStringEx(
+        gMenu_NewGameAreYouSure.Items[0]->Name,
         &g6x7Font,
-        &TextColor,
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_NewGameAreYouSure.Items[0]->Name) * 6) / 2),
-        100);
+        100,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBuffer(gMenu_NewGameAreYouSure.Items[1]->Name,
-        &g6x7Font,
-        &TextColor,
+    BlitStringEx(
+        gMenu_NewGameAreYouSure.Items[1]->Name,
+        &g6x7Font,        
         (GAME_RES_WIDTH / 2) - ((uint16_t)(strlen(gMenu_NewGameAreYouSure.Items[1]->Name) * 6) / 2),
-        115);
+        115,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBuffer("\xBB",
-        &g6x7Font,
-        &TextColor,
+    BlitStringEx(
+        "\xBB",
+        &g6x7Font,        
         gMenu_NewGameAreYouSure.Items[gMenu_NewGameAreYouSure.SelectedItem]->x - 6,
-        gMenu_NewGameAreYouSure.Items[gMenu_NewGameAreYouSure.SelectedItem]->y);
+        gMenu_NewGameAreYouSure.Items[gMenu_NewGameAreYouSure.SelectedItem]->y,
+        255,
+        255,
+        255,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     LocalFrameCounter++;
 
@@ -98,21 +152,29 @@ void PPI_NewGameAreYouSure(void)
 {
     if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
     {
+        PlayGameSound(&gSoundMenuNavigate);
+
         if (gMenu_NewGameAreYouSure.SelectedItem < gMenu_NewGameAreYouSure.ItemCount - 1)
         {
-            gMenu_NewGameAreYouSure.SelectedItem++;
-
-            PlayGameSound(&gSoundMenuNavigate);
+            gMenu_NewGameAreYouSure.SelectedItem++;            
+        }
+        else
+        {
+            gMenu_NewGameAreYouSure.SelectedItem = 0;
         }
     }
 
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
+        PlayGameSound(&gSoundMenuNavigate);
+
         if (gMenu_NewGameAreYouSure.SelectedItem > 0)
         {
-            gMenu_NewGameAreYouSure.SelectedItem--;
-
-            PlayGameSound(&gSoundMenuNavigate);
+            gMenu_NewGameAreYouSure.SelectedItem--;            
+        }
+        else
+        {
+            gMenu_NewGameAreYouSure.SelectedItem = gMenu_NewGameAreYouSure.ItemCount - 1; 
         }
     }
 

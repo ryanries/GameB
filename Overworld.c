@@ -19,8 +19,6 @@
 
 #include "Overworld.h"
 
-BOOL gFade;
-
 GAMEAREA gCurrentArea = { 0 };
 
 GAMEAREA gOverworldArea = { 0 };
@@ -33,7 +31,10 @@ PORTAL gPortal002 = { 0 };
 
 PORTAL gPortals[2] = { 0 };
 
-
+// We use this variable for when the player walks through a portal (or door or entrance) to another area.
+// It resets the local counters in DrawOverworld so we have an opportunity to switch music tracks and reset
+// the fade-in animation, even though we never actually changed game states.
+BOOL gResetLocalCounters;
 
 void DrawOverworld(void)
 {
@@ -41,9 +42,7 @@ void DrawOverworld(void)
 
     static uint64_t LastFrameSeen = 0;
 
-    static PIXEL32 TextColor;
-
-    static int16_t BrightnessAdjustment = -255;
+    static int AlphaAdjust = -256;
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -52,39 +51,71 @@ void DrawOverworld(void)
     // and then back to the title screen again. In that case, we want to reset all
     // of the "local state," i.e., things that are local to this game state. Such
     // as text animation, selected menu item, etc.
-    if (gFade == TRUE || gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
+    if (gResetLocalCounters || gPerformanceData.TotalFramesRendered > (LastFrameSeen + 1))
     {
-        gFade = FALSE; 
-
         LocalFrameCounter = 0;
 
-        memset(&TextColor, 0, sizeof(PIXEL32));
+        AlphaAdjust = -256;
 
-        BrightnessAdjustment = -255;
+        gInputEnabled = FALSE;
+
+        gResetLocalCounters = FALSE;
+    } 
+
+#ifdef SMOOTH_FADES
+    // Here is a smoother fade in that looks nicer, but the original NES was not capable of such smooth gradients and fade
+    // effects. We will have to decide which we prefer later - looks better, or is more faithful to the original hardware?
+
+    if (AlphaAdjust < 0)
+    {
+        AlphaAdjust += 4;
     }
 
-    ApplyFadeIn(LocalFrameCounter, COLOR_NES_WHITE, &TextColor, &BrightnessAdjustment);
+#else
+    // Here is an easy, "chunky" fade-in from black in 4 steps, that sort of has a similar feel
+    // to the kind of fade-in you might have seen on the classic NES. AlphaAdjust starts at -256 and ends at 0.
+    switch (LocalFrameCounter)
+    {
+        case 15:
+        case 30:
+        case 45:
+        case 60:
+        {
+            AlphaAdjust += 64;
+        }
+    }
+#endif
+
+    // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
+    // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
 
     if (LocalFrameCounter == 60)
     {
-        gInputEnabled = TRUE;        
-
         if (MusicIsPlaying() == FALSE)
         {            
             PlayGameMusic(gCurrentArea.Music, TRUE, TRUE);
         }
     }
 
-    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, BrightnessAdjustment);
+    BlitBackgroundToBuffer(&gOverworld01.GameBitmap, 0);
 
-    Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
+    Blit32BppBitmapToBufferEx(
+        &gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction],
         gPlayer.ScreenPos.x,
         gPlayer.ScreenPos.y,
-        BrightnessAdjustment);
+        0,
+        0,
+        0,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND);
                                         //  BB    GG    RR    AA
     //DrawWindow(0, 1, 128, 32, (PIXEL32) { 0x00, 0x00, 0x00, 0xFF }, WINDOW_FLAG_SHADOW_EFFECT | WINDOW_FLAG_BORDERED | WINDOW_FLAG_HORIZONTALLY_CENTERED);
     
-    DrawPlayerStatsWindow(&TextColor);
+    //DrawPlayerStatsWindow(&TextColor);
 
     // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
     //DrawNPCs();
@@ -430,16 +461,16 @@ void PortalHandler(void)
 
     BOOL PortalFound = FALSE;    
 
-    for (uint16_t Counter = 0; Counter < _countof(gPortals); Counter++)
+    for (int Counter = 0; Counter < _countof(gPortals); Counter++)
     {
         if ((gPlayer.WorldPos.x == gPortals[Counter].WorldPos.x) && 
             (gPlayer.WorldPos.y == gPortals[Counter].WorldPos.y))
         {
             PortalFound = TRUE;
 
-            StopMusic();            
+            StopMusic();
 
-            gFade = TRUE;
+            gResetLocalCounters = TRUE;
 
             gPlayer.WorldPos.x = gPortals[Counter].WorldDestination.x;
 
@@ -476,22 +507,21 @@ void RandomMonsterEncounter(void)
     LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
 }
 
-// Draw HUD at the top-left, unless the player is standing there, in
-// which case draw it at the top-right.
+// Draw HUD at the top-left, unless the player is standing there, in which case draw it at the top-right.
 void DrawPlayerStatsWindow(PIXEL32* FadeColor)
 {
     char TextBuffer[32] = { 0 };
 
     // Exactly enough width to fit an 8-character name with 1-pixel padding on each side.
-    uint8_t WindowWidth = 53;
+    int WindowWidth = 53;
 
-    uint8_t WindowHeight = 64;
+    int WindowHeight = 64;
 
     // Center the player's name depending on the name's length.
     // WindowWidth - 4 is to accomodate for the thick borders.
-    uint16_t PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
-        (326 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2))) :
-        (11 + (((WindowWidth - 4) / 2) - ((uint8_t)(strlen(gPlayer.Name) * 6) / 2)));
+    int PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
+        (326 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2))) :
+        (11 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2)));
 
     // Draw the main player stats window top left, unless player is standing underneath that area,
     // in which case draw it top right.
@@ -505,23 +535,53 @@ void DrawPlayerStatsWindow(PIXEL32* FadeColor)
         &COLOR_NES_BLACK,
         WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
-    BlitStringToBuffer(gPlayer.Name, &g6x7Font, FadeColor, PlayerNameOffset, 11);
+    BlitStringEx(
+        gPlayer.Name, 
+        &g6x7Font,        
+        PlayerNameOffset, 
+        11,
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+    BlitStringEx(
+        TextBuffer, 
+        &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21);
+        21,
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+    BlitStringEx(
+        TextBuffer, 
+        &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21 + (8 * 1));
+        21 + (8 * 1),
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
     sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
 
-    BlitStringToBuffer(TextBuffer, &g6x7Font, FadeColor,
+    BlitStringEx(
+        TextBuffer, 
+        &g6x7Font,        
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21 + (8 * 2));
+        21 + (8 * 2),
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 }

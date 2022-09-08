@@ -88,7 +88,7 @@ void DrawOpeningSplashScreen(void)
     // that we are still busy loading assets in the background.
     if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
     {
-        BlitStringToBufferEx(
+        BlitStringEx(
             "Loading...", 
             &g6x7Font,             
             (GAME_RES_WIDTH - (6 * 11)), 
@@ -101,7 +101,7 @@ void DrawOpeningSplashScreen(void)
 
         if (Blink)
         {
-            BlitStringToBufferEx(
+            BlitStringEx(
                 "\xf2", 
                 &g6x7Font,
                 (GAME_RES_WIDTH - 6), 
@@ -168,9 +168,26 @@ void DrawOpeningSplashScreen(void)
                 0);
         }
 
-        if (LocalFrameCounter > 280)
+        if (LocalFrameCounter >= 280)
         {
+            #ifdef SMOOTH_FADES
+
             AlphaAdjust -= 4;
+
+            #else
+
+            switch (LocalFrameCounter)
+            {
+                case 280:
+                case 295:
+                case 310:
+                case 325:
+                {
+                    AlphaAdjust -= 64;
+                }
+            }
+
+            #endif
         }
 
         // Splash screen animation is done, but we will linger here until the asset loading
@@ -205,7 +222,7 @@ void DrawOpeningSplashScreen(void)
             }
         }
 
-        BlitStringToBufferEx(
+        BlitStringEx(
             "POLE PIG PRODUCTIONS",
             &g6x7Font,            
             (GAME_RES_WIDTH / 2) - ((20 * 6) / 2), 

@@ -23,15 +23,27 @@ void DrawGamepadUnplugged(void)
 {
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
 
-    BlitStringToBuffer(GAMEPADUNPLUGGEDSTRING1,
-        &g6x7Font,
-        &COLOR_NES_WHITE,
-        (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(GAMEPADUNPLUGGEDSTRING1) * 6) / 2), 100);
+    BlitStringEx(
+        GAMEPADUNPLUGGEDSTRING1,
+        &g6x7Font,        
+        (GAME_RES_WIDTH / 2) - (((int)strlen(GAMEPADUNPLUGGEDSTRING1) * 6) / 2), 
+        100,
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-    BlitStringToBuffer(GAMEPADUNPLUGGEDSTRING2,
-        &g6x7Font,
-        &COLOR_NES_WHITE,
-        (GAME_RES_WIDTH / 2) - (((uint16_t)strlen(GAMEPADUNPLUGGEDSTRING2) * 6) / 2), 115);
+    BlitStringEx(
+        GAMEPADUNPLUGGEDSTRING2,
+        &g6x7Font,        
+        (GAME_RES_WIDTH / 2) - (((int)strlen(GAMEPADUNPLUGGEDSTRING2) * 6) / 2), 
+        115,
+        255,
+        255,
+        255,
+        0,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 }
 
 void PPI_GamepadUnplugged(void)
