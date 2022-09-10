@@ -91,6 +91,8 @@
 // tools such as 7zip, WinRAR, etc.
 #include "miniz.h"
 
+#include "ItemDefinitions.h"
+
 /////////// BEGIN GLOBAL EXTERN VARIABLES /////////////
 // 
 // Every global variable that will be shared among multiple compilation units/*.c files
@@ -1065,6 +1067,8 @@ void ProcessPlayerInput(void)
 
     gGameInput.ChooseKeyIsDown = GetAsyncKeyState(VK_RETURN);
 
+    gGameInput.InvKeyIsDown    = GetAsyncKeyState(0x49);   // The 'i' key
+
     if (gGamepadID > -1)
     {
         if (XInputGetState(gGamepadID, &gGamepadState) == ERROR_SUCCESS)
@@ -1080,6 +1084,8 @@ void ProcessPlayerInput(void)
             gGameInput.DownKeyIsDown   |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
 
             gGameInput.ChooseKeyIsDown |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_A;
+
+            gGameInput.InvKeyIsDown    |= gGamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_Y;
         }
         else
         {            
@@ -1209,6 +1215,8 @@ InputDisabled:
     gGameInput.ChooseKeyWasDown = gGameInput.ChooseKeyIsDown;
 
     gGameInput.EscapeKeyWasDown = gGameInput.EscapeKeyIsDown;
+
+    gGameInput.InvKeyWasDown     = gGameInput.InvKeyIsDown;
 }
 
 // This resets all necessary global variables. Call this once during game 
@@ -1334,6 +1342,15 @@ void ResetEverythingForNewGame(void)
 
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
     gPlayer.RandomEncounterPercentage = 90;
+
+    // Clear the player's inventory, then add the starter items.
+    memset(gPlayer.Inventory, 0, sizeof(gPlayer.Inventory));
+
+    gPlayer.Inventory[0] = gArmor00;
+    
+    gPlayer.Inventory[1] = gWeapon00;
+
+    gPlayer.Inventory[2] = gPotion00;
 
     return;    
 }
@@ -1652,15 +1669,16 @@ void Blit32BppBitmapEx(
             memcpy_s(&BitmapPixel, sizeof(PIXEL32), (PIXEL32*)GameBitmap->Memory + BitmapOffset, sizeof(PIXEL32));
 
             // Clamp between 0 and 255 // min(upper, max(x, lower))            
-            BitmapPixel.Colors.Red = (uint8_t)min(255, max((BitmapPixel.Colors.Red + RedAdjust), 0));
+            BitmapPixel.Colors.Red   = (uint8_t)min(255, max((BitmapPixel.Colors.Red + RedAdjust), 0));
 
             BitmapPixel.Colors.Green = (uint8_t)min(255, max((BitmapPixel.Colors.Green + GreenAdjust), 0));
 
-            BitmapPixel.Colors.Blue = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BlueAdjust), 0));
+            BitmapPixel.Colors.Blue  = (uint8_t)min(255, max((BitmapPixel.Colors.Blue + BlueAdjust), 0));
 
             BitmapPixel.Colors.Alpha = (uint8_t)min(255, max((BitmapPixel.Colors.Alpha + AlphaAdjust), 0));
 
-            if (Flags & BLIT_FLAG_ALPHABLEND)
+            // Perform alpha blending if requested. But don't waste time alpha blending if the pixel is opaque.
+            if ((Flags & BLIT_FLAG_ALPHABLEND) && (BitmapPixel.Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3245,7 +3263,7 @@ void DrawWindow(
                 Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) && (Row == 0 || Row == Height - 1)) ? 1 : 0;
                 Pixel++)
             {
-                if (Flags & WINDOW_FLAG_ALPHABLEND)
+                if ((Flags & WINDOW_FLAG_ALPHABLEND) && (BackgroundColor->Colors.Alpha < 255))
                 {
                     PIXEL32 BackgroundPixel = { 0 };
 
@@ -3255,11 +3273,11 @@ void DrawWindow(
                     memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, sizeof(PIXEL32));
 
                     // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
-                    BlendedPixel.Colors.Blue = BackgroundColor->Colors.Blue * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BackgroundColor->Colors.Alpha) / 255;
+                    BlendedPixel.Colors.Blue  = BackgroundColor->Colors.Blue * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BackgroundColor->Colors.Alpha) / 255;
 
                     BlendedPixel.Colors.Green = BackgroundColor->Colors.Green * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BackgroundColor->Colors.Alpha) / 255;
 
-                    BlendedPixel.Colors.Red = BackgroundColor->Colors.Red * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BackgroundColor->Colors.Alpha) / 255;
+                    BlendedPixel.Colors.Red   = BackgroundColor->Colors.Red * BackgroundColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BackgroundColor->Colors.Alpha) / 255;
 
                     memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
                 }
@@ -3282,7 +3300,7 @@ void DrawWindow(
             Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
             Pixel++)
         {
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (BorderColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3313,7 +3331,7 @@ void DrawWindow(
             Pixel < Width - ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 1 : 0);
             Pixel++)
         {
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (BorderColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3323,11 +3341,11 @@ void DrawWindow(
                 memcpy(&BackgroundPixel, (PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, sizeof(PIXEL32));
 
                 // Shifting right by 8 bits (>> 8) is faster, but dividing by 255 is more color-accurate.
-                BlendedPixel.Colors.Blue = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
+                BlendedPixel.Colors.Blue  = BorderColor->Colors.Blue * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Blue * (255 - BorderColor->Colors.Alpha) / 255;
 
                 BlendedPixel.Colors.Green = BorderColor->Colors.Green * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Green * (255 - BorderColor->Colors.Alpha) / 255;
 
-                BlendedPixel.Colors.Red = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
+                BlendedPixel.Colors.Red   = BorderColor->Colors.Red * BorderColor->Colors.Alpha / 255 + BackgroundPixel.Colors.Red * (255 - BorderColor->Colors.Alpha) / 255;
 
                 memcpy((PIXEL32*)gBackBuffer.Memory + MemoryOffset + Pixel, &BlendedPixel, sizeof(PIXEL32));
             }
@@ -3340,7 +3358,7 @@ void DrawWindow(
         // Draw one pixel on the left side and the right for each row of the border, from the top down.
         for (int Row = 1; Row < Height - 1; Row++)
         {
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (BorderColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3414,7 +3432,7 @@ void DrawWindow(
             Pixel < Width + ((Flags & WINDOW_FLAG_ROUNDED_CORNERS) ? 0 : 1); 
             Pixel++)
         {
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (ShadowColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3443,7 +3461,7 @@ void DrawWindow(
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * Row) + Width;
 
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (ShadowColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3472,7 +3490,7 @@ void DrawWindow(
         {
             MemoryOffset = StartingScreenPixel - (GAME_RES_WIDTH * (Height - 1)) + (Width - 1);
 
-            if (Flags & WINDOW_FLAG_ALPHABLEND)
+            if ((Flags & WINDOW_FLAG_ALPHABLEND) && (ShadowColor->Colors.Alpha < 255))
             {
                 PIXEL32 BackgroundPixel = { 0 };
 
@@ -3693,4 +3711,84 @@ int64_t FileSizeA(_In_ const char* FileName)
     }
 
     return(Size.QuadPart);
+}
+
+// Draw HUD at the top-left, unless the player is standing there, in which case draw it at the top-right.
+// Both Overworld gamestate and Battle gamestate need this function.
+void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
+{
+    char TextBuffer[32] = { 0 };
+
+    // Exactly enough width to fit an 8-character name with 1-pixel padding on each side.
+    int WindowWidth = 53;
+
+    int WindowHeight = 64;
+
+    // Center the player's name depending on the name's length.
+    // WindowWidth - 4 is to accomodate for the thick borders.
+    int PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
+        (326 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2))) :
+        (11 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2)));
+
+    // Draw the main player stats window top left, unless player is standing underneath that area,
+    // in which case draw it top right.
+    DrawWindow(
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8,
+        8,
+        WindowWidth,
+        WindowHeight,
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+            WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_ALPHABLEND);
+
+    BlitStringEx(
+        gPlayer.Name,
+        &g6x7Font,
+        PlayerNameOffset,
+        11,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
+
+    BlitStringEx(
+        TextBuffer,
+        &g6x7Font,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21,
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
+
+    BlitStringEx(
+        TextBuffer,
+        &g6x7Font,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21 + (8 * 1),
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+    sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
+
+    BlitStringEx(
+        TextBuffer,
+        &g6x7Font,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
+        21 + (8 * 2),
+        0xFC,
+        0xFC,
+        0xFC,
+        AlphaAdjust,
+        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 }

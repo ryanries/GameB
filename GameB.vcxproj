@@ -241,6 +241,8 @@
     <ClInclude Include="CharacterNamingScreen.h" />
     <ClInclude Include="ExitYesNoScreen.h" />
     <ClInclude Include="GamepadUnplugged.h" />
+    <ClInclude Include="ItemDefinitions.h" />
+    <ClInclude Include="ItemDeclarations.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="miniz.h" />
     <ClInclude Include="NewGameAreYouSure.h" />

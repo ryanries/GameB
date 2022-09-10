@@ -217,9 +217,9 @@ void DrawCharacterNaming(void)
         24, 
         166, 
         18, 
-        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
         NULL, 
-        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
         WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK | WINDOW_FLAG_ALPHABLEND);
 
     DrawWindow(
@@ -227,9 +227,9 @@ void DrawCharacterNaming(void)
         128, 
         166, 
         60, 
-        &(PIXEL32) {.Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        &(PIXEL32) {.Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
         NULL, 
-        &(PIXEL32) {.Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+        &(PIXEL32) {.Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
         WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK | WINDOW_FLAG_ALPHABLEND);
     
 

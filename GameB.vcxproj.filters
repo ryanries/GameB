@@ -92,5 +92,11 @@
     <ClInclude Include="NewGameAreYouSure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ItemDeclarations.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ItemDefinitions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

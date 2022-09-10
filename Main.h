@@ -305,6 +305,16 @@ typedef enum BLIT_FLAGS
 
 } BLIT_FLAGS;
 
+typedef enum ITEMCLASS
+{
+	ITEMCLASS_WEAPON,
+
+	ITEMCLASS_ARMOR,
+
+	ITEMCLASS_POTION
+
+} ITEMCLASS;
+
 
 /////////// END GLOBAL ENUMS /////////////
 
@@ -329,6 +339,8 @@ typedef struct GAMEINPUT
 
 	int16_t ChooseKeyIsDown;
 
+	int16_t InvKeyIsDown;
+
 	int16_t DebugKeyWasDown;
 
 	int16_t EscapeKeyWasDown;
@@ -342,6 +354,8 @@ typedef struct GAMEINPUT
 	int16_t DownKeyWasDown;
 
 	int16_t ChooseKeyWasDown;
+
+	int16_t InvKeyWasDown;
 
 } GAMEINPUT;
 
@@ -463,6 +477,23 @@ typedef struct GAMEMAP
 
 } GAMEMAP;
 
+// Both players and NPCs have inventories, which is just an array of inventory items.
+typedef struct ITEM
+{
+	char Name[32];
+
+	int Id;
+
+	ITEMCLASS Class;
+
+	char Description[256];
+
+	int Value;
+
+	void(*Action)(void);
+
+} ITEM;
+
 // This is the player!
 typedef struct HERO
 {
@@ -477,7 +508,7 @@ typedef struct HERO
 	POINT WorldPos;
 
 	// This will be non-zero when the player is in motion. If 0, player is standing still.
-	uint8_t MovementRemaining;	
+	unsigned int MovementRemaining;
 
 	// Is the player facing left, right, up or down?
 	DIRECTION Direction;
@@ -488,29 +519,31 @@ typedef struct HERO
 	BOOL HasPlayerMovedSincePortal;	
 
 	// SUIT_0, SUIT_1, or SUIT_2
-	uint8_t CurrentArmor;		
+	unsigned int CurrentArmor;		
 
-	uint8_t SpriteIndex;	
+	unsigned int SpriteIndex;	
 
 	uint64_t StepsTaken;
 
 	// 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
-	uint8_t RandomEncounterPercentage;
+	unsigned int RandomEncounterPercentage;
 
 	uint64_t StepsSinceLastRandomMonsterEncounter;
 
 	// TODO: Figure out how the stats are going to work.
-	int16_t HP;
+	int HP;
 
-	int32_t XP;
+	int MP;
 
-	int16_t Money;
+	int XP;
 
-	int16_t Strength;
+	int Money;
 
-	int16_t Luck;
+	int Strength;
 
-	int16_t MP;
+	int Luck;
+
+	ITEM Inventory[32];
 
 } HERO;
 
@@ -560,6 +593,7 @@ typedef struct MENU
 
 /////////// END GLOBAL STRUCTS /////////////
 
+
 /////////// BEGIN GLOBAL EXTERN VARIABLES /////////////
 // 
 // Every global variable that will be shared among multiple compilation units/*.c files
@@ -567,6 +601,8 @@ typedef struct MENU
 // also be assigned a value at the beginning of one and only one *.c file. For these
 // variables that will of course be Main.c. Unfortunately simultaneous declaration and
 // assignment is not sufficient. (e.g. extern int gVar = 0;)
+
+#include "ItemDeclarations.h"
 
 // Contains data such as number of frames rendered, memory usage, etc.
 extern GAMEPERFDATA gPerformanceData;

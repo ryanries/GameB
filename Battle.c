@@ -335,6 +335,8 @@ void DrawBattle(void)
         &gOverworld01.GameBitmap,        
         AlphaAdjust);
 
+    DrawPlayerStatsWindow(AlphaAdjust);
+
     // Draw the border around the monster battle scene.
     DrawWindow(0, 14, 100, 100,
         &COLOR_NES_WHITE,

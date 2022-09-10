@@ -36,13 +36,21 @@ PORTAL gPortals[2] = { 0 };
 // the fade-in animation, even though we never actually changed game states.
 BOOL gResetLocalCounters;
 
+BOOL gShowInventory;
+
+int gInventoryAlphaAdjust = -256;
+
+unsigned int gSelectedInventoryItem = 0;
+
+
+
 void DrawOverworld(void)
 {
     static uint64_t LocalFrameCounter;
 
     static uint64_t LastFrameSeen = 0;
 
-    static int AlphaAdjust = -256;
+    static int AlphaAdjust = -256;    
 
     // If global TotalFramesRendered is greater than LastFrameSeen,
     // that means we have either just entered this gamestate for the first time,
@@ -57,9 +65,13 @@ void DrawOverworld(void)
 
         AlphaAdjust = -256;
 
+        gInventoryAlphaAdjust = -256;
+
         gInputEnabled = FALSE;
 
         gResetLocalCounters = FALSE;
+
+        gShowInventory = FALSE;
     } 
 
 #ifdef SMOOTH_FADES
@@ -115,13 +127,89 @@ void DrawOverworld(void)
     
     DrawPlayerStatsWindow(AlphaAdjust);
 
-        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
-        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
-        //&(PIXEL32) { .Colors.Alpha = 255 + AlphaAdjust, .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
-        //0);
-
     // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
     //DrawNPCs();
+
+    if (gShowInventory)
+    {
+        #ifdef SMOOTH_FADES
+
+        if (gInventoryAlphaAdjust < 0)
+        {
+            gInventoryAlphaAdjust += 4;
+        }
+        #else
+        if (gInventoryAlphaAdjust < 0 && (LocalFrameCounter % 15 == 0))
+        {
+            gInventoryAlphaAdjust += 64;
+        }
+        #endif
+
+        DrawWindow(
+            0,
+            32,
+            300,
+            200,
+            &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+            &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
+            &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+            WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK | WINDOW_FLAG_ALPHABLEND);
+
+        BlitStringEx(
+            "INVENTORY",
+            &g6x7Font,
+            (GAME_RES_WIDTH / 2) - (((int)strlen("INVENTORY") * 6) / 2),
+            36,
+            255,
+            255,
+            255,
+            gInventoryAlphaAdjust,
+            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+        for (unsigned int item = 0; item < _countof(gPlayer.Inventory); item++)
+        {
+            if (gPlayer.Inventory[item].Id == 0)
+            {
+                break;
+            }
+
+            BlitStringEx(
+                gPlayer.Inventory[item].Name,
+                &g6x7Font,
+                54,
+                64 + (item * 10),
+                255,
+                255,
+                255,
+                gInventoryAlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+            if (item == gSelectedInventoryItem)
+            {
+                BlitStringEx(
+                    "\xBB",
+                    &g6x7Font,
+                    48,
+                    64 + (item * 10),
+                    255,
+                    255,
+                    255,
+                    gInventoryAlphaAdjust,
+                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+                BlitStringEx(
+                    gPlayer.Inventory[gSelectedInventoryItem].Description,
+                    &g6x7Font,
+                    54,
+                    200,
+                    255,
+                    255,
+                    255,
+                    gInventoryAlphaAdjust,
+                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+            }
+        }
+    }
 
     LocalFrameCounter++;
 
@@ -153,8 +241,8 @@ void PPI_Overworld(void)
     ASSERT((gCamera.y <= gCurrentArea.Area.bottom - GAME_RES_HEIGHT), "Camera is out of bounds!");
 
     // If the player has no movement remaining, it means the player is standing still.    
-
-    if (!gPlayer.MovementRemaining)
+    // Also, you cannot move while inventory is showing.
+    if (!gPlayer.MovementRemaining && !gShowInventory)
     {
         // If the player wants to move downward, we need to consult the tilemap to see
         // if the destination tile can be stepped on - e.g., is it grass or is it water?
@@ -268,7 +356,7 @@ void PPI_Overworld(void)
             }
         }
     }
-    else 
+    else if (!gShowInventory)
     {       
         // gPlayer.MovementRemaining was greater than 0, which means the player is currently in motion.
         // The player must move exactly 16 pixels (1 tile) to complete a full movement. You cannot 
@@ -452,6 +540,53 @@ void PPI_Overworld(void)
             }
         }
     }
+
+    // only toggle the inventory when the player is standing still
+    if ((gGameInput.InvKeyIsDown && !gGameInput.InvKeyWasDown) && (gPlayer.MovementRemaining == 0))
+    {
+        gShowInventory = !gShowInventory;
+
+        gInventoryAlphaAdjust = -256;
+
+        gSelectedInventoryItem = 0;
+    }
+
+    if (gShowInventory)
+    {
+        if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
+        {
+            PlayGameSound(&gSoundMenuNavigate);
+
+            gSelectedInventoryItem++;
+
+            if (gPlayer.Inventory[gSelectedInventoryItem].Id == 0)
+            {
+                gSelectedInventoryItem = 0;
+            }
+        }
+
+        if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
+        {
+            PlayGameSound(&gSoundMenuNavigate);
+
+            if (gSelectedInventoryItem == 0)
+            {
+                for (int item = 0; item < _countof(gPlayer.Inventory); item++)
+                {
+                    if (gPlayer.Inventory[item].Id == 0)
+                    {
+                        gSelectedInventoryItem = item - 1;
+
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                gSelectedInventoryItem--;
+            }
+        }
+    }
 }
 
 // If the player lands on one of the "portal" tiles, this procedure is called.
@@ -508,83 +643,4 @@ void RandomMonsterEncounter(void)
     gCurrentGameState = GAMESTATE_BATTLE;
 
     LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
-}
-
-// Draw HUD at the top-left, unless the player is standing there, in which case draw it at the top-right.
-void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
-{
-    char TextBuffer[32] = { 0 };
-
-    // Exactly enough width to fit an 8-character name with 1-pixel padding on each side.
-    int WindowWidth = 53;
-
-    int WindowHeight = 64;
-
-    // Center the player's name depending on the name's length.
-    // WindowWidth - 4 is to accomodate for the thick borders.
-    int PlayerNameOffset = (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ?
-        (326 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2))) :
-        (11 + (((WindowWidth - 4) / 2) - ((int)(strlen(gPlayer.Name) * 6) / 2)));
-
-    // Draw the main player stats window top left, unless player is standing underneath that area,
-    // in which case draw it top right.
-    DrawWindow(
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8,
-        8,
-        WindowWidth,
-        WindowHeight,
-        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
-        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
-        &(PIXEL32) { .Colors.Alpha = (uint8_t)(255 + AlphaAdjust), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
-        WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_ALPHABLEND);
-
-    BlitStringEx(
-        gPlayer.Name, 
-        &g6x7Font,        
-        PlayerNameOffset, 
-        11,
-        0xFC,
-        0xFC,
-        0xFC,
-        AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
-
-    sprintf_s(TextBuffer, sizeof(TextBuffer), "HP:%d", gPlayer.HP);
-
-    BlitStringEx(
-        TextBuffer, 
-        &g6x7Font,
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21,
-        0xFC,
-        0xFC,
-        0xFC,
-        AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
-
-    sprintf_s(TextBuffer, sizeof(TextBuffer), "MP:%d", gPlayer.MP);
-
-    BlitStringEx(
-        TextBuffer, 
-        &g6x7Font,
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21 + (8 * 1),
-        0xFC,
-        0xFC,
-        0xFC,
-        AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
-
-    sprintf_s(TextBuffer, sizeof(TextBuffer), "GP:%d", gPlayer.Money);
-
-    BlitStringEx(
-        TextBuffer, 
-        &g6x7Font,        
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
-        21 + (8 * 2),
-        0xFC,
-        0xFC,
-        0xFC,
-        AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 }
