@@ -6,7 +6,7 @@ ITEM gArmor00 = {
     .Id = 1,
     .Name = "Commoner's Clothes",
     .Class = ITEMCLASS_ARMOR,
-    .Description = "Your mother sewed these garments just for you, on your 18th nameday.",
+    .Description = "Your mother sewed these garments just for you, on your 18th birthday. They're your favorite shade of blue.",
     .Value = 2
     // TODO: ACTION
 };

@@ -106,10 +106,10 @@ void DrawOverworld(void)
     }
 
     if (LocalFrameCounter == 60)
-    {
-        if (MusicIsPlaying() == FALSE)
-        {            
-            PlayGameMusic(gCurrentArea.Music, TRUE, TRUE);
+    {    
+        if (MusicIsPlaying() == FALSE)    
+        {        
+            PlayGameMusic(gCurrentArea.Music, TRUE, TRUE);    
         }
     }
 
@@ -123,33 +123,33 @@ void DrawOverworld(void)
         0,
         0,
         AlphaAdjust,
-        BLIT_FLAG_ALPHABLEND);    
-    
+        BLIT_FLAG_ALPHABLEND);
+
     DrawPlayerStatsWindow(AlphaAdjust);
 
-    // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
-    //DrawNPCs();
+// Figure out if any NPCs should be drawn on the screen, and if so, draw them.
+//DrawNPCs();
 
     if (gShowInventory)
     {
-        #ifdef SMOOTH_FADES
+#ifdef SMOOTH_FADES
 
         if (gInventoryAlphaAdjust < 0)
         {
             gInventoryAlphaAdjust += 4;
         }
-        #else
+#else
         if (gInventoryAlphaAdjust < 0 && (LocalFrameCounter % 15 == 0))
         {
             gInventoryAlphaAdjust += 64;
         }
-        #endif
+#endif
 
         DrawWindow(
             0,
             32,
             300,
-            200,
+            190,
             &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
             &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
             &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
@@ -177,7 +177,7 @@ void DrawOverworld(void)
                 gPlayer.Inventory[item].Name,
                 &g6x7Font,
                 54,
-                64 + (item * 10),
+                54 + (item * 10),
                 255,
                 255,
                 255,
@@ -190,23 +190,68 @@ void DrawOverworld(void)
                     "\xBB",
                     &g6x7Font,
                     48,
-                    64 + (item * 10),
+                    54 + (item * 10),
                     255,
                     255,
                     255,
                     gInventoryAlphaAdjust,
                     BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
 
-                BlitStringEx(
-                    gPlayer.Inventory[gSelectedInventoryItem].Description,
-                    &g6x7Font,
-                    54,
-                    200,
-                    255,
-                    255,
-                    255,
-                    gInventoryAlphaAdjust,
-                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+                DrawWindow(
+                    52,
+                    188,
+                    300,
+                    48,
+                    &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+                    &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
+                    &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + gInventoryAlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
+                    WINDOW_FLAG_OPAQUE | WINDOW_FLAG_BORDERED | WINDOW_FLAG_SHADOW | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_THICK | WINDOW_FLAG_ALPHABLEND);
+                
+                // Word wrap is needed here.
+                // Break the string up into shorter pieces?
+                // Can fit 48 characters per line here.
+                // First calculate how many lines are required to fit this string of text.
+
+                int LinesRequired = strlen(gPlayer.Inventory[gSelectedInventoryItem].Description) / 48;
+
+                char LineOfText[49] = { 0 };
+
+                int CharIndex = 0;
+
+                for (int line = 0; line <= LinesRequired; line++)
+                {
+                    int c = 0;
+
+                    strncpy_s(LineOfText, sizeof(LineOfText), gPlayer.Inventory[gSelectedInventoryItem].Description + CharIndex, 48);                    
+
+                    // don't attempt word-wrapping on the last line.
+                    if (line < LinesRequired)
+                    {
+                        c = (int)strlen(LineOfText) - 1;
+
+                        while (LineOfText[c] != ' ')
+                        {
+                            LineOfText[c] = '\0';
+
+                            c--;
+                        }
+
+                        LineOfText[c] = '\0'; // Remove trailing space
+
+                        CharIndex += (c + 1);
+                    }
+
+                    BlitStringEx(
+                        LineOfText,
+                        &g6x7Font,
+                        56,
+                        200 + (line * 10),
+                        255,
+                        255,
+                        255,
+                        gInventoryAlphaAdjust,
+                        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+                }               
             }
         }
     }
