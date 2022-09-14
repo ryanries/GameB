@@ -151,7 +151,7 @@
 // the kind of fade-ins that are more aesthetically reminiscent of the kind you might see on the classic NES or any
 // old system with a more limited color palette. We will have to decide later which we prefer -- 
 // the kind that look nicer, or the kind that are more "retro."
-#define SMOOTH_FADES
+//#define SMOOTH_FADES
 
 // We have to temporarily disable input when transitioning from one menu to another, from one gamestate to another,
 // but if we don't reenable the input rather quickly after that, it will not feel good for the player.
@@ -480,7 +480,7 @@ typedef struct GAMEMAP
 // Both players and NPCs have inventories, which is just an array of inventory items.
 typedef struct ITEM
 {
-	char Name[32];
+	char Name[24];
 
 	int Id;
 
@@ -493,6 +493,19 @@ typedef struct ITEM
 	void(*Action)(void);
 
 } ITEM;
+
+// Damage and cost should scale with the intelligence stat
+typedef struct SPELL
+{
+	int Id; 
+
+	char Name[24];
+
+	int Damage;
+
+	int Cost;
+
+} SPELL;
 
 // This is the player!
 typedef struct HERO
@@ -523,27 +536,36 @@ typedef struct HERO
 
 	unsigned int SpriteIndex;	
 
-	uint64_t StepsTaken;
+	unsigned int StepsTaken;
 
 	// 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
 	unsigned int RandomEncounterPercentage;
 
 	uint64_t StepsSinceLastRandomMonsterEncounter;
-
-	// TODO: Figure out how the stats are going to work.
+	
 	int HP;
-
-	int MP;
-
-	int XP;
 
 	int Money;
 
-	int Strength;
+	int MP;				// Magic points (start the game with no magic)
 
-	int Luck;
+	int XP;				// How much physical damage you deal
 
-	ITEM Inventory[32];
+	int Strength;		// How much physical damage you deal
+
+	int Dexterity;		// Chance to hit with weapons
+
+	int Luck;			// Stat that adds a little something extra
+
+	int Intelligence;	// Spell damage and chance to hit
+
+	int Evasion;		// Lowers enemy's chance to hit you, improves your Run chance
+
+	int Defense;		// Damage mitigation
+
+	ITEM Inventory[24];
+
+	SPELL Spells[24];
 
 } HERO;
 

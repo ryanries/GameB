@@ -212,7 +212,7 @@ void DrawOverworld(void)
                 // Can fit 48 characters per line here.
                 // First calculate how many lines are required to fit this string of text.
 
-                int LinesRequired = strlen(gPlayer.Inventory[gSelectedInventoryItem].Description) / 48;
+                int LinesRequired = (int)strlen(gPlayer.Inventory[gSelectedInventoryItem].Description) / 48;
 
                 char LineOfText[49] = { 0 };
 

@@ -28,9 +28,6 @@
 // 
 // --- TODO ---
 // Get rid of stdint.h?
-// Make the BattleScenes 96x96 again, and draw the white border directly on the bmpx. It doesn't make
-// sense to waste a call to DrawWindow here just to draw a white border. Plus Blit32bppBitmap works
-// slightly better when in multiples of word size too.
 // 
 // Does setting gPlayer.RandomEncounterPercentage to 90 really *feel* like 10%? (Does 80 really *feel* like 20%, etc.?)
 // Make the fade in and fade out on the overworld better.
@@ -1328,6 +1325,20 @@ void ResetEverythingForNewGame(void)
     
     gPlayer.Money = 0;
 
+    gPlayer.MP = 0;             // Magic points (start the game with no magic)
+
+    gPlayer.XP = 0;             // Experience points
+
+    gPlayer.Strength = 1;       // How much physical damage you deal
+
+    gPlayer.Dexterity = 1;      // Chance to hit with weapons
+
+    gPlayer.Luck = 0;           // Stat that adds a little something extra
+
+    gPlayer.Intelligence = 1;   // Spell damage and chance to hit
+
+    gPlayer.Evasion = 1;        // Lowers enemy's chance to hit you, imrpoves your run chance
+
     gPlayer.ScreenPos.x = 80;
 
     gPlayer.ScreenPos.y = 160;
@@ -2246,7 +2257,7 @@ __forceinline void DrawDebugInfo(void)
     sprintf_s(
         DebugTextBuffer, 
         sizeof(DebugTextBuffer), 
-        "Steps:   %llu", 
+        "Steps:   %u", 
         gPlayer.StepsTaken);
 
     BlitStringEx(
