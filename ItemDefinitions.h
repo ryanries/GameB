@@ -15,7 +15,7 @@ ITEM gWeapon00 = {
     .Id = 2,
     .Name = "Walking Stick",
     .Class = ITEMCLASS_WEAPON,
-    .Description = "You found this stick by the creek and were impressed by its sturdiness and straightness. It's a pretty good stick.",
+    .Description = "You found this stick by the shore and were impressed by its sturdiness and straightness. It's a pretty good stick.",
     .Value = 3
     // TODO: ACTION
 };

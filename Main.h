@@ -157,6 +157,16 @@
 // but if we don't reenable the input rather quickly after that, it will not feel good for the player.
 #define REENABLE_INPUT_AFTER_X_FRAMES_DELAY	10
 
+// The 0th inventory slot will always hold the player's equipped armor.
+// The 1st inventory slot will always hold the player's equipped weapon.
+// The 2nd inventory slot will always hold the player's equipped shield.
+// When the player gets a better item, it will be swapped out with another inventory slot.
+#define EQUIPPED_ARMOR	0
+
+#define EQUIPPED_WEAPON	1
+
+#define EQUIPPED_SHIELD	2
+
 // The player will have different sets of armor, so he needs
 // sprites for each direction and animation for each suit.
 // So for example, gPlayer.Sprite[0][0] would represent the sprite
@@ -543,6 +553,8 @@ typedef struct HERO
 
 	uint64_t StepsSinceLastRandomMonsterEncounter;
 	
+	int MaxHP;
+
 	int HP;
 
 	int Money;

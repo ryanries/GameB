@@ -1321,6 +1321,8 @@ void ResetEverythingForNewGame(void)
 
     gPlayer.StepsTaken = 0;
 	
+    gPlayer.MaxHP = 20;
+
     gPlayer.HP = 20;
     
     gPlayer.Money = 0;
@@ -1352,7 +1354,12 @@ void ResetEverythingForNewGame(void)
     gPlayer.Direction = DOWN;
 
     // 90 = 10% chance, 80 = 20% chance, etc. 100 = 0% chance.
-    gPlayer.RandomEncounterPercentage = 90;
+    gPlayer.RandomEncounterPercentage = 50;
+
+    // The 0th inventory slot will always hold the player's equipped armor.
+    // The 1st inventory slot will always hold the player's equipped weapon.
+    // The 2nd inventory slot will always hold the player's equipped shield.
+    // When the player gets a better item, it will be swapped out with another inventory slot.
 
     // Clear the player's inventory, then add the starter items.
     memset(gPlayer.Inventory, 0, sizeof(gPlayer.Inventory));
@@ -1361,7 +1368,9 @@ void ResetEverythingForNewGame(void)
     
     gPlayer.Inventory[1] = gWeapon00;
 
-    gPlayer.Inventory[2] = gPotion00;
+    // no shield
+
+    gPlayer.Inventory[3] = gPotion00;
 
     return;    
 }
@@ -2072,7 +2081,7 @@ __forceinline void DrawDebugInfo(void)
         0, 
         0, 
         144, 
-        88,
+        97,
         NULL, 
         &(COLOR_NES_BLACK), 
         NULL, 
@@ -2265,6 +2274,23 @@ __forceinline void DrawDebugInfo(void)
         &g6x7Font, 
         0, 
         (8 * 10),
+        255,
+        255,
+        255,
+        0,
+        0);
+
+    sprintf_s(
+        DebugTextBuffer,
+        sizeof(DebugTextBuffer),
+        "Input:   %s",
+        gInputEnabled ? "ON" : "OFF");
+
+    BlitStringEx(
+        DebugTextBuffer,
+        &g6x7Font,
+        0,
+        (8 * 11),
         255,
         255,
         255,

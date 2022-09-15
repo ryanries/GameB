@@ -2,78 +2,62 @@
 
 #include "Battle.h"
 
-typedef enum BATTLESTATE
-{
-    BATTLESTATE_INTRO,
-
-    BATTLESTATE_WAITING,
-    
-    BATTLESTATE_PLAYERATTACKING,
-
-    BATTLESTATE_MONSTERATTACKING,
-
-    BATTLESTATE_PLAYERDEFENDING,
-
-    BATTLESTATE_MONSTERDEFENDING,
-
-    BATTLESTATE_PLAYERCASTINGSPELL,
-
-    BATTLESTATE_MONSTERCASTINGSPELL,
-
-    BATTLESTATE_PLAYERRUNNINGAWAY,
-
-    BATTLESTATE_MONSTERRUNNINGAWAY,
-
-    BATTLESTATE_PLAYERUSINGITEM,
-
-    BATTLESTATE_MONSTERISDEAD,
-
-    BATTLESTATE_PLAYERISDEAD,
-
-} BATTLESTATE;
-
-BATTLESTATE gBattleState = BATTLESTATE_INTRO;
-
-// This holds a copy of one of the monster templates.
-MONSTER gCurrentMonster = { 0 };
-
 const MONSTER gSlime001 = {
     .Name = "Slime",
     .Sprite = &gMonsterSprite_Slime_001,
+    .MaxHP = 5,
     .HP = 5,
+    .MaxMP = 0,
     .MP = 0,
     .XP = 5,
     .Money = 2,
     .Damage = 1,
-    .Dexterity = 0,
+    .Dexterity = 1,
     .Strength = 1,
-    .Luck = 0,
+    .Luck = 1,
     .Intelligence = 1,
     .Evasion = 0,
     .Defense = 0,
     .Emotes = { "*jiggles menacingly*", "*spits and gurgles*", "*cold, dead-eyed stare*" },
-    .KnownSpells = { 0 }
+    .KnownSpells = { 0 },
+    .AttackChance = 95,
+    .RunChance = 5,
+    .SpellChance = 0,
+    .DefendChance = 0    
 };
 
-const MONSTER gRat001 = { 
-    .Name = "Rat", 
-    .Sprite = &gMonsterSprite_Rat_001, 
+const MONSTER gRat001 = {
+    .Name = "Rat",
+    .Sprite = &gMonsterSprite_Rat_001,
+    .MaxHP = 5,
     .HP = 5,
+    .MaxMP = 0,
     .MP = 0,
     .XP = 5,
     .Money = 2,
     .Damage = 1,
-    .Dexterity = 0,
+    .Dexterity = 1,
     .Strength = 1,
-    .Luck = 0,
+    .Luck = 1,
     .Intelligence = 1,
     .Evasion = 0,
     .Defense = 0,
     .Emotes = { "*squeak squeak*", "*whiskers twitching angrily*", "*looks like it might have rabies*" },
-    .KnownSpells = { 0 } 
+    .KnownSpells = { 0 },
+    .AttackChance = 95,
+    .RunChance = 5,
+    .SpellChance = 0,
+    .DefendChance = 0
 };
 
-const MONSTER* gOutdoorMonsters[] = { &gSlime001, &gRat001 };
+// This holds a copy of one of the monster templates.
+MONSTER gCurrentMonster = { 0 };
+
+const MONSTER* gEasyOutdoorMonsters[] = { &gSlime001, &gRat001 };
+
+const MONSTER* gMediumOutdoorMonsters[] = { 0 };
+
+const MONSTER* gHardOutdoorMonsters[] = { 0 };
 
 // A random string like "A wild %s draws near!"
 char gBattleTextLine1[64];
@@ -85,35 +69,47 @@ char gBattleTextLine2[64];
 char gBattleTextLine3[64];
 
 // Is a "surprise attack" if this is set to true during random monster generation.
+BOOL gSurpriseAttack;
 
-BOOL gMonstersTurn;
-
+// Did the attack land?
 BOOL gHit;
 
+// If so, how much damage did it do?
 int gDamageDealt;
 
-MENUITEM gMI_PlayerBattleAction_Attack = { "Attack", 142, 200, TRUE, MenuItem_PlayerBattleAction_Attack };
+// Was it a critical hit?
+BOOL gCritical;
 
-MENUITEM gMI_PlayerBattleAction_Spell = { "Spell", 142, 210, TRUE, MenuItem_PlayerBattleAction_Spell };
+BOOL gWaitOnDialog;
 
-MENUITEM gMI_PlayerBattleAction_Defend = { "Defend", 208, 200, TRUE, MenuItem_PlayerBattleAction_Defend };
+BATTLESTATE gBattleState;
 
-MENUITEM gMI_PlayerBattleAction_Item = { "Item", 208, 210, TRUE, MenuItem_PlayerBattleAction_Item };
+BATTLESTATE gPreviousBattleState;
 
-MENUITEM gMI_PlayerBattleAction_Run = { "Run", 208, 220, TRUE, MenuItem_PlayerBattleAction_Run };
+
+
+MENUITEM gMI_BattleAction_Attack = { "Attack", 142, 200, TRUE, MenuItem_BattleAction_Attack };
+
+MENUITEM gMI_BattleAction_Spell  = { "Spell",  142, 210, TRUE, MenuItem_BattleAction_Spell };
+
+MENUITEM gMI_BattleAction_Defend = { "Defend", 208, 200, TRUE, MenuItem_BattleAction_Defend };
+
+MENUITEM gMI_BattleAction_Item   = { "Item",   208, 210, TRUE, MenuItem_BattleAction_Item };
+
+MENUITEM gMI_BattleAction_Run    = { "Run",    208, 220, TRUE, MenuItem_BattleAction_Run };
 
 MENUITEM* gMI_PlayerBattleActionItems[] = { 
-    &gMI_PlayerBattleAction_Attack, 
-    &gMI_PlayerBattleAction_Spell,    
-    &gMI_PlayerBattleAction_Defend,
-    &gMI_PlayerBattleAction_Item,
-    &gMI_PlayerBattleAction_Run };
+    &gMI_BattleAction_Attack, 
+    &gMI_BattleAction_Spell,    
+    &gMI_BattleAction_Defend,
+    &gMI_BattleAction_Item,
+    &gMI_BattleAction_Run };
 
 MENU gMenu_PlayerBattleAction = { "Your action:", 0, _countof(gMI_PlayerBattleActionItems), gMI_PlayerBattleActionItems };
 
-BOOL gStateChange;
 
-uint64_t gStateChangedFrame;
+
+
 
 
 void GenerateMonster(void)
@@ -123,8 +119,13 @@ void GenerateMonster(void)
     rand_s(&RandomValue);
 
     // Make a copy of the monster for the player to fight; don't modify the template monster.
-    memcpy(&gCurrentMonster, gOutdoorMonsters[RandomValue % _countof(gOutdoorMonsters)], sizeof(MONSTER));
+    memcpy(&gCurrentMonster, gEasyOutdoorMonsters[RandomValue % _countof(gEasyOutdoorMonsters)], sizeof(MONSTER));
     
+    ASSERT(
+        gCurrentMonster.AttackChance +
+        gCurrentMonster.DefendChance +
+        gCurrentMonster.SpellChance +
+        gCurrentMonster.RunChance == 100, "These four need to add up to 100!");
 
     // if standing on outdoor tile then select from pool of outdoor monsters
 
@@ -179,21 +180,38 @@ void GenerateMonster(void)
     ASSERT(strlen(gBattleTextLine1) > 0, "Error generating battle text!")
 
 
-    // Re-roll another random value to determine whether the monster
-    // gets to attack first or not.
+    // Re-roll another random value to determine whether the monster gets to attack first or not.
     rand_s(&RandomValue);
 
     if (RandomValue % 5 == 0)
     {
-        gMonstersTurn = TRUE;
+        gSurpriseAttack = TRUE;        
 
-        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are caught off guard!");
+        rand_s(&RandomValue);
+
+        if (RandomValue % 2 == 0)
+        {
+            sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are caught off guard!");
+        }
+        else
+        {
+            sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s snuck up behind you!", gCurrentMonster.Name);
+        }
     }
     else
     {
-        gMonstersTurn = FALSE;
+        gSurpriseAttack = FALSE;
 
-        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are ready for battle.");
+        rand_s(&RandomValue);
+
+        if (RandomValue % 2 == 0)
+        {
+            sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You are ready for battle.");
+        }
+        else
+        {
+            sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You assume fighting stance, ready to act.");
+        }
     }
 
     ASSERT(strlen(gBattleTextLine2) > 0, "Error generating battle text!")
@@ -210,151 +228,236 @@ void GenerateMonster(void)
 }
 
 void PPI_Battle(void)
-{    
-    if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
+{
+    // The player can select menu items only if it is the player's turn, and only if the dialog is finished.
+    if ((gBattleState == BATTLESTATE_PLAYERTHINKING) && !gWaitOnDialog)
     {
-        switch (gMenu_PlayerBattleAction.SelectedItem)
+        if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
         {
-            case 0:
+            switch (gMenu_PlayerBattleAction.SelectedItem)
             {
-                PlayGameSound(&gSoundMenuNavigate);
+                case 0:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem = 1;
+                    gMenu_PlayerBattleAction.SelectedItem = 1;
 
-                break;
-            }
-            case 1:
-            case 3:
-            case 4:
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 1:
+                case 3:
+                case 4:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem--;
+                    gMenu_PlayerBattleAction.SelectedItem--;
 
-                break;
-            }
-            case 2:
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 2:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem = 4;
+                    gMenu_PlayerBattleAction.SelectedItem = 4;
 
-                break;
-            }
-            default:
-            {
-                ASSERT(FALSE, "Wrong number of menu items?")
+                    break;
+                }
+                default:
+                {
+                    ASSERT(FALSE, "Wrong number of menu items?")
+                }
             }
         }
-    }
-    else if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
-    {
-        switch (gMenu_PlayerBattleAction.SelectedItem)
+        else if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
         {
-            case 0:
-            case 2:
-            case 3:
+            switch (gMenu_PlayerBattleAction.SelectedItem)
             {
-                PlayGameSound(&gSoundMenuNavigate);
+                case 0:
+                case 2:
+                case 3:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem++;
+                    gMenu_PlayerBattleAction.SelectedItem++;
 
-                break;
-            }
-            case 1:
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 1:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem = 0;
+                    gMenu_PlayerBattleAction.SelectedItem = 0;
 
-                break;
-            }                
-            case 4:
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 4:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem = 2;
+                    gMenu_PlayerBattleAction.SelectedItem = 2;
 
-                break;
-            }
-            default:
-            {
-                ASSERT(FALSE, "Wrong number of menu items?");
+                    break;
+                }
+                default:
+                {
+                    ASSERT(FALSE, "Wrong number of menu items?");
+                }
             }
         }
-    }
-    else if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
-    {
-        switch (gMenu_PlayerBattleAction.SelectedItem)
+        else if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
         {
-            case 0:
-            case 1:
+            switch (gMenu_PlayerBattleAction.SelectedItem)
             {
-                PlayGameSound(&gSoundMenuNavigate);
+                case 0:
+                case 1:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem += 2;
+                    gMenu_PlayerBattleAction.SelectedItem += 2;
 
-                break;
-            }
-            case 2:
-            case 3:                
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 2:
+                case 3:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem -= 2;
+                    gMenu_PlayerBattleAction.SelectedItem -= 2;
 
-                break;
-            }
-            case 4:
-            {
-                break;
-            }
-            default:
-            {
-                ASSERT(FALSE, "Wrong number of menu items?");
+                    break;
+                }
+                case 4:
+                {
+                    break;
+                }
+                default:
+                {
+                    ASSERT(FALSE, "Wrong number of menu items?");
+                }
             }
         }
-    }
-    else if (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown)
-    {
-        switch (gMenu_PlayerBattleAction.SelectedItem)
+        else if (gGameInput.RightKeyIsDown && !gGameInput.RightKeyWasDown)
         {
-            case 0:
-            case 1:
+            switch (gMenu_PlayerBattleAction.SelectedItem)
             {
-                PlayGameSound(&gSoundMenuNavigate);
+                case 0:
+                case 1:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem += 2;
+                    gMenu_PlayerBattleAction.SelectedItem += 2;
 
-                break;
-            }
-            case 2:
-            case 3:
-            {
-                PlayGameSound(&gSoundMenuNavigate);
+                    break;
+                }
+                case 2:
+                case 3:
+                {
+                    PlayGameSound(&gSoundMenuNavigate);
 
-                gMenu_PlayerBattleAction.SelectedItem -= 2;
+                    gMenu_PlayerBattleAction.SelectedItem -= 2;
 
-                break;
-            }
-            case 4:
-            {
+                    break;
+                }
+                case 4:
+                {
 
-                break;
-            }
-            default:
-            {
-                ASSERT(FALSE, "Wrong number of menu items?");
+                    break;
+                }
+                default:
+                {
+                    ASSERT(FALSE, "Wrong number of menu items?");
+                }
             }
         }
-    }
-    else if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
-    {
-        if (gBattleState == BATTLESTATE_WAITING)
+        else if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
         {
             gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->Action();
+        }    
+    }
+
+    if (gGameInput.ChooseKeyIsDown && !gGameInput.ChooseKeyWasDown)
+    {
+        if (!gWaitOnDialog)
+        {
+            unsigned int RandomValue = 0;
+
+            switch (gBattleState)
+            {
+                case BATTLESTATE_PLAYERATTACKING:
+                {
+                    gBattleState = BATTLESTATE_MONSTERTHINKING;
+
+                    break;
+                }
+                case BATTLESTATE_MONSTERTHINKING:
+                {
+                    // Here the monster needs to decide what it wants to do!
+                    
+                    rand_s(&RandomValue);
+
+                    RandomValue %= 101;
+
+                    if (gCurrentMonster.HP < (gCurrentMonster.MaxHP * 0.2f))
+                    {
+                        gCurrentMonster.RunChance += 10;
+
+                        gCurrentMonster.AttackChance -= 10;
+                    }
+
+                    if (gCurrentMonster.AttackChance >= (int)RandomValue)
+                    {
+                        MonsterAttack();
+                    }
+                    else if (gCurrentMonster.DefendChance >= (int)RandomValue)
+                    {
+                        gBattleState = BATTLESTATE_MONSTERDEFENDING;
+                    }
+                    else if (gCurrentMonster.SpellChance >= (int)RandomValue)
+                    {
+                        BOOL CanCastSpell = FALSE;
+
+                        for (int spell = 0; spell < _countof(gCurrentMonster.KnownSpells) - 1; spell++)
+                        {
+                            if (gCurrentMonster.KnownSpells[spell].Cost <= gCurrentMonster.MP)
+                            {
+                                CanCastSpell = TRUE;
+                            }
+                        }
+
+                        if (CanCastSpell)
+                        {
+                            gBattleState = BATTLESTATE_MONSTERCASTINGSPELL;
+                        }
+                        else
+                        {
+                            if (gCurrentMonster.RunChance >= (int)RandomValue)
+                            {
+                                gBattleState = BATTLESTATE_MONSTERRUNNINGAWAY;
+                            }
+                            else
+                            {
+                                MonsterAttack();
+                            }
+                        }
+                    }
+                    else if (gCurrentMonster.RunChance >= (int)RandomValue)
+                    {
+                        gBattleState = BATTLESTATE_MONSTERRUNNINGAWAY;
+                    }
+                    else
+                    {
+                        // e.g. this might happen if we roll 100, but the monster does not have
+                        // a 100% chance of doing anything. Let's default to... 
+
+                        MonsterAttack();
+                    }                    
+
+                    break;
+                }
+            }
         }
     }
+    
 
 #ifdef _DEBUG
 	if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
@@ -383,16 +486,16 @@ void DrawBattle(void)
 
     static int AlphaAdjust = -256;
 
-    static GAMEBITMAP* BattleScene = NULL;
+    static GAMEBITMAP* BattleScene = NULL;    
 
     // These strings are "scratch space" to display only portions
     // of the full line of text. This is used to make a "typewriter" like animation.
 
-    static unsigned int BattleTextLine1CharactersToShow = 0;
+    static unsigned int BattleTextLine1CharactersToShow;
 
-    static unsigned int BattleTextLine2CharactersToShow = 0;
+    static unsigned int BattleTextLine2CharactersToShow;
 
-    static unsigned int BattleTextLine3CharactersToShow = 0;
+    static unsigned int BattleTextLine3CharactersToShow;
 
     char BattleTextLine1Scratch[64] = { 0 };
 
@@ -415,6 +518,8 @@ void DrawBattle(void)
 
         gInputEnabled = FALSE;
 
+        gWaitOnDialog = TRUE;
+
         BattleTextLine1CharactersToShow = 0;
 
         BattleTextLine2CharactersToShow = 0;
@@ -425,7 +530,9 @@ void DrawBattle(void)
 
         gBattleState = BATTLESTATE_INTRO;
 
-        gMonstersTurn = FALSE;
+        gPreviousBattleState = BATTLESTATE_INTRO;
+
+        gCritical = FALSE;
     }
 
 #ifdef SMOOTH_FADES
@@ -451,14 +558,13 @@ void DrawBattle(void)
         }
     }
 #endif
-
-    // NOT FOR THIS GAMESTATE
+    
     // It doesn't feel very nice to have to wait the full 60 frames for the fade-in to complete in order for 
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
-    //if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
-    //{
-    //    gInputEnabled = TRUE;
-    //}
+    if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
+    {
+        gInputEnabled = TRUE;
+    }
 
     if (LocalFrameCounter == 0)
     {
@@ -493,106 +599,165 @@ void DrawBattle(void)
         }
     }    
 
-    if (gStateChange)
+    // Either the player or the monster has taken an action.
+    if (gBattleState != gPreviousBattleState)
     {
-        DWORD RandomValue = 0;
+        unsigned int RandomValue = 0; 
 
-        gStateChange = FALSE;
+        gWaitOnDialog = TRUE; 
 
         BattleTextLine1CharactersToShow = 0;
-
+        
         BattleTextLine2CharactersToShow = 0;
-
+        
         BattleTextLine3CharactersToShow = 0;
 
         switch (gBattleState)
-        {
-            case BATTLESTATE_INTRO:
-            {
-                break;
-            }
-            case BATTLESTATE_WAITING:
-            {
-                break;
-            }
+        {            
             case BATTLESTATE_PLAYERATTACKING:
-            {                
+            {
                 sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "You attack %s with your %s!", gCurrentMonster.Name, gPlayer.Inventory[EQUIPPED_WEAPON].Name);
-
+                        
                 if (gHit)
+                {   
+                    if (gCritical)
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "Critical hit on %s for %d damage!", gCurrentMonster.Name, gDamageDealt);
+                    }
+                    else
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You hit the %s for %d damage!", gCurrentMonster.Name, gDamageDealt);
+                    }   
+                }        
+                else        
+                {            
+                    sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You missed!");        
+                }
+
+                if (gCurrentMonster.HP < (gCurrentMonster.MaxHP * 0.2f))
                 {
-                    sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You hit the %s for %d damage!", gCurrentMonster.Name, gDamageDealt);
+                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "%s looks like it's about to die.", gCurrentMonster.Name);
                 }
                 else
                 {
-                    sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You missed!");
+                    // Re-roll to select a random monster emote.
+                    rand_s(&RandomValue);
+
+                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "%s: %s", gCurrentMonster.Name, gCurrentMonster.Emotes[(RandomValue % 3)]);
                 }
 
-                // Re-roll to select a random monster emote.
+                break;
+            }
+            case BATTLESTATE_PLAYERTHINKING:
+            {
+                sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "You plan your next move against %s...", gCurrentMonster.Name);
+
+                sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "...");
+
+                sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "...");
+
+                break;
+            }
+            case BATTLESTATE_MONSTERTHINKING:
+            {
                 rand_s(&RandomValue);
 
-                sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3),"%s: %s", gCurrentMonster.Name, gCurrentMonster.Emotes[(RandomValue % 3)]);                
+                if (RandomValue % 2 == 0)
+                {
+                    sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "%s is moving...", gCurrentMonster.Name);
+                }
+                else
+                {
+                    sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "%s changes its stance...", gCurrentMonster.Name);
+                }
+
+                rand_s(&RandomValue);
+
+                if (RandomValue % 2 == 0)
+                {
+                    sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s looks like it's preparing to attack...", gCurrentMonster.Name);
+                }
+                else
+                {
+                    sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You're unsure of what %s is thinking...", gCurrentMonster.Name);
+                }
+
+                rand_s(&RandomValue);
+
+                if (RandomValue % 2 == 0)
+                {
+                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "You prepare yourself as %s lunges!", gCurrentMonster.Name);
+                }
+                else
+                {
+                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "%s moves quickly!", gCurrentMonster.Name);
+                }
 
                 break;
             }
             case BATTLESTATE_MONSTERATTACKING:
             {
                 sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "%s attacks you!", gCurrentMonster.Name);
-
-                sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s hits you for %d damage!", gCurrentMonster.Name, gDamageDealt);
-
-                if (gPlayer.HP > 5)
+                
+                if (gHit)
                 {
-                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "'Tis but a scratch.");
+                    if (gCritical)
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s critically hits you for %d damage!", gCurrentMonster.Name, gDamageDealt);
+                    }
+                    else
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s hits you for %d damage!", gCurrentMonster.Name, gDamageDealt);
+                    }
                 }
                 else
                 {
-                    sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "You feel like you are about to die.");
+                    rand_s(&RandomValue);
+
+                    if (RandomValue % 2 == 0)
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "%s misses you.", gCurrentMonster.Name);
+                    }
+                    else
+                    {
+                        sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You evade %s's attack.", gCurrentMonster.Name);
+                    }
                 }
 
-                break;
-            }
-            case BATTLESTATE_PLAYERDEFENDING:
-            {
-                break;
-            }
-            case BATTLESTATE_MONSTERDEFENDING:
-            {
-                break;
-            }
-            case BATTLESTATE_PLAYERCASTINGSPELL:
-            {
-                break;
-            }
-            case BATTLESTATE_MONSTERCASTINGSPELL:
-            {
-                break;
-            }
-            case BATTLESTATE_PLAYERRUNNINGAWAY:
-            {
-                break;
-            }
-            case BATTLESTATE_MONSTERRUNNINGAWAY:
-            {
-                break;
-            }
-            case BATTLESTATE_PLAYERUSINGITEM:
-            {
-                break;
-            }
-            case BATTLESTATE_PLAYERISDEAD:
-            {
-                break;
-            }
-            case BATTLESTATE_MONSTERISDEAD:
-            {
+                if (gPlayer.HP > (gPlayer.MaxHP * 0.20f))
+                {
+                    rand_s(&RandomValue);
+
+                    if (RandomValue % 2 == 0)
+                    {
+                        sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "Adrenaline surges through your veins.");
+                    }
+                    else
+                    {
+                        sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "You don't have time to bleed.");
+                    }
+                }
+                else
+                {
+                    rand_s(&RandomValue);
+
+                    if (RandomValue % 2 == 0)
+                    {
+                        sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "You feel like you are about to die.");
+                    }
+                    else
+                    {
+                        sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "You cough up blood. You're not feeling well.");
+                    }
+                }
+
                 break;
             }
             default:
             {
-                ASSERT(FALSE, "Battle State not implemented!");
+                ASSERT(FALSE, "BattleState not implemented!");
             }
-        }        
+        }
     }
     
     BlitBackground(
@@ -643,6 +808,10 @@ void DrawBattle(void)
             AlphaAdjust,
             BLIT_FLAG_ALPHABLEND);
     } 
+    else
+    {
+        ASSERT(FALSE, "Monster bitmap is NULL!");
+    }
     
     // Draw the window where the battle text will go.
     DrawWindow(
@@ -732,169 +901,220 @@ void DrawBattle(void)
     // Once the third line of text's animation is complete, we are ready to start fighting.
     if (strlen(BattleTextLine3Scratch) == strlen(gBattleTextLine3))
     {
-        if (gMonstersTurn)
-        {
-            // Monster chooses an action
-            // Monster can try to hit player, cast a spell on player, or run away from player.
+        gWaitOnDialog = FALSE;
 
-        }
-        else
+        switch (gBattleState)
         {
-            // Player chooses an action
-            // Player can try to hit monster, cast a spell on monster, or run away from monster.
-
-            switch (gBattleState)
+            case BATTLESTATE_INTRO:
             {
-                case BATTLESTATE_INTRO:
+                if (gSurpriseAttack)
                 {
-                    gBattleState = BATTLESTATE_WAITING;
-
-                    break;
+                    gBattleState = BATTLESTATE_MONSTERTHINKING;
                 }
-                case BATTLESTATE_PLAYERATTACKING:
+                else
                 {
-                    if (gStateChangedFrame < (gPerformanceData.TotalFramesRendered - 120))
-                    {
-                        gMonstersTurn = TRUE;
-
-                        // TODO: or cast a spell, or try to run away, etc.
-                        MenuItem_PlayerBattleAction_Attack();
-                    }
-
-                    break;
+                    gBattleState = BATTLESTATE_PLAYERTHINKING;
                 }
-                case BATTLESTATE_WAITING:
-                {
-                    if (!gInputEnabled)
-                    {
-                        gInputEnabled = TRUE;
-                    }
 
-                    BlitStringEx(
-                        gMenu_PlayerBattleAction.Name,
-                        &g6x7Font,
-                        67,
-                        175,
-                        255,
-                        255,
-                        255,
-                        AlphaAdjust,
-                        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+                break;
+            }
+            case BATTLESTATE_MONSTERATTACKING:
+            {
+                gBattleState = BATTLESTATE_PLAYERTHINKING;
 
-                    // Draw the window where the player's choices will go
-                    DrawWindow(
-                        0,
-                        195,
-                        120,
-                        40,
-                        &COLOR_NES_WHITE,
-                        &COLOR_NES_BLACK,
-                        NULL,
-                        WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
+                break;
+            }
+        }        
 
-                    for (int Counter = 0; Counter < gMenu_PlayerBattleAction.ItemCount; Counter++)
-                    {
-                        BlitStringEx(
-                            gMenu_PlayerBattleAction.Items[Counter]->Name,
-                            &g6x7Font,
-                            gMenu_PlayerBattleAction.Items[Counter]->x,
-                            gMenu_PlayerBattleAction.Items[Counter]->y,
-                            255,
-                            255,
-                            255,
-                            AlphaAdjust,
-                            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
-                    }
+        if (gBattleState == BATTLESTATE_PLAYERTHINKING)
+        {            
+            BlitStringEx(
+                gMenu_PlayerBattleAction.Name,
+                &g6x7Font,
+                67,
+                175,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+        
+            // Draw the window where the player's choices will go        
+            DrawWindow(
+                0,
+                195,
+                120,
+                40,
+                &COLOR_NES_WHITE,
+                &COLOR_NES_BLACK,
+                NULL,
+                WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_HORIZONTALLY_CENTERED | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS);
 
-                    BlitStringEx(
-                        "\xBB",
-                        &g6x7Font,
-                        gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->x - 6,
-                        gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->y,
-                        255,
-                        255,
-                        255,
-                        AlphaAdjust,
-                        BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+            for (int Counter = 0; Counter < gMenu_PlayerBattleAction.ItemCount; Counter++)
+            {
+                BlitStringEx(
+                    gMenu_PlayerBattleAction.Items[Counter]->Name,
+                    &g6x7Font,
+                    gMenu_PlayerBattleAction.Items[Counter]->x,
+                    gMenu_PlayerBattleAction.Items[Counter]->y,
+                    255,
+                    255,
+                    255,
+                    AlphaAdjust,
+                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+            }                       
+            
+            BlitStringEx(
+                "\xBB",
+                &g6x7Font,
+                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->x - 6,
+                gMenu_PlayerBattleAction.Items[gMenu_PlayerBattleAction.SelectedItem]->y,
+                255,
+                255,
+                255,
+                AlphaAdjust,
+                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+        }        
+    }    
 
-                    break;
-                }
-            }            
-        }
-    }
-
-
+    gPreviousBattleState = gBattleState;
 
     LocalFrameCounter++;
 
     LastFrameSeen = gPerformanceData.TotalFramesRendered;
 }
 
-// Both the player and the monster use this same function for attacking each other.
-void MenuItem_PlayerBattleAction_Attack(void)
+
+void MenuItem_BattleAction_Attack(void)
 {
     // Determine hit/miss 
     // Determine damage dealt    
 
-    gInputEnabled = FALSE;
-
-    if (gMonstersTurn)
-    {
-        gBattleState = BATTLESTATE_MONSTERATTACKING;
-    }
-    else
-    {
-        gBattleState = BATTLESTATE_PLAYERATTACKING;
-    }
+    unsigned int LuckFactor = 0;
     
+    gBattleState = BATTLESTATE_PLAYERATTACKING;
 
-    gStateChange = TRUE;
+    gWaitOnDialog = TRUE;
+    
+    // First decide whether we landed the blow.    
 
-    gStateChangedFrame = gPerformanceData.TotalFramesRendered;
+    rand_s(&LuckFactor);
 
-    if (gMonstersTurn)
+    if ((gPlayer.Dexterity + (LuckFactor % (gPlayer.Luck + 1)) > gCurrentMonster.Evasion))
     {
-
+        gHit = TRUE;
     }
     else
     {
-        // Player's turn. First decide whether we landed the blow.
-        unsigned int LuckFactor = 0;
+        gHit = FALSE;
+    }
+
+    if (gHit)
+    {
+        // Calculate damage dealt.
+
+        gDamageDealt = gPlayer.Strength - gCurrentMonster.Defense;
 
         rand_s(&LuckFactor);
 
-        if ((gPlayer.Dexterity + (LuckFactor % (gPlayer.Luck + 1)) > gCurrentMonster.Evasion))
+        LuckFactor %= 100;
+
+        if ((gPlayer.Luck + gPlayer.Dexterity) > LuckFactor)
         {
-            gHit = TRUE;
+            gCritical = TRUE;
+        }
+        else
+        {
+            gCritical = FALSE;
         }
 
-        if (gHit)
+        // A critical hit is basically a free second hit.
+        if (gCritical)
         {
-            // Calculate damage dealt.
-
-            gDamageDealt = gPlayer.Strength - gCurrentMonster.Defense;
-
-            gCurrentMonster.HP -= gDamageDealt;
+            gDamageDealt += gPlayer.Strength - gCurrentMonster.Defense;
         }
+
+        gCurrentMonster.HP -= gDamageDealt;
     }
+    else
+    {
+        gDamageDealt = 0;
+    }    
 }
 
-void MenuItem_PlayerBattleAction_Spell(void)
+void MenuItem_BattleAction_Spell(void)
 {
 
 }
 
-void MenuItem_PlayerBattleAction_Run(void)
+void MenuItem_BattleAction_Run(void)
 {
 
 }
 
-void MenuItem_PlayerBattleAction_Defend(void)
+void MenuItem_BattleAction_Defend(void)
 {
 
 }
 
-void MenuItem_PlayerBattleAction_Item(void)
+void MenuItem_BattleAction_Item(void)
 {
 
+}
+
+void MonsterAttack(void)
+{
+    // Determine hit/miss 
+    // Determine damage dealt    
+
+    unsigned int LuckFactor = 0;
+
+    gBattleState = BATTLESTATE_MONSTERATTACKING;
+
+    gWaitOnDialog = TRUE;
+
+    // First decide whether we landed the blow.    
+
+    rand_s(&LuckFactor);
+
+    if ((gCurrentMonster.Dexterity + (LuckFactor % (gCurrentMonster.Luck + 1)) > gPlayer.Evasion))
+    {
+        gHit = TRUE;
+    }
+    else
+    {
+        gHit = FALSE;
+    }
+
+    if (gHit)
+    {
+        // Calculate damage dealt.
+
+        gDamageDealt = gCurrentMonster.Strength - gPlayer.Defense;
+
+        rand_s(&LuckFactor);
+
+        LuckFactor %= 100;
+
+        if ((gCurrentMonster.Luck + gCurrentMonster.Dexterity) > LuckFactor)
+        {
+            gCritical = TRUE;
+        }
+        else
+        {
+            gCritical = FALSE;
+        }
+
+        // A critical hit is basically a free second hit.
+        if (gCritical)
+        {
+            gDamageDealt += gCurrentMonster.Strength - gPlayer.Defense;
+        }
+
+        gPlayer.HP -= gDamageDealt;
+    }
+    else
+    {
+        gDamageDealt = 0;
+    }
 }

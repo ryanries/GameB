@@ -168,21 +168,75 @@ void DrawOverworld(void)
 
         for (unsigned int item = 0; item < _countof(gPlayer.Inventory); item++)
         {
-            if (gPlayer.Inventory[item].Id == 0)
+            if (gPlayer.Inventory[item].Id == 0 && item > 2)
             {
                 break;
             }
 
-            BlitStringEx(
-                gPlayer.Inventory[item].Name,
-                &g6x7Font,
-                54,
-                54 + (item * 10),
-                255,
-                255,
-                255,
-                gInventoryAlphaAdjust,
-                BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+            if (gPlayer.Inventory[item].Id == 0)
+            {
+                switch (item)
+                {
+                    case EQUIPPED_ARMOR:
+                    {
+                        BlitStringEx(
+                            "(No Armor)",
+                            &g6x7Font,
+                            54,
+                            54 + (item * 10),
+                            96,
+                            96,
+                            96,
+                            gInventoryAlphaAdjust,
+                            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+                        break;
+                    }
+                    case EQUIPPED_WEAPON:
+                    {
+                        BlitStringEx(
+                            "(No Weapon)",
+                            &g6x7Font,
+                            54,
+                            54 + (item * 10),
+                            96,
+                            96,
+                            96,
+                            gInventoryAlphaAdjust,
+                            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+                        break;
+                    }
+                    case EQUIPPED_SHIELD:
+                    {
+                        BlitStringEx(
+                            "(No Shield)",
+                            &g6x7Font,
+                            54,
+                            54 + (item * 10),
+                            96,
+                            96,
+                            96,
+                            gInventoryAlphaAdjust,
+                            BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                BlitStringEx(
+                    gPlayer.Inventory[item].Name,
+                    &g6x7Font,
+                    54,
+                    54 + (item * 10),
+                    255,
+                    255,
+                    255,
+                    gInventoryAlphaAdjust,
+                    BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
+            }
 
             if (item == gSelectedInventoryItem)
             {
@@ -598,39 +652,118 @@ void PPI_Overworld(void)
 
     if (gShowInventory)
     {
-        if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
+        int CountOfItemsInInventory = InventoryItemCount();
+
+        if (CountOfItemsInInventory > 0)
         {
-            PlayGameSound(&gSoundMenuNavigate);
+            BOOL NextItemLocated = FALSE;
 
-            gSelectedInventoryItem++;
-
-            if (gPlayer.Inventory[gSelectedInventoryItem].Id == 0)
+            if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
             {
-                gSelectedInventoryItem = 0;
-            }
-        }
+                PlayGameSound(&gSoundMenuNavigate);
 
-        if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
-        {
-            PlayGameSound(&gSoundMenuNavigate);
+                gSelectedInventoryItem++;
 
-            if (gSelectedInventoryItem == 0)
-            {
-                for (int item = 0; item < _countof(gPlayer.Inventory); item++)
+                if (gSelectedInventoryItem >= _countof(gPlayer.Inventory))
                 {
-                    if (gPlayer.Inventory[item].Id == 0)
+                    gSelectedInventoryItem = 0;
+                }
+
+                // Search from current position, looking for the next item. There may be gaps in the inventory.
+                for (int item = gSelectedInventoryItem; item <= _countof(gPlayer.Inventory) - 1; item++)
+                {
+                    if (gPlayer.Inventory[item].Id != 0)
                     {
-                        gSelectedInventoryItem = item - 1;
+                        gSelectedInventoryItem = item;
+
+                        NextItemLocated = TRUE;
 
                         break;
                     }
                 }
+
+                if (!NextItemLocated)
+                {
+                    // We've returned to the beginning of the inventory, but there's no guarantee that slot 0 is not empty,
+                    // so re-run the search for the next item.
+
+                    gSelectedInventoryItem = 0;
+
+                    for (int item = gSelectedInventoryItem; item <= _countof(gPlayer.Inventory) - 1; item++)
+                    {
+                        if (gPlayer.Inventory[item].Id != 0)
+                        {
+                            gSelectedInventoryItem = item;
+
+                            NextItemLocated = TRUE;
+
+                            break;
+                        }
+                    }
+
+                    if (!NextItemLocated)
+                    {
+                        ASSERT(FALSE, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
+                    }
+                }
             }
-            else
+            else if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
             {
-                gSelectedInventoryItem--;
+                // Do everything we did for the Down key, but backwards.
+
+                PlayGameSound(&gSoundMenuNavigate);
+
+                if (gSelectedInventoryItem == 0)
+                {
+                    gSelectedInventoryItem = _countof(gPlayer.Inventory) - 1;
+                }
+                else
+                {
+                    gSelectedInventoryItem--;
+                }
+
+                // Search from current position, backwards, looking for the next item. There may be gaps in the inventory.
+                for (int item = gSelectedInventoryItem; item >= 0; item--)
+                {
+                    if (gPlayer.Inventory[item].Id != 0)
+                    {
+                        gSelectedInventoryItem = item;
+
+                        NextItemLocated = TRUE;
+
+                        break;
+                    }
+                }
+
+                if (!NextItemLocated)
+                {
+                    // We may have scanned all the way back to slot 0, but maybe slot 0 is empty, so just in case let's scan again from the end.
+
+                    gSelectedInventoryItem = _countof(gPlayer.Inventory) - 1;
+
+                    for (int item = gSelectedInventoryItem; item >= 0; item--)
+                    {
+                        if (gPlayer.Inventory[item].Id != 0)
+                        {
+                            gSelectedInventoryItem = item;
+
+                            NextItemLocated = TRUE;
+
+                            break;
+                        }
+                    }
+
+                    if (!NextItemLocated)
+                    {
+                        ASSERT(FALSE, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
+                    }
+                }
             }
         }
+        else
+        {
+            gSelectedInventoryItem = 0;
+        }        
     }
 }
 
@@ -688,4 +821,19 @@ void RandomMonsterEncounter(void)
     gCurrentGameState = GAMESTATE_BATTLE;
 
     LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
+}
+
+__forceinline int InventoryItemCount(void)
+{
+    int NumItems = 0;
+
+    for (int item = 0; item < _countof(gPlayer.Inventory) - 1; item++)
+    {
+        if (gPlayer.Inventory[item].Id != 0)
+        {
+            NumItems++;
+        }
+    }
+
+    return(NumItems);
 }

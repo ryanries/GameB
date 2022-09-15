@@ -58,3 +58,5 @@ void DrawOverworld(void);
 void PortalHandler(void);
 
 void RandomMonsterEncounter(void);
+
+__forceinline int InventoryItemCount(void);

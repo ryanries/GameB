@@ -18,9 +18,31 @@
 
 #pragma once
 
-#define EQUIPPED_ARMOR	0
-#define EQUIPPED_WEAPON	1
-#define EQUIPPED_SHIELD	2
+typedef enum BATTLESTATE
+{
+	BATTLESTATE_INTRO,
+
+	BATTLESTATE_PLAYERATTACKING,
+
+	BATTLESTATE_MONSTERATTACKING,
+
+	BATTLESTATE_MONSTERTHINKING,
+
+	BATTLESTATE_PLAYERTHINKING,
+
+	BATTLESTATE_PLAYERDEFENDING,
+
+	BATTLESTATE_MONSTERDEFENDING,
+
+	BATTLESTATE_PLAYERCASTINGSPELL,
+
+	BATTLESTATE_MONSTERCASTINGSPELL,
+
+	BATTLESTATE_PLAYERRUNNINGAWAY,
+
+	BATTLESTATE_MONSTERRUNNINGAWAY
+
+} BATTLESTATE;
 
 // Pretty similar stats to the player
 typedef struct MONSTER
@@ -29,9 +51,13 @@ typedef struct MONSTER
 
 	GAMEBITMAP* Sprite;	
 
+	int MaxHP;			
+
 	int HP;
 
 	int Money;			// The coin that will be awarded to the player once this monster is killed
+
+	int MaxMP;
 
 	int MP;				// Magic points
 
@@ -49,7 +75,16 @@ typedef struct MONSTER
 
 	int Evasion;		// Chance to dodge, and chance to run away successfully
 
-	int Defense;
+	int Defense;		// Damage mitigation.
+
+						// THESE FOUR MUST ADD UP TO 100
+	int AttackChance;	// 95%
+
+	int RunChance;		// 5% (Goes up if low on health)
+
+	int SpellChance;	// 0%
+
+	int DefendChance;	// 0%
 
 	const char* Emotes[3];
 
@@ -69,12 +104,14 @@ void PPI_Battle(void);
 
 void DrawBattle(void);
 
-void MenuItem_PlayerBattleAction_Attack(void);
+void MenuItem_BattleAction_Attack(void);
 
-void MenuItem_PlayerBattleAction_Spell(void);
+void MenuItem_BattleAction_Spell(void);
 
-void MenuItem_PlayerBattleAction_Run(void);
+void MenuItem_BattleAction_Run(void);
 
-void MenuItem_PlayerBattleAction_Defend(void);
+void MenuItem_BattleAction_Defend(void);
 
-void MenuItem_PlayerBattleAction_Item(void);
+void MenuItem_BattleAction_Item(void);
+
+void MonsterAttack(void);
