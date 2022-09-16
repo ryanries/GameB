@@ -27,6 +27,8 @@ REM --- SOUNDS ---
 MyMiniz.exe Assets.dat + .\Assets\MenuChoose.wav >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\MenuNavigate.wav >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\SplashScreen.wav >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\Hit01.wav >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\Miss01.wav >> CopyAssets.log
 
 REM --- MUSIC ---
 
@@ -34,6 +36,8 @@ MyMiniz.exe Assets.dat + .\Assets\Overworld01.ogg >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\Dungeon01.ogg >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\Battle01.ogg >> CopyAssets.log
 MyMiniz.exe Assets.dat + .\Assets\BattleIntro01.ogg >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\VictoryIntro.ogg >> CopyAssets.log
+MyMiniz.exe Assets.dat + .\Assets\VictoryLoop.ogg >> CopyAssets.log
 
 REM --- MONSTERS ---
 

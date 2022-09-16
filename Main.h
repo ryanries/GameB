@@ -151,7 +151,7 @@
 // the kind of fade-ins that are more aesthetically reminiscent of the kind you might see on the classic NES or any
 // old system with a more limited color palette. We will have to decide later which we prefer -- 
 // the kind that look nicer, or the kind that are more "retro."
-//#define SMOOTH_FADES
+#define SMOOTH_FADES
 
 // We have to temporarily disable input when transitioning from one menu to another, from one gamestate to another,
 // but if we don't reenable the input rather quickly after that, it will not feel good for the player.
@@ -500,7 +500,9 @@ typedef struct ITEM
 
 	int Value;
 
-	void(*Action)(void);
+	int Damage;
+
+	int Defense;
 
 } ITEM;
 
@@ -690,6 +692,14 @@ extern GAMESOUND gMusicBattle01;
 
 extern GAMESOUND gMusicBattleIntro01;
 
+extern GAMESOUND gSoundHit01;
+
+extern GAMESOUND gSoundMiss01;
+
+extern GAMESOUND gMusicVictoryIntro;
+
+extern GAMESOUND gMusicVictoryLoop;
+
 // Yours truly.
 extern HERO gPlayer;
 
@@ -840,6 +850,6 @@ void DrawWindow(
 int64_t FileSizeA(_In_ const char* FileName);
 
 // These go in Main.h because these functions are shared among multiple states, overworld, battle, inventory...
-void DrawPlayerStatsWindow(_In_ int AlphaAdjust);
+void DrawPlayerStatsWindow(_In_ int AlphaAdjust, _In_ int WindowShakeX, _In_ int WindowShakeY);
 
 void BlitBackground(_In_ GAMEBITMAP* GameBitmap, _In_ int ColorAdjust);

@@ -40,7 +40,11 @@ typedef enum BATTLESTATE
 
 	BATTLESTATE_PLAYERRUNNINGAWAY,
 
-	BATTLESTATE_MONSTERRUNNINGAWAY
+	BATTLESTATE_MONSTERRUNNINGAWAY,
+
+	BATTLESTATE_MONSTERISDEAD,
+
+	BATTLESTATE_PLAYERISDEAD
 
 } BATTLESTATE;
 
@@ -85,6 +89,8 @@ typedef struct MONSTER
 	int SpellChance;	// 0%
 
 	int DefendChance;	// 0%
+
+	int BaseDamage;
 
 	const char* Emotes[3];
 

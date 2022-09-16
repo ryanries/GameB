@@ -25,6 +25,9 @@
 // Renamed some functions such as BlitStringToBuffer -> BlitString, Blit32BppBitmapToBuffer -> BlitBitmap, etc.
 // Added per-color adjustments and alpha blending everywhere else
 // Added support for new alpha blending flag to DrawWindow
+// Went HAM with alpha blending
+// Added inventory screen
+// Spent 2 whole days banging on battle scene logic -- it's close to complete!
 // 
 // --- TODO ---
 // Get rid of stdint.h?
@@ -149,6 +152,14 @@ GAMESOUND gMusicDungeon01 = { 0 };
 GAMESOUND gMusicBattle01 = { 0 };
 
 GAMESOUND gMusicBattleIntro01 = { 0 };
+
+GAMESOUND gSoundHit01 = { 0 };
+
+GAMESOUND gSoundMiss01 = { 0 };
+
+GAMESOUND gMusicVictoryIntro = { 0 };
+
+GAMESOUND gMusicVictoryLoop = { 0 };
 
 // Yours truly.
 HERO gPlayer = { 0 };
@@ -1321,9 +1332,9 @@ void ResetEverythingForNewGame(void)
 
     gPlayer.StepsTaken = 0;
 	
-    gPlayer.MaxHP = 20;
+    gPlayer.MaxHP = 10;
 
-    gPlayer.HP = 20;
+    gPlayer.HP = 10;
     
     gPlayer.Money = 0;
 
@@ -3191,9 +3202,13 @@ DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam)
         { "MenuNavigate.wav",  &gSoundMenuNavigate },
         { "MenuChoose.wav",    &gSoundMenuChoose },
         { "Overworld01.ogg",   &gMusicOverworld01 },
+        { "Hit01.wav",         &gSoundHit01 },
+        { "Miss01.wav",        &gSoundMiss01 },
         { "Dungeon01.ogg",     &gMusicDungeon01 },
         { "Battle01.ogg",      &gMusicBattle01 },
         { "BattleIntro01.ogg", &gMusicBattleIntro01 },
+        { "VictoryIntro.ogg",  &gMusicVictoryIntro },
+        { "VictoryLoop.ogg",   &gMusicVictoryLoop },
         { "Hero_Suit0_Down_Standing.bmpx",  &gPlayer.Sprite[SUIT_0][FACING_DOWN_0] },
         { "Hero_Suit0_Down_Walk1.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_DOWN_1] },
         { "Hero_Suit0_Down_Walk2.bmpx",     &gPlayer.Sprite[SUIT_0][FACING_DOWN_2] },
@@ -3752,7 +3767,7 @@ int64_t FileSizeA(_In_ const char* FileName)
 
 // Draw HUD at the top-left, unless the player is standing there, in which case draw it at the top-right.
 // Both Overworld gamestate and Battle gamestate need this function.
-void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
+void DrawPlayerStatsWindow(_In_ int AlphaAdjust, _In_ int WindowShakeX, _In_ int WindowShakeY)
 {
     char TextBuffer[32] = { 0 };
 
@@ -3770,11 +3785,15 @@ void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
     // Draw the main player stats window top left, unless player is standing underneath that area,
     // in which case draw it top right.
     DrawWindow(
-        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) : 8,
-        8,
+        (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? (GAME_RES_WIDTH - WindowWidth - 8) + WindowShakeX : 8 + WindowShakeX,
+        8 + WindowShakeY,
         WindowWidth,
         WindowHeight,
+        (gPlayer.HP <= (gPlayer.MaxHP * 0.2f)) ? 
+        &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0x00, .Colors.Blue = 0x00 } :
         &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0xFC, .Colors.Green = 0xFC, .Colors.Blue = 0xFC },
+        (WindowShakeX || WindowShakeY) ?
+        &(PIXEL32) { .Colors.Alpha = 0xFF, .Colors.Red = 0xFF, .Colors.Green = 0x00, .Colors.Blue = 0x00 } :
         &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x00, .Colors.Green = 0x00, .Colors.Blue = 0x00 },
         &(PIXEL32) { .Colors.Alpha = (uint8_t)(min(255, max((256 + AlphaAdjust), 0))), .Colors.Red = 0x40, .Colors.Green = 0x40, .Colors.Blue = 0x40 },
             WINDOW_FLAG_SHADOW | WINDOW_FLAG_BORDERED | WINDOW_FLAG_THICK | WINDOW_FLAG_OPAQUE | WINDOW_FLAG_ROUNDED_CORNERS | WINDOW_FLAG_ALPHABLEND);
@@ -3784,8 +3803,8 @@ void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
         &g6x7Font,
         PlayerNameOffset,
         11,
-        0xFC,
-        0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
         0xFC,
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
@@ -3797,8 +3816,8 @@ void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
         &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21,
-        0xFC,
-        0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
         0xFC,
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
@@ -3810,8 +3829,8 @@ void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
         &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 1),
-        0xFC,
-        0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
         0xFC,
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);
@@ -3823,8 +3842,8 @@ void DrawPlayerStatsWindow(_In_ int AlphaAdjust)
         &g6x7Font,
         (gPlayer.ScreenPos.x <= 48 && gPlayer.ScreenPos.y <= WindowHeight) ? 326 : 11,
         21 + (8 * 2),
-        0xFC,
-        0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
+        (gPlayer.HP <= gPlayer.MaxHP * 0.2f) ? 0 : 0xFC,
         0xFC,
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND | BLIT_FLAG_TEXT_SHADOW);

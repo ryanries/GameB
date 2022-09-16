@@ -7,8 +7,9 @@ ITEM gArmor00 = {
     .Name = "Commoner's Clothes",
     .Class = ITEMCLASS_ARMOR,
     .Description = "Your mother sewed these garments just for you, on your 18th birthday. They're your favorite shade of blue.",
-    .Value = 2
-    // TODO: ACTION
+    .Value = 2,
+    .Damage = 0,
+    .Defense = 1
 };
 
 ITEM gWeapon00 = {
@@ -16,8 +17,9 @@ ITEM gWeapon00 = {
     .Name = "Walking Stick",
     .Class = ITEMCLASS_WEAPON,
     .Description = "You found this stick by the shore and were impressed by its sturdiness and straightness. It's a pretty good stick.",
-    .Value = 3
-    // TODO: ACTION
+    .Value = 3,
+    .Damage = 1,
+    .Defense = 0
 };
 
 ITEM gPotion00 = {

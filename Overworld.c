@@ -125,7 +125,7 @@ void DrawOverworld(void)
         AlphaAdjust,
         BLIT_FLAG_ALPHABLEND);
 
-    DrawPlayerStatsWindow(AlphaAdjust);
+    DrawPlayerStatsWindow(AlphaAdjust, 0, 0);
 
 // Figure out if any NPCs should be drawn on the screen, and if so, draw them.
 //DrawNPCs();
