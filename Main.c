@@ -1822,11 +1822,11 @@ void BlitBackground(_In_ GAMEBITMAP* GameBitmap, _In_ int ColorAdjust)
 
             // Clamp between 0 and 255
             // min(upper, max(x, lower))
-            BitmapPixel.Colors.Red   = (uint8_t) min(255, max((BitmapPixel.Colors.Red + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Red   = (uint8_t) min(255, max((BitmapPixel.Colors.Red + ColorAdjust), 0));
 
-            BitmapPixel.Colors.Green = (uint8_t) min(255, max((BitmapPixel.Colors.Green + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Green = (uint8_t) min(255, max((BitmapPixel.Colors.Green + ColorAdjust), 0));
 
-            BitmapPixel.Colors.Blue  = (uint8_t) min(255, max((BitmapPixel.Colors.Blue + BrightnessAdjustment), 0));
+            BitmapPixel.Colors.Blue  = (uint8_t) min(255, max((BitmapPixel.Colors.Blue + ColorAdjust), 0));
 
             memcpy_s((PIXEL32*)gBackBuffer.Memory + MemoryOffset, sizeof(PIXEL32), &BitmapPixel, sizeof(PIXEL32));
         }
