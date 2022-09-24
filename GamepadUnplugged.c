@@ -15,7 +15,8 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "GamepadUnplugged.h"
 

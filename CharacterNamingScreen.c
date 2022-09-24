@@ -15,7 +15,8 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "CharacterNamingScreen.h"
 
@@ -26,117 +27,117 @@
 // n o p q r s t u v w x y z
 // Back                   OK
 								 // (12 * 8) + (13 * 6) 12 spaces at 8 pixels each, plus 13 letters at 6 pixels wide each
-MENUITEM gMI_CharacterNaming_A = { "A", 118, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_A = { "A", 118, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_B = { "B", 130, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_B = { "B", 130, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_C = { "C", 142, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_C = { "C", 142, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_D = { "D", 154, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_D = { "D", 154, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_E = { "E", 166, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_E = { "E", 166, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_F = { "F", 178, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_F = { "F", 178, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_G = { "G", 190, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_G = { "G", 190, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_H = { "H", 202, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_H = { "H", 202, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_I = { "I", 214, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_I = { "I", 214, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_J = { "J", 226, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_J = { "J", 226, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_K = { "K", 238, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_K = { "K", 238, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_L = { "L", 250, 134, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_L = { "L", 250, 134, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_M = { "M", 262, 134, TRUE, MenuItem_CharacterNaming_Add };
-
-
-
-MENUITEM gMI_CharacterNaming_N = { "N", 118, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_O = { "O", 130, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_P = { "P", 142, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_Q = { "Q", 154, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_R = { "R", 166, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_S = { "S", 178, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_T = { "T", 190, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_U = { "U", 202, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_V = { "V", 214, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_W = { "W", 226, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_X = { "X", 238, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_Y = { "Y", 250, 144, TRUE, MenuItem_CharacterNaming_Add };
-
-MENUITEM gMI_CharacterNaming_Z = { "Z", 262, 144, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_M = { "M", 262, 134, true, MenuItem_CharacterNaming_Add };
 
 
-MENUITEM gMI_CharacterNaming_a = { "a", 118, 154, TRUE, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_b = { "b", 130, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_N = { "N", 118, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_c = { "c", 142, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_O = { "O", 130, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_d = { "d", 154, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_P = { "P", 142, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_e = { "e", 166, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_Q = { "Q", 154, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_f = { "f", 178, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_R = { "R", 166, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_g = { "g", 190, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_S = { "S", 178, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_h = { "h", 202, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_T = { "T", 190, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_i = { "i", 214, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_U = { "U", 202, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_j = { "j", 226, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_V = { "V", 214, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_k = { "k", 238, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_W = { "W", 226, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_l = { "l", 250, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_X = { "X", 238, 144, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_m = { "m", 262, 154, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_Y = { "Y", 250, 144, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_Z = { "Z", 262, 144, true, MenuItem_CharacterNaming_Add };
 
 
-MENUITEM gMI_CharacterNaming_n = { "n", 118, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_a = { "a", 118, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_o = { "o", 130, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_b = { "b", 130, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_p = { "p", 142, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_c = { "c", 142, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_q = { "q", 154, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_d = { "d", 154, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_r = { "r", 166, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_e = { "e", 166, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_s = { "s", 178, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_f = { "f", 178, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_t = { "t", 190, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_g = { "g", 190, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_u = { "u", 202, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_h = { "h", 202, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_v = { "v", 214, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_i = { "i", 214, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_w = { "w", 226, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_j = { "j", 226, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_x = { "x", 238, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_k = { "k", 238, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_y = { "y", 250, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_l = { "l", 250, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_z = { "z", 262, 164, TRUE, MenuItem_CharacterNaming_Add };
+MENUITEM gMI_CharacterNaming_m = { "m", 262, 154, true, MenuItem_CharacterNaming_Add };
 
-MENUITEM gMI_CharacterNaming_Back = { "Back", 118, 174, TRUE, MenuItem_CharacterNaming_Back };
 
-MENUITEM gMI_CharacterNaming_OK = { "OK", 256, 174, TRUE, MenuItem_CharacterNaming_OK };
+MENUITEM gMI_CharacterNaming_n = { "n", 118, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_o = { "o", 130, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_p = { "p", 142, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_q = { "q", 154, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_r = { "r", 166, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_s = { "s", 178, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_t = { "t", 190, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_u = { "u", 202, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_v = { "v", 214, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_w = { "w", 226, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_x = { "x", 238, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_y = { "y", 250, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_z = { "z", 262, 164, true, MenuItem_CharacterNaming_Add };
+
+MENUITEM gMI_CharacterNaming_Back = { "Back", 118, 174, true, MenuItem_CharacterNaming_Back };
+
+MENUITEM gMI_CharacterNaming_OK = { "OK", 256, 174, true, MenuItem_CharacterNaming_OK };
 
 
 MENUITEM* gMI_CharacterNamingItems[] = {
@@ -176,7 +177,7 @@ void DrawCharacterNaming(void)
 
         gMenu_CharacterNaming.SelectedItem = 0;
 
-        gInputEnabled = FALSE;        
+        gInputEnabled = false;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -209,7 +210,7 @@ void DrawCharacterNaming(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }    
 
     DrawWindow(
@@ -335,7 +336,7 @@ void PPI_CharacterNaming(void)
 
 #define OK_BUTTON   53
 
-#define SELECTED_TEXT(Text) strcmp(Text, gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name) == 0 ? TRUE : FALSE
+#define SELECTED_TEXT(Text) strcmp(Text, gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name) == 0 ? true : false
     
     if (gGameInput.UpKeyIsDown && !gGameInput.UpKeyWasDown)
     {
@@ -578,7 +579,7 @@ void MenuItem_CharacterNaming_OK(void)
             gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name,
             gMenu_CharacterNaming.Name);
 
-        gPlayer.Active = TRUE;        
+        gPlayer.Active = true;        
 
         PlayGameSound(&gSoundMenuChoose);
     }

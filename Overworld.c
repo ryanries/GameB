@@ -15,7 +15,8 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "Overworld.h"
 
@@ -34,9 +35,9 @@ PORTAL gPortals[2] = { 0 };
 // We use this variable for when the player walks through a portal (or door or entrance) to another area.
 // It resets the local counters in DrawOverworld so we have an opportunity to switch music tracks and reset
 // the fade-in animation, even though we never actually changed game states.
-BOOL gResetLocalCounters;
+bool gResetLocalCounters;
 
-BOOL gShowInventory;
+bool gShowInventory;
 
 int gInventoryAlphaAdjust = -256;
 
@@ -67,11 +68,11 @@ void DrawOverworld(void)
 
         gInventoryAlphaAdjust = -256;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
 
-        gResetLocalCounters = FALSE;
+        gResetLocalCounters = false;
 
-        gShowInventory = FALSE;
+        gShowInventory = false;
     } 
 
 #ifdef SMOOTH_FADES
@@ -102,14 +103,14 @@ void DrawOverworld(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
 
     if (LocalFrameCounter == 60)
     {    
-        if (MusicIsPlaying() == FALSE)    
+        if (MusicIsPlaying() == false)    
         {        
-            PlayGameMusic(gCurrentArea.Music, TRUE, TRUE);    
+            PlayGameMusic(gCurrentArea.Music, true, true);    
         }
     }
 
@@ -351,7 +352,7 @@ void PPI_Overworld(void)
         
         if (gGameInput.DownKeyIsDown)
         {
-            BOOL CanMoveToDesiredTile = FALSE;
+            bool CanMoveToDesiredTile = false;
 
             for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
             {
@@ -362,7 +363,7 @@ void PPI_Overworld(void)
 
                 if (gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) + 1][gPlayer.WorldPos.x / 16] == gPassableTiles[Counter])
                 {
-                    CanMoveToDesiredTile = TRUE;
+                    CanMoveToDesiredTile = true;
 
                     break;
                 }
@@ -381,13 +382,13 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.LeftKeyIsDown)
         {
-            BOOL CanMoveToDesiredTile = FALSE;
+            bool CanMoveToDesiredTile = false;
 
             for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
             {
                 if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) - 1] == gPassableTiles[Counter])
                 {
-                    CanMoveToDesiredTile = TRUE;
+                    CanMoveToDesiredTile = true;
 
                     break;
                 }
@@ -405,13 +406,13 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.RightKeyIsDown)
         {
-            BOOL CanMoveToDesiredTile = FALSE;
+            bool CanMoveToDesiredTile = false;
 
             for (uint8_t Counter = 0; Counter < _countof(gPassableTiles); Counter++)
             {
                 if (gOverworld01.TileMap.Map[gPlayer.WorldPos.y / 16][(gPlayer.WorldPos.x / 16) + 1] == gPassableTiles[Counter])
                 {
-                    CanMoveToDesiredTile = TRUE;
+                    CanMoveToDesiredTile = true;
 
                     break;
                 }
@@ -429,7 +430,7 @@ void PPI_Overworld(void)
         }
         else if (gGameInput.UpKeyIsDown)
         {
-            BOOL CanMoveToDesiredTile = FALSE;
+            bool CanMoveToDesiredTile = false;
 
             if (gPlayer.ScreenPos.y > 0)
             {
@@ -437,7 +438,7 @@ void PPI_Overworld(void)
                 {
                     if (gOverworld01.TileMap.Map[(gPlayer.WorldPos.y / 16) - 1][gPlayer.WorldPos.x / 16] == gPassableTiles[Counter])
                     {
-                        CanMoveToDesiredTile = TRUE;
+                        CanMoveToDesiredTile = true;
 
                         break;
                     }
@@ -555,7 +556,7 @@ void PPI_Overworld(void)
         {
             case 15:
             {
-                gPlayer.HasPlayerMovedSincePortal = TRUE;
+                gPlayer.HasPlayerMovedSincePortal = true;
 
                 gPlayer.SpriteIndex = 0;
 
@@ -599,7 +600,7 @@ void PPI_Overworld(void)
                     case TILE_PORTAL_01:                    
                     case TILE_HOUSE_01:
                     {
-                        if (gPlayer.HasPlayerMovedSincePortal == TRUE)
+                        if (gPlayer.HasPlayerMovedSincePortal == true)
                         {
                             PortalHandler();
                         }
@@ -611,9 +612,7 @@ void PPI_Overworld(void)
                         // This is not a portal tile. Check whether we should encounter a random monster.                                            
                         if ((gPlayer.StepsTaken - gPlayer.StepsSinceLastRandomMonsterEncounter) >= RANDOM_MONSTER_GRACE_PERIOD_STEPS)
                         {
-                            DWORD Random = 0;
-
-                            rand_s((unsigned int*)&Random);
+                            uint32_t Random = rand();
 
                             Random = Random % 100;
 
@@ -656,7 +655,7 @@ void PPI_Overworld(void)
 
         if (CountOfItemsInInventory > 0)
         {
-            BOOL NextItemLocated = FALSE;
+            bool NextItemLocated = false;
 
             if (gGameInput.DownKeyIsDown && !gGameInput.DownKeyWasDown)
             {
@@ -676,7 +675,7 @@ void PPI_Overworld(void)
                     {
                         gSelectedInventoryItem = item;
 
-                        NextItemLocated = TRUE;
+                        NextItemLocated = true;
 
                         break;
                     }
@@ -695,7 +694,7 @@ void PPI_Overworld(void)
                         {
                             gSelectedInventoryItem = item;
 
-                            NextItemLocated = TRUE;
+                            NextItemLocated = true;
 
                             break;
                         }
@@ -703,7 +702,7 @@ void PPI_Overworld(void)
 
                     if (!NextItemLocated)
                     {
-                        ASSERT(FALSE, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
+                        ASSERT(false, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
                     }
                 }
             }
@@ -729,7 +728,7 @@ void PPI_Overworld(void)
                     {
                         gSelectedInventoryItem = item;
 
-                        NextItemLocated = TRUE;
+                        NextItemLocated = true;
 
                         break;
                     }
@@ -747,7 +746,7 @@ void PPI_Overworld(void)
                         {
                             gSelectedInventoryItem = item;
 
-                            NextItemLocated = TRUE;
+                            NextItemLocated = true;
 
                             break;
                         }
@@ -755,7 +754,7 @@ void PPI_Overworld(void)
 
                     if (!NextItemLocated)
                     {
-                        ASSERT(FALSE, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
+                        ASSERT(false, "Bug! Inventory is empty, yet InventoryItemCount() gave us a non-zero value!")
                     }
                 }
             }
@@ -773,20 +772,20 @@ void PPI_Overworld(void)
 // on. Then teleport the player to whatever location that portal dictates.
 void PortalHandler(void)
 {
-    gPlayer.HasPlayerMovedSincePortal = FALSE;    
+    gPlayer.HasPlayerMovedSincePortal = false;    
 
-    BOOL PortalFound = FALSE;    
+    bool PortalFound = false;    
 
     for (int Counter = 0; Counter < _countof(gPortals); Counter++)
     {
         if ((gPlayer.WorldPos.x == gPortals[Counter].WorldPos.x) && 
             (gPlayer.WorldPos.y == gPortals[Counter].WorldPos.y))
         {
-            PortalFound = TRUE;
+            PortalFound = true;
 
             StopMusic();
 
-            gResetLocalCounters = TRUE;
+            gResetLocalCounters = true;
 
             gPlayer.WorldPos.x = gPortals[Counter].WorldDestination.x;
 
@@ -806,9 +805,9 @@ void PortalHandler(void)
         }
     }
 
-    if (PortalFound == FALSE)
+    if (PortalFound == false)
     {
-        ASSERT(FALSE, "Player is standing on a portal but we do not have a portal handler for it!");
+        ASSERT(false, "Player is standing on a portal but we do not have a portal handler for it!");
     }
 }
 
@@ -823,7 +822,7 @@ void RandomMonsterEncounter(void)
     LogMessageA(LL_INFO, "[%s] Transitioning from game state %d to %d.", __FUNCTION__, gPreviousGameState, gCurrentGameState);
 }
 
-__forceinline int InventoryItemCount(void)
+int InventoryItemCount(void)
 {
     int NumItems = 0;
 

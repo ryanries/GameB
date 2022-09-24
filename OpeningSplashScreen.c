@@ -15,7 +15,8 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "OpeningSplashScreen.h"
 
@@ -42,22 +43,24 @@ void DrawOpeningSplashScreen(void)
 
     // Blink is used to create the blinking effect for the little glyph at the bottom right-hand
     // corner of the splash screen which lets us know that the assets are still loading in the background.
-    static BOOL Blink = FALSE;
+    static bool Blink = false;
 
     // If we are not finished loading "essential" assets such as basic font and splash
     // screen noise, then exit immediately, because splash screen cannot be drawn yet.
     // LocalFrameCounter doesn't start counting until after this event is set.
-    if (WaitForSingleObject(gEssentialAssetsLoadedEvent, 0) != WAIT_OBJECT_0)
+    if (!EssentialAssetsAreLoaded())
     {
         // It's been over 30 seconds and the essential assets have not finished
         // loading yet. Something is wrong.
         if (gPerformanceData.TotalFramesRendered > (30*60))
         {
-            gGameIsRunning = FALSE;
-
             LogMessageA(LL_ERROR, "[%s] Essential assets not loaded yet after 30 seconds. Unable to continue!", __FUNCTION__);
 
+            #ifdef _WIN32
             MessageBoxA(gGameWindow, "Essential assets not loaded yet after 30 seconds. Unable to continue!", "Error", MB_OK | MB_ICONERROR);
+            #endif
+
+            exit(1);
         }
 
         return;
@@ -77,7 +80,7 @@ void DrawOpeningSplashScreen(void)
         
         AlphaAdjust = 0;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
     }
 
     // Clear the screen to black on each frame.
@@ -86,7 +89,7 @@ void DrawOpeningSplashScreen(void)
     // If assets are still being loaded in the background, then draw
     // a blinking cursor thingy at the bottom right of the screen to signify
     // that we are still busy loading assets in the background.
-    if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) != WAIT_OBJECT_0)
+    if (!AssetThreadCompleted())
     {
         BlitStringEx(
             "Loading...", 
@@ -115,11 +118,11 @@ void DrawOpeningSplashScreen(void)
     }
     else
     {
-        if (gInputEnabled == FALSE) 
+        if (gInputEnabled == false) 
         {
             // This allows the user to hit the Esc key to skip the rest of the 
             // opening splash screen, if they want.
-            gInputEnabled = TRUE; 
+            gInputEnabled = true; 
         }
     }
 
@@ -205,22 +208,18 @@ void DrawOpeningSplashScreen(void)
         // background thread is finished.
         if (LocalFrameCounter >= 360)
         {
-            if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
+            if (AssetThreadCompleted())
             {
-                DWORD ThreadExitCode = ERROR_SUCCESS;
-                
-                GetExitCodeThread(gAssetLoadingThreadHandle, &ThreadExitCode);
-
-                if (ThreadExitCode != ERROR_SUCCESS)
+                if (AssetThreadFailed())
                 {
-                    LogMessageA(LL_ERROR, "[%s] Asset Loading Thread failed with 0x%08lx!", __FUNCTION__, ThreadExitCode);
+                    LogMessageA(LL_ERROR, "[%s] Asset Loading Thread failed!", __FUNCTION__);
 
-                    gGameIsRunning = FALSE;
-
+                    #ifdef _WIN32
                     MessageBoxA(gGameWindow, "Asset loading failed! Check log file for more details.", "Error", MB_OK | MB_ICONERROR);
+                    #endif
 
-                    return;
-                }               
+                    exit(1);
+                }
 
                 gPreviousGameState = gCurrentGameState;
 
@@ -257,13 +256,9 @@ void PPI_OpeningSplashScreen(void)
 {
     if (gGameInput.EscapeKeyIsDown && !gGameInput.EscapeKeyWasDown)
     {
-        if (WaitForSingleObject(gAssetLoadingThreadHandle, 0) == WAIT_OBJECT_0)
+        if (AssetThreadCompleted())
         {
-            DWORD ThreadExitCode = ERROR_SUCCESS;
-
-            GetExitCodeThread(gAssetLoadingThreadHandle, &ThreadExitCode);
-
-            if (ThreadExitCode == ERROR_SUCCESS)
+            if (!AssetThreadFailed())
             {
                 StopAllGameSounds();
 
@@ -278,9 +273,8 @@ void PPI_OpeningSplashScreen(void)
             }
             else
             {
-                gGameIsRunning = FALSE;
-
-                LogMessageA(LL_ERROR, "[%s] Asset loading thread failed with error code 0x%08lx!", __FUNCTION__, ThreadExitCode);
+                LogMessageA(LL_ERROR, "[%s] Asset loading thread failed!", __FUNCTION__);
+                exit(1);
             }
         }
     }

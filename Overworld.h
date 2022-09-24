@@ -59,4 +59,4 @@ void PortalHandler(void);
 
 void RandomMonsterEncounter(void);
 
-__forceinline int InventoryItemCount(void);
+int InventoryItemCount(void);

@@ -225,9 +225,11 @@
   <ItemGroup>
     <ClCompile Include="Battle.c" />
     <ClCompile Include="CharacterNamingScreen.c" />
+    <ClCompile Include="CommonMain.c" />
     <ClCompile Include="ExitYesNoScreen.c" />
     <ClCompile Include="GamepadUnplugged.c" />
-    <ClCompile Include="Main.c" />
+    <ClCompile Include="Platform.c" />
+    <ClCompile Include="WindowsMain.c" />
     <ClCompile Include="miniz.c" />
     <ClCompile Include="NewGameAreYouSure.c" />
     <ClCompile Include="OpeningSplashScreen.c" />
@@ -239,16 +241,17 @@
   <ItemGroup>
     <ClInclude Include="Battle.h" />
     <ClInclude Include="CharacterNamingScreen.h" />
+    <ClInclude Include="CommonMain.h" />
     <ClInclude Include="ExitYesNoScreen.h" />
     <ClInclude Include="GamepadUnplugged.h" />
     <ClInclude Include="ItemDefinitions.h" />
     <ClInclude Include="ItemDeclarations.h" />
-    <ClInclude Include="Main.h" />
     <ClInclude Include="miniz.h" />
     <ClInclude Include="NewGameAreYouSure.h" />
     <ClInclude Include="OpeningSplashScreen.h" />
     <ClInclude Include="OptionsScreen.h" />
     <ClInclude Include="Overworld.h" />
+    <ClInclude Include="Platform.h" />
     <ClInclude Include="stb_vorbis.h" />
     <ClInclude Include="Tiles.h" />
     <ClInclude Include="TitleScreen.h" />

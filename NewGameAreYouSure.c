@@ -15,13 +15,14 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "NewGameAreYouSure.h"
 
-MENUITEM gMI_NewGameAreYouSure_Yes = { "Yes", (GAME_RES_WIDTH / 2) - ((3 * 6) / 2), 100, TRUE, MenuItem_NewGameAreYouSure_Yes };
+MENUITEM gMI_NewGameAreYouSure_Yes = { "Yes", (GAME_RES_WIDTH / 2) - ((3 * 6) / 2), 100, true, MenuItem_NewGameAreYouSure_Yes };
 
-MENUITEM gMI_NewGameAreYouSure_No = { "No", (GAME_RES_WIDTH / 2) - ((2 * 6) / 2), 115, TRUE, MenuItem_NewGameAreYouSure_No };
+MENUITEM gMI_NewGameAreYouSure_No = { "No", (GAME_RES_WIDTH / 2) - ((2 * 6) / 2), 115, true, MenuItem_NewGameAreYouSure_No };
 
 MENUITEM* gMI_NewGameAreYouSureItems[] = { &gMI_NewGameAreYouSure_Yes, &gMI_NewGameAreYouSure_No };
 
@@ -48,7 +49,7 @@ void DrawNewGameAreYouSure(void)
 
         AlphaAdjust = -256;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
 
         gMenu_NewGameAreYouSure.SelectedItem = 1;
     }
@@ -83,7 +84,7 @@ void DrawNewGameAreYouSure(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
     
     BlitStringEx(

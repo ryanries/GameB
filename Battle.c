@@ -1,4 +1,5 @@
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "Battle.h"
 
@@ -71,18 +72,18 @@ char gBattleTextLine2[64];
 char gBattleTextLine3[64];
 
 // Is a "surprise attack" if this is set to true during random monster generation.
-BOOL gSurpriseAttack;
+bool gSurpriseAttack;
 
 // Did the attack land?
-BOOL gHit;
+bool gHit;
 
 // If so, how much damage did it do?
 int gDamageDealt;
 
 // Was it a critical hit?
-BOOL gCritical;
+bool gCritical;
 
-BOOL gWaitOnDialog;
+bool gWaitOnDialog;
 
 // When the monster dies
 int gMonsterFade;
@@ -99,15 +100,15 @@ uint64_t gWindowShake;
 
 
 
-MENUITEM gMI_BattleAction_Attack = { "Attack", 142, 200, TRUE, MenuItem_BattleAction_Attack };
+MENUITEM gMI_BattleAction_Attack = { "Attack", 142, 200, true, MenuItem_BattleAction_Attack };
 
-MENUITEM gMI_BattleAction_Spell  = { "Spell",  142, 210, TRUE, MenuItem_BattleAction_Spell };
+MENUITEM gMI_BattleAction_Spell  = { "Spell",  142, 210, true, MenuItem_BattleAction_Spell };
 
-MENUITEM gMI_BattleAction_Defend = { "Defend", 208, 200, TRUE, MenuItem_BattleAction_Defend };
+MENUITEM gMI_BattleAction_Defend = { "Defend", 208, 200, true, MenuItem_BattleAction_Defend };
 
-MENUITEM gMI_BattleAction_Item   = { "Item",   208, 210, TRUE, MenuItem_BattleAction_Item };
+MENUITEM gMI_BattleAction_Item   = { "Item",   208, 210, true, MenuItem_BattleAction_Item };
 
-MENUITEM gMI_BattleAction_Run    = { "Run",    208, 220, TRUE, MenuItem_BattleAction_Run };
+MENUITEM gMI_BattleAction_Run    = { "Run",    208, 220, true, MenuItem_BattleAction_Run };
 
 MENUITEM* gMI_PlayerBattleActionItems[] = { 
     &gMI_BattleAction_Attack, 
@@ -125,9 +126,7 @@ MENU gMenu_PlayerBattleAction = { "Your action:", 0, _countof(gMI_PlayerBattleAc
 
 void GenerateMonster(void)
 {
-    unsigned int RandomValue = 0;
-
-    rand_s(&RandomValue);
+    unsigned int RandomValue = rand();
 
     // Make a copy of the monster for the player to fight; don't modify the template monster.
     memcpy(&gCurrentMonster, gEasyOutdoorMonsters[RandomValue % _countof(gEasyOutdoorMonsters)], sizeof(MONSTER));
@@ -148,7 +147,7 @@ void GenerateMonster(void)
     // the following text messages would always be coupled to the type of monster 
     // we previous rolled. We want to mix-and-match as much as possible.
 
-    rand_s(&RandomValue);    
+    RandomValue = rand();
 
     switch (RandomValue % 5)
     {
@@ -184,7 +183,7 @@ void GenerateMonster(void)
         }
         default:
         {
-            ASSERT(FALSE, "RandomValue mod X exceeded the number of random battle texts!");
+            ASSERT(false, "RandomValue mod X exceeded the number of random battle texts!");
         }
     }
 
@@ -192,13 +191,13 @@ void GenerateMonster(void)
 
 
     // Re-roll another random value to determine whether the monster gets to attack first or not.
-    rand_s(&RandomValue);
+    RandomValue = rand();
 
     if (RandomValue % 5 == 0)
     {
-        gSurpriseAttack = TRUE;        
+        gSurpriseAttack = true;        
 
-        rand_s(&RandomValue);
+        RandomValue = rand();
 
         if (RandomValue % 2 == 0)
         {
@@ -211,9 +210,9 @@ void GenerateMonster(void)
     }
     else
     {
-        gSurpriseAttack = FALSE;
+        gSurpriseAttack = false;
 
-        rand_s(&RandomValue);
+        RandomValue = rand();
 
         if (RandomValue % 2 == 0)
         {
@@ -228,7 +227,7 @@ void GenerateMonster(void)
     ASSERT(strlen(gBattleTextLine2) > 0, "Error generating battle text!")
 
     // Re-roll to select a random monster emote.
-    rand_s(&RandomValue);
+    RandomValue = rand();
 
     sprintf_s(gBattleTextLine3, 
         sizeof(gBattleTextLine3), 
@@ -275,7 +274,7 @@ void PPI_Battle(void)
                 }
                 default:
                 {
-                    ASSERT(FALSE, "Wrong number of menu items?")
+                    ASSERT(false, "Wrong number of menu items?")
                 }
             }
         }
@@ -311,7 +310,7 @@ void PPI_Battle(void)
                 }
                 default:
                 {
-                    ASSERT(FALSE, "Wrong number of menu items?");
+                    ASSERT(false, "Wrong number of menu items?");
                 }
             }
         }
@@ -343,7 +342,7 @@ void PPI_Battle(void)
                 }
                 default:
                 {
-                    ASSERT(FALSE, "Wrong number of menu items?");
+                    ASSERT(false, "Wrong number of menu items?");
                 }
             }
         }
@@ -376,7 +375,7 @@ void PPI_Battle(void)
                 }
                 default:
                 {
-                    ASSERT(FALSE, "Wrong number of menu items?");
+                    ASSERT(false, "Wrong number of menu items?");
                 }
             }
         }
@@ -439,7 +438,7 @@ void PPI_Battle(void)
                     {
                         // Here the monster needs to decide what it wants to do!
 
-                        rand_s(&RandomValue);
+                        RandomValue = rand();
 
                         RandomValue %= 101;
 
@@ -460,13 +459,13 @@ void PPI_Battle(void)
                         }
                         else if (gCurrentMonster.SpellChance >= (int)RandomValue)
                         {
-                            BOOL CanCastSpell = FALSE;
+                            bool CanCastSpell = false;
 
                             for (int spell = 0; spell < _countof(gCurrentMonster.KnownSpells) - 1; spell++)
                             {
                                 if (gCurrentMonster.KnownSpells[spell].Cost <= gCurrentMonster.MP)
                                 {
-                                    CanCastSpell = TRUE;
+                                    CanCastSpell = true;
                                 }
                             }
 
@@ -556,9 +555,9 @@ void DrawBattle(void)
 
         AlphaAdjust = -256;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
 
-        gWaitOnDialog = TRUE;
+        gWaitOnDialog = true;
 
         BattleTextLine1CharactersToShow = 0;
 
@@ -572,7 +571,7 @@ void DrawBattle(void)
 
         gPreviousBattleState = BATTLESTATE_INTRO;
 
-        gCritical = FALSE;
+        gCritical = false;
 
         gMonsterShake = 0;
 
@@ -634,16 +633,16 @@ void DrawBattle(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
 
     if (LocalFrameCounter == 0)
     {
         StopMusic();
 
-        PlayGameMusic(&gMusicBattleIntro01, FALSE, TRUE);
+        PlayGameMusic(&gMusicBattleIntro01, false, true);
 
-        PlayGameMusic(&gMusicBattle01, TRUE, FALSE);
+        PlayGameMusic(&gMusicBattle01, true, false);
         
         GenerateMonster();
 
@@ -665,7 +664,7 @@ void DrawBattle(void)
             }
             default:
             {
-                ASSERT(FALSE, "Random monster encountered on an unknown tile!");
+                ASSERT(false, "Random monster encountered on an unknown tile!");
             }
         }
     }    
@@ -675,7 +674,7 @@ void DrawBattle(void)
     {
         unsigned int RandomValue = 0; 
 
-        gWaitOnDialog = TRUE; 
+        gWaitOnDialog = true; 
 
         BattleTextLine1CharactersToShow = 0;
         
@@ -718,7 +717,7 @@ void DrawBattle(void)
                 else
                 {
                     // Re-roll to select a random monster emote.
-                    rand_s(&RandomValue);
+                    RandomValue = rand();
 
                     sprintf_s(gBattleTextLine3, sizeof(gBattleTextLine3), "%s: %s", gCurrentMonster.Name, gCurrentMonster.Emotes[(RandomValue % 3)]);
                 }
@@ -737,7 +736,7 @@ void DrawBattle(void)
             }
             case BATTLESTATE_MONSTERTHINKING:
             {
-                rand_s(&RandomValue);
+                RandomValue = rand();
 
                 if (RandomValue % 2 == 0)
                 {
@@ -748,7 +747,7 @@ void DrawBattle(void)
                     sprintf_s(gBattleTextLine1, sizeof(gBattleTextLine1), "%s changes its stance...", gCurrentMonster.Name);
                 }
 
-                rand_s(&RandomValue);
+                RandomValue = rand();
 
                 if (RandomValue % 2 == 0)
                 {
@@ -759,7 +758,7 @@ void DrawBattle(void)
                     sprintf_s(gBattleTextLine2, sizeof(gBattleTextLine2), "You're unsure of what %s is thinking...", gCurrentMonster.Name);
                 }
 
-                rand_s(&RandomValue);
+                RandomValue = rand();
 
                 if (RandomValue % 2 == 0)
                 {
@@ -782,11 +781,11 @@ void DrawBattle(void)
 
                 StopMusic();
 
-                PlayGameMusic(&gMusicVictoryIntro, FALSE, TRUE);
+                PlayGameMusic(&gMusicVictoryIntro, false, true);
 
-                PlayGameMusic(&gMusicVictoryLoop, TRUE, FALSE);
+                PlayGameMusic(&gMusicVictoryLoop, true, false);
 
-                rand_s(&RandomValue);
+                RandomValue = rand();
 
                 if (RandomValue % 3 == 0)
                 {
@@ -830,7 +829,7 @@ void DrawBattle(void)
                 {
                     PlayGameSound(&gSoundMiss01);
 
-                    rand_s(&RandomValue);
+                    RandomValue = rand();
 
                     if (RandomValue % 2 == 0)
                     {
@@ -844,7 +843,7 @@ void DrawBattle(void)
 
                 if (gPlayer.HP > (gPlayer.MaxHP * 0.20f))
                 {
-                    rand_s(&RandomValue);
+                    RandomValue = rand();
 
                     if (RandomValue % 3 == 0)
                     {
@@ -861,7 +860,7 @@ void DrawBattle(void)
                 }
                 else
                 {
-                    rand_s(&RandomValue);
+                    RandomValue = rand();
 
                     if (RandomValue % 2 == 0)
                     {
@@ -889,7 +888,7 @@ void DrawBattle(void)
             }
             default:
             {
-                ASSERT(FALSE, "BattleState not implemented!");
+                ASSERT(false, "BattleState not implemented!");
             }
         }
     }
@@ -981,7 +980,7 @@ void DrawBattle(void)
     }
     else
     {
-        ASSERT(FALSE, "BattleScene is NULL!");
+        ASSERT(false, "BattleScene is NULL!");
     }
 
     // Draw the monster.
@@ -1056,7 +1055,7 @@ void DrawBattle(void)
     } 
     else
     {
-        ASSERT(FALSE, "Monster bitmap is NULL!");
+        ASSERT(false, "Monster bitmap is NULL!");
     }
     
     // Draw the window where the battle text will go.
@@ -1151,7 +1150,7 @@ void DrawBattle(void)
     // Once the third line of text's animation is complete, we are ready to start fighting.
     if (strlen(BattleTextLine3Scratch) == strlen(gBattleTextLine3))
     {
-        gWaitOnDialog = FALSE;
+        gWaitOnDialog = false;
 
         switch (gBattleState)
         {
@@ -1247,19 +1246,19 @@ void MenuItem_BattleAction_Attack(void)
     
     gBattleState = BATTLESTATE_PLAYERATTACKING;
 
-    gWaitOnDialog = TRUE;
+    gWaitOnDialog = true;
     
     // First decide whether we landed the blow.    
 
-    rand_s(&LuckFactor);
+    LuckFactor = rand();
 
     if ((gPlayer.Dexterity + (LuckFactor % (gPlayer.Luck + 1)) >= gCurrentMonster.Evasion))
     {
-        gHit = TRUE;
+        gHit = true;
     }
     else
     {
-        gHit = FALSE;
+        gHit = false;
     }
 
     if (gHit)
@@ -1268,17 +1267,17 @@ void MenuItem_BattleAction_Attack(void)
 
         gDamageDealt = (gPlayer.Strength + gPlayer.Inventory[EQUIPPED_WEAPON].Damage) - gCurrentMonster.Defense;
 
-        rand_s(&LuckFactor);
+        LuckFactor = rand();
 
         LuckFactor %= 100;
 
         if ((gPlayer.Luck + gPlayer.Dexterity) > LuckFactor)
         {
-            gCritical = TRUE;
+            gCritical = true;
         }
         else
         {
-            gCritical = FALSE;
+            gCritical = false;
         }
 
         // A critical hit is basically a free second hit.
@@ -1324,19 +1323,19 @@ void MonsterAttack(void)
 
     gBattleState = BATTLESTATE_MONSTERATTACKING;
 
-    gWaitOnDialog = TRUE;
+    gWaitOnDialog = true;
 
     // First decide whether we landed the blow.    
 
-    rand_s(&LuckFactor);
+    LuckFactor = rand();
 
     if ((gCurrentMonster.Dexterity + (LuckFactor % (gCurrentMonster.Luck + 1)) >= gPlayer.Evasion))
     {
-        gHit = TRUE;
+        gHit = true;
     }
     else
     {
-        gHit = FALSE;
+        gHit = false;
     }
 
     if (gHit)
@@ -1345,17 +1344,17 @@ void MonsterAttack(void)
 
         gDamageDealt = (gCurrentMonster.Strength + gCurrentMonster.BaseDamage) - gPlayer.Defense;
 
-        rand_s(&LuckFactor);
+        LuckFactor = rand();
 
         LuckFactor %= 100;
 
         if ((gCurrentMonster.Luck + gCurrentMonster.Dexterity) > LuckFactor)
         {
-            gCritical = TRUE;
+            gCritical = true;
         }
         else
         {
-            gCritical = FALSE;
+            gCritical = false;
         }
 
         // A critical hit is basically a free second hit.

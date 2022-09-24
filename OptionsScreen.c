@@ -15,17 +15,18 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "OptionsScreen.h"
 
-MENUITEM gMI_OptionsScreen_SFXVolume = { "SFX Volume:", (GAME_RES_WIDTH / 2) - ((11 * 6) / 2) - 16, 100, TRUE, MenuItem_OptionsScreen_SFXVolume };
+MENUITEM gMI_OptionsScreen_SFXVolume = { "SFX Volume:", (GAME_RES_WIDTH / 2) - ((11 * 6) / 2) - 16, 100, true, MenuItem_OptionsScreen_SFXVolume };
 
-MENUITEM gMI_OptionsScreen_MusicVolume = { "Music Volume:", (GAME_RES_WIDTH / 2) - ((13 * 6) / 2) - 16, 115, TRUE, MenuItem_OptionsScreen_MusicVolume };
+MENUITEM gMI_OptionsScreen_MusicVolume = { "Music Volume:", (GAME_RES_WIDTH / 2) - ((13 * 6) / 2) - 16, 115, true, MenuItem_OptionsScreen_MusicVolume };
 
-MENUITEM gMI_OptionsScreen_ScreenSize = { "Screen Size:", (GAME_RES_WIDTH / 2) - ((12 * 6) / 2) - 16, 130, TRUE, MenuItem_OptionsScreen_ScreenSize };
+MENUITEM gMI_OptionsScreen_ScreenSize = { "Screen Size:", (GAME_RES_WIDTH / 2) - ((12 * 6) / 2) - 16, 130, true, MenuItem_OptionsScreen_ScreenSize };
 
-MENUITEM gMI_OptionsScreen_Back = { "Back", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2) - 16, 145, TRUE, MenuItem_OptionsScreen_Back };
+MENUITEM gMI_OptionsScreen_Back = { "Back", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2) - 16, 145, true, MenuItem_OptionsScreen_Back };
 
 MENUITEM* gMI_OptionsScreenItems[] = { &gMI_OptionsScreen_SFXVolume, &gMI_OptionsScreen_MusicVolume, &gMI_OptionsScreen_ScreenSize, &gMI_OptionsScreen_Back };
 
@@ -56,7 +57,7 @@ void DrawOptionsScreen(void)
 
         AlphaAdjust = -256;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -89,12 +90,12 @@ void DrawOptionsScreen(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
 
     for (int MenuItem = 0; MenuItem < gMenu_OptionsScreen.ItemCount; MenuItem++)
     {
-        if (gMenu_OptionsScreen.Items[MenuItem]->Enabled == TRUE)
+        if (gMenu_OptionsScreen.Items[MenuItem]->Enabled == true)
         {
             BlitStringEx(
                 gMenu_OptionsScreen.Items[MenuItem]->Name,
@@ -275,7 +276,7 @@ void MenuItem_OptionsScreen_Back(void)
         gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Name,
         gMenu_OptionsScreen.Name);
 
-    if (SaveRegistryParameters() != ERROR_SUCCESS)
+    if (SaveSettings() != ERROR_SUCCESS)
     {
         LogMessageA(LL_ERROR, "[%s] SaveRegistryParameters failed!", __FUNCTION__);
     }
@@ -302,11 +303,17 @@ void MenuItem_OptionsScreen_ScreenSize(void)
         gPerformanceData.CurrentScaleFactor = 1;
     }
 
-    InvalidateRect(gGameWindow, NULL, TRUE);
+    #ifdef _WIN32
+    InvalidateRect(gGameWindow, NULL, true);
+    #endif
 }
 
 void MenuItem_OptionsScreen_MusicVolume(void)
 {
+    #ifndef _WIN32
+    pa_threaded_mainloop_lock(gPulseLoop);
+    #endif
+
     if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
     {
         gMusicVolume -= 0.1f;
@@ -326,11 +333,21 @@ void MenuItem_OptionsScreen_MusicVolume(void)
         gMusicVolume = 0.0f;
     }
 
+    #ifndef _WIN32
+    pa_threaded_mainloop_unlock(gPulseLoop);
+    #endif
+
+    #ifdef _WIN32
     gXAudioMusicSourceVoice->lpVtbl->SetVolume(gXAudioMusicSourceVoice, gMusicVolume, XAUDIO2_COMMIT_NOW);
+    #endif
 }
 
 void MenuItem_OptionsScreen_SFXVolume(void)
 {
+    #ifndef _WIN32
+    pa_threaded_mainloop_lock(gPulseLoop);
+    #endif
+
     if (gGameInput.LeftKeyIsDown && !gGameInput.LeftKeyWasDown)
     {
         gSFXVolume -= 0.1f;
@@ -350,8 +367,14 @@ void MenuItem_OptionsScreen_SFXVolume(void)
         gSFXVolume = 0.0f;
     }
 
+    #ifndef _WIN32
+    pa_threaded_mainloop_unlock(gPulseLoop);
+    #endif
+
+    #ifdef _WIN32
     for (uint8_t Counter = 0; Counter < NUMBER_OF_SFX_SOURCE_VOICES; Counter++)
     {
         gXAudioSFXSourceVoice[Counter]->lpVtbl->SetVolume(gXAudioSFXSourceVoice[Counter], gSFXVolume, XAUDIO2_COMMIT_NOW);
     }
+    #endif
 }
