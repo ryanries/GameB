@@ -355,3 +355,13 @@ MigrationBackup/
 .ionide/
 Assets.dat
 *.dll
+
+# Visual Studio Code
+.vscode
+
+# Linux Binaries
+GameB
+MyMiniz
+
+# Build directory
+build/

@@ -15,19 +15,19 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
-
+#include "CommonMain.h"
+#include "Platform.h"
 #include "TitleScreen.h"
 
-MENUITEM gMI_ResumeGame = { "Resume", (GAME_RES_WIDTH / 2) - ((6 * 6) / 2), 100, FALSE, MenuItem_TitleScreen_Resume };
+MENUITEM gMI_ResumeGame = { "Resume", (GAME_RES_WIDTH / 2) - ((6 * 6) / 2), 100, false, MenuItem_TitleScreen_Resume };
 
-MENUITEM gMI_StartNewGame = { "Start New Game", (GAME_RES_WIDTH / 2) - ((14 * 6) / 2), 115, TRUE, MenuItem_TitleScreen_StartNew };
+MENUITEM gMI_StartNewGame = { "Start New Game", (GAME_RES_WIDTH / 2) - ((14 * 6) / 2), 115, true, MenuItem_TitleScreen_StartNew };
 
-MENUITEM gMI_LoadSavedGame = { "Load Saved Game", (GAME_RES_WIDTH / 2) - ((15 * 6) / 2), 130, TRUE, MenuItem_TitleScreen_LoadSavedGame };
+MENUITEM gMI_LoadSavedGame = { "Load Saved Game", (GAME_RES_WIDTH / 2) - ((15 * 6) / 2), 130, true, MenuItem_TitleScreen_LoadSavedGame };
 
-MENUITEM gMI_Options = { "Options", (GAME_RES_WIDTH / 2) - ((7 * 6) / 2), 145, TRUE, MenuItem_TitleScreen_Options };
+MENUITEM gMI_Options = { "Options", (GAME_RES_WIDTH / 2) - ((7 * 6) / 2), 145, true, MenuItem_TitleScreen_Options };
 
-MENUITEM gMI_Exit = { "Exit", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2), 160, TRUE, MenuItem_TitleScreen_Exit };
+MENUITEM gMI_Exit = { "Exit", (GAME_RES_WIDTH / 2) - ((4 * 6) / 2), 160, true, MenuItem_TitleScreen_Exit };
 
 MENUITEM* gMI_TitleScreenItems[] = { &gMI_ResumeGame, &gMI_StartNewGame, &gMI_LoadSavedGame, &gMI_Options, &gMI_Exit };
 
@@ -55,20 +55,20 @@ void DrawTitleScreen(void)
 
         AlphaAdjust = -256;
 
-        if (gPlayer.Active == TRUE)
+        if (gPlayer.Active == true)
         {
             gMenu_TitleScreen.SelectedItem = 0;
 
-            gMI_ResumeGame.Enabled = TRUE;
+            gMI_ResumeGame.Enabled = true;
         }
         else
         {
             gMenu_TitleScreen.SelectedItem = 1;
 
-            gMI_ResumeGame.Enabled = FALSE;
+            gMI_ResumeGame.Enabled = false;
         }
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -101,7 +101,7 @@ void DrawTitleScreen(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
 
     //    AARRGGBB ?
@@ -120,7 +120,7 @@ void DrawTitleScreen(void)
 
     for (uint8_t MenuItem = 0; MenuItem < gMenu_TitleScreen.ItemCount; MenuItem++)
     {
-        if (gMenu_TitleScreen.Items[MenuItem]->Enabled == TRUE)
+        if (gMenu_TitleScreen.Items[MenuItem]->Enabled == true)
         {
             BlitStringEx(
                 gMenu_TitleScreen.Items[MenuItem]->Name,
@@ -167,7 +167,7 @@ void PPI_TitleScreen(void)
             // Wrap around to the Resume button, if it is available.
             // Otherwise, wrap around to the Start New Game button.
 
-            if (gPlayer.Active == TRUE)
+            if (gPlayer.Active == true)
             {                
                 gMenu_TitleScreen.SelectedItem = 0;
             }
@@ -187,13 +187,13 @@ void PPI_TitleScreen(void)
 
         if (gMenu_TitleScreen.SelectedItem == 0)
         {
-            ASSERT(gPlayer.Active == TRUE, "Resume button is selected, yet no game is currently in progress!?");
+            ASSERT(gPlayer.Active == true, "Resume button is selected, yet no game is currently in progress!?");
 
             gMenu_TitleScreen.SelectedItem = gMenu_TitleScreen.ItemCount - 1;
         }
         else if (gMenu_TitleScreen.SelectedItem == 1)
         {
-            if (gPlayer.Active == TRUE)
+            if (gPlayer.Active == true)
             {
                 gMenu_TitleScreen.SelectedItem--;
             }
@@ -241,7 +241,7 @@ void MenuItem_TitleScreen_StartNew(void)
 {
     ASSERT(gCurrentGameState == GAMESTATE_TITLESCREEN, "Invalid game state!");
 
-    if (gPlayer.Active == TRUE)
+    if (gPlayer.Active == true)
     {
         gPreviousGameState = gCurrentGameState;
 

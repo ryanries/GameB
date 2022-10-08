@@ -15,13 +15,14 @@
 // A copy of that license can be found in the 'Assets' directory.
 // stb_vorbis by Sean Barrett is public domain and a copy of its license can be found in the stb_vorbis.c file.
 
-#include "Main.h"
+#include "CommonMain.h"
+#include "Platform.h"
 
 #include "ExitYesNoScreen.h"
 
-MENUITEM gMI_ExitYesNo_Yes = { "Yes", (GAME_RES_WIDTH / 2) - ((3 * 6) / 2), 100, TRUE, MenuItem_ExitYesNo_Yes };
+MENUITEM gMI_ExitYesNo_Yes = { "Yes", (GAME_RES_WIDTH / 2) - ((3 * 6) / 2), 100, true, MenuItem_ExitYesNo_Yes };
 
-MENUITEM gMI_ExitYesNo_No = { "No",   (GAME_RES_WIDTH / 2) - ((2 * 6) / 2), 115, TRUE, MenuItem_ExitYesNo_No };
+MENUITEM gMI_ExitYesNo_No = { "No",   (GAME_RES_WIDTH / 2) - ((2 * 6) / 2), 115, true, MenuItem_ExitYesNo_No };
 
 MENUITEM* gMI_ExitYesNoItems[] = { &gMI_ExitYesNo_Yes, &gMI_ExitYesNo_No };
 
@@ -48,7 +49,7 @@ void DrawExitYesNoScreen(void)
 
         AlphaAdjust = -256;
 
-        gInputEnabled = FALSE;
+        gInputEnabled = false;
     }
 
     memset(gBackBuffer.Memory, 0, GAME_DRAWING_AREA_MEMORY_SIZE);
@@ -80,7 +81,7 @@ void DrawExitYesNoScreen(void)
     // input to be enabled again. We should enable it sooner so the kids with fast reflexes can work the menus quickly.
     if (LocalFrameCounter == REENABLE_INPUT_AFTER_X_FRAMES_DELAY)
     {
-        gInputEnabled = TRUE;
+        gInputEnabled = true;
     }
     
 
@@ -177,7 +178,7 @@ void MenuItem_ExitYesNo_Yes(void)
 
     LogMessageA(LL_INFO, "[%s] Player chose 'Yes' when asked 'Do you really want to exit the game?'", __FUNCTION__);
 
-    SendMessageA(gGameWindow, WM_CLOSE, 0, 0);
+    exit(0);
 }
 
 void MenuItem_ExitYesNo_No(void)

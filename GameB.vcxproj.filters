@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.c">
+    <ClCompile Include="WindowsMain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="OpeningSplashScreen.c">
@@ -51,11 +51,14 @@
     <ClCompile Include="NewGameAreYouSure.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Platform.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CommonMain.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Main.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="CharacterNamingScreen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -96,6 +99,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ItemDefinitions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonMain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
