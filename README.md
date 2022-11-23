@@ -1,3 +1,5 @@
+<img alt="GitHub all releases" src="https://img.shields.io/github/downloads/ryanries/GameB/total">
+
 # GameB
 
 Watch the series on YouTube [here.](https://www.youtube.com/playlist?list=PLlaINRtydtNWuRfd4Ra3KeD6L9FP_tDE7)
