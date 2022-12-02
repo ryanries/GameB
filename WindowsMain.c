@@ -1200,7 +1200,13 @@ void RenderFrameGraphics(void)
         DrawDebugInfo();
     }
 
-    HDC DeviceContext = GetDC(gGameWindow);
+    // 12/2/2022: realized there is no need to reacquire this HDC each and every frame, we can just create the DC once, make it static, reuse it.
+    static HDC DeviceContext = NULL;
+    
+    if (!DeviceContext)
+    {
+        DeviceContext = GetDC(gGameWindow);
+    }
 
 #ifdef OPENGL
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1277,7 +1283,7 @@ void RenderFrameGraphics(void)
 
 #endif
 
-    ReleaseDC(gGameWindow, DeviceContext);
+    //ReleaseDC(gGameWindow, DeviceContext);
 }
 
 void FindFirstConnectedGamepad(void)
